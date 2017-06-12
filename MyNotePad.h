@@ -1,19 +1,20 @@
 #pragma once
+#include <list>
 
-const int MMD_PADDING = 20;							// padding 20px
+const int MNP_PADDING = 20;							// padding 20px
 
-LPCTSTR	  MMD_FONTFACE = L"Microsoft Yahei UI";		// L"Lucida Console";
-const int MMD_FONTSIZE = 30;						// 25;
-const int MMD_LINEHEIGHT = MMD_FONTSIZE;
+LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI";		// L"Lucida Console";
+const int MNP_FONTSIZE = 30;						// 25;
+const int MNP_LINEHEIGHT = MNP_FONTSIZE;
 
-const int MMD_BGCOLOR_EDIT = 0x00EEEEEE;
-const int MMD_BGCOLOR_PREVIEW = 0x00F7F7F7;
-const int MMD_BGCOLOR_SEL = 0x00CCCCCC;
-const int MMD_FONTCOLOR = 0x00444444;
+const int MNP_BGCOLOR_EDIT = 0x00EEEEEE;
+const int MNP_BGCOLOR_PREVIEW = 0x00F7F7F7;
+const int MNP_BGCOLOR_SEL = 0x00CCCCCC;
+const int MNP_FONTCOLOR = 0x00444444;
 
-const int MMD_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
-const int MMD_SCROLLBAR_COLOR = 0x00D1D1D1;
-const int MMD_SCROLLBAR_WIDTH = 10;
+const int MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
+const int MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
+const int MNP_SCROLLBAR_WIDTH = 10;
 
 //---------------------------------
 
@@ -21,13 +22,13 @@ std::list<TCHAR> all;					// all text
 std::list<TCHAR>::iterator caret = all.begin();			// current position = end of selection
 std::list<TCHAR>::iterator sel_begin = all.begin();		// beginning of selection 
 
-int caret_x = MMD_PADDING;				// caret position
-int caret_y = MMD_PADDING;
+int caret_x = MNP_PADDING;				// caret position
+int caret_y = MNP_PADDING;
 int begin_x;
 int begin_y;
 
 int textView_width = 0;
-int textView_height = MMD_LINEHEIGHT;
+int textView_height = MNP_LINEHEIGHT;
 int xoffset = 0;						// offset-x of textView
 int yoffset = 0;						// offset-y of textView
 
@@ -76,14 +77,14 @@ bool removeSelectedChars() {
 // repaint edit area
 void repaintView(HDC hdc) {
 	caret_x = begin_x = 0;
-	caret_y = begin_y = MMD_PADDING;
+	caret_y = begin_y = MNP_PADDING;
 
 	int BUFFSIZE = all.size() + 1;
 	TCHAR* text = new TCHAR[BUFFSIZE];
 
 	{
 		int char_width;
-		Font f(MMD_FONTSIZE, MMD_FONTFACE);
+		Font f(MNP_FONTSIZE, MNP_FONTFACE);
 		f.bind(hdc);	// for GetCharWidth32W()
 
 		bool bCaretFound = false;
@@ -104,7 +105,7 @@ void repaintView(HDC hdc) {
 			if (!bCaretFound) {
 				switch (*p) {				// calculate caret position
 				case '\n':
-					caret_y += MMD_LINEHEIGHT;				// line height
+					caret_y += MNP_LINEHEIGHT;				// line height
 					caret_x = 0;							// new line
 					break;
 				default:
@@ -117,7 +118,7 @@ void repaintView(HDC hdc) {
 				if (!bBeginFound) {
 					switch (*p) {			// calculate sel_begin position
 					case '\n':
-						begin_y += MMD_LINEHEIGHT;			// line height
+						begin_y += MNP_LINEHEIGHT;			// line height
 						begin_x = 0;						// new line
 						break;
 					default:
@@ -134,52 +135,52 @@ void repaintView(HDC hdc) {
 	// calculate width & height
 	RECT rc;
 	GetClientRect(hWnd, &rc);
-	Font tf(MMD_FONTSIZE, MMD_FONTFACE);
-	tf.bind(hdc).calcPrintWidthHeight(text, BUFFSIZE - 1, &textView_width, &textView_height).unbind();
+	Font tf(MNP_FONTSIZE, MNP_FONTFACE);
+	tf.bind(hdc).calcPrintArea(text, BUFFSIZE - 1, &textView_width, &textView_height).unbind();
 	int canvasWidth = (rc.right - rc.left) / 2 + textView_width;
 	int canvasHeight = rc.bottom - rc.top + textView_height;
 
 	delete textView;
 	textView = new MemDC(hdc, canvasWidth, canvasHeight);
-	Font f(MMD_FONTSIZE, MMD_FONTFACE);						// set font
-	f.setColor(MMD_FONTCOLOR).bind(*textView);
+	Font f(MNP_FONTSIZE, MNP_FONTFACE);						// set font
+	f.setColor(MNP_FONTCOLOR).bind(*textView);
 
 	// fill background
-	GDIUtil::fill(*textView, MMD_BGCOLOR_EDIT, 0, 0, canvasWidth, canvasHeight);
+	GDIUtil::fill(*textView, MNP_BGCOLOR_EDIT, 0, 0, canvasWidth, canvasHeight);
 
 	// fill selection background
 	if (sel_begin != caret) {
 		if (caret_y == begin_y && caret_x > begin_x)		// single line && forward
-			GDIUtil::fill(*textView, MMD_BGCOLOR_SEL, begin_x, begin_y, caret_x - begin_x, MMD_LINEHEIGHT);
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, begin_x, begin_y, caret_x - begin_x, MNP_LINEHEIGHT);
 		else if (caret_y > begin_y)							// multi lines && forward
 		{
-			GDIUtil::fill(*textView, MMD_BGCOLOR_SEL, begin_x, begin_y, canvasWidth, MMD_LINEHEIGHT);
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, begin_x, begin_y, canvasWidth, MNP_LINEHEIGHT);
 
-			GDIUtil::fill(*textView, MMD_BGCOLOR_SEL, 0, begin_y + MMD_LINEHEIGHT,
-				canvasWidth, caret_y - begin_y - MMD_LINEHEIGHT);
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, begin_y + MNP_LINEHEIGHT,
+				canvasWidth, caret_y - begin_y - MNP_LINEHEIGHT);
 
-			GDIUtil::fill(*textView, MMD_BGCOLOR_SEL, 0, caret_y, caret_x, MMD_LINEHEIGHT);
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, caret_y, caret_x, MNP_LINEHEIGHT);
 		}
 		else if (caret_y == begin_y && caret_x < begin_x)	// single line && backward
-			GDIUtil::fill(*textView, MMD_BGCOLOR_SEL, begin_x, begin_y, caret_x - begin_x, MMD_LINEHEIGHT);
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, begin_x, begin_y, caret_x - begin_x, MNP_LINEHEIGHT);
 		else if (caret_y < begin_y)							// multi lines && backward
 		{
-			GDIUtil::fill(*textView, MMD_BGCOLOR_SEL, caret_x, caret_y, canvasWidth, MMD_LINEHEIGHT);
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, caret_x, caret_y, canvasWidth, MNP_LINEHEIGHT);
 
-			GDIUtil::fill(*textView, MMD_BGCOLOR_SEL, 0, caret_y + MMD_LINEHEIGHT,
-				canvasWidth, begin_y - caret_y - MMD_LINEHEIGHT);
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, caret_y + MNP_LINEHEIGHT,
+				canvasWidth, begin_y - caret_y - MNP_LINEHEIGHT);
 
-			GDIUtil::fill(*textView, MMD_BGCOLOR_SEL, 0, begin_y, begin_x, MMD_LINEHEIGHT);
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, begin_y, begin_x, MNP_LINEHEIGHT);
 		}
 	}
 
 	// print text
-	f.print(text, BUFFSIZE - 1, 0, MMD_PADDING, textView_width, textView_height).unbind();
+	f.print(text, BUFFSIZE - 1, 0, MNP_PADDING, textView_width, textView_height).unbind();
 
 	delete[] text;
 
 	// darw caret
-	GDIUtil::line(*textView, MMD_FONTCOLOR, caret_x, caret_y, caret_x, caret_y + MMD_LINEHEIGHT);
+	GDIUtil::line(*textView, MNP_FONTCOLOR, caret_x, caret_y, caret_x, caret_y + MNP_LINEHEIGHT);
 }
 
 void OnPaint(HDC hdc) {
@@ -193,23 +194,23 @@ void OnPaint(HDC hdc) {
 	MemDC mdc = MemDC(hdc, rc.right - rc.left, rc.bottom - rc.top);
 
 	// background color of edit area
-	GDIUtil::fill(mdc, MMD_BGCOLOR_EDIT, 0, 0, ClientWidth, ClientHeight);
+	GDIUtil::fill(mdc, MNP_BGCOLOR_EDIT, 0, 0, ClientWidth, ClientHeight);
 
 	// paste textView
 	if (textView == nullptr) repaintView(mdc);
-	BitBlt(mdc, MMD_PADDING, 0, ClientWidth, ClientHeight, *textView, xoffset, yoffset, SRCCOPY);
+	BitBlt(mdc, MNP_PADDING, 0, ClientWidth, ClientHeight, *textView, xoffset, yoffset, SRCCOPY);
 
 	// draw V scrollbar
-	GDIUtil::fill(mdc, MMD_SCROLLBAR_BGCOLOR, ClientWidth - MMD_SCROLLBAR_WIDTH, 0,
-		MMD_SCROLLBAR_WIDTH, ClientHeight);
-	GDIUtil::fill(mdc, MMD_SCROLLBAR_COLOR, ClientWidth - MMD_SCROLLBAR_WIDTH, yoffset * ClientHeight / (textView_height + ClientHeight),
-		MMD_SCROLLBAR_WIDTH, ClientHeight * ClientHeight / (textView_height + ClientHeight));
+	GDIUtil::fill(mdc, MNP_SCROLLBAR_BGCOLOR, ClientWidth - MNP_SCROLLBAR_WIDTH, 0,
+		MNP_SCROLLBAR_WIDTH, ClientHeight);
+	GDIUtil::fill(mdc, MNP_SCROLLBAR_COLOR, ClientWidth - MNP_SCROLLBAR_WIDTH, yoffset * ClientHeight / (textView_height + ClientHeight),
+		MNP_SCROLLBAR_WIDTH, ClientHeight * ClientHeight / (textView_height + ClientHeight));
 	// draw H scrollbar
-	if (textView_width > ClientWidth - MMD_PADDING * 2) {
-		GDIUtil::fill(mdc, MMD_SCROLLBAR_BGCOLOR, 0, ClientHeight - MMD_SCROLLBAR_WIDTH,
-			ClientWidth, MMD_SCROLLBAR_WIDTH);
-		GDIUtil::fill(mdc, MMD_SCROLLBAR_COLOR, xoffset * ClientWidth / (textView_width + ClientWidth), ClientHeight - MMD_SCROLLBAR_WIDTH,
-			ClientWidth * ClientWidth / (textView_width + ClientWidth), MMD_SCROLLBAR_WIDTH);
+	if (textView_width > ClientWidth - MNP_PADDING * 2) {
+		GDIUtil::fill(mdc, MNP_SCROLLBAR_BGCOLOR, 0, ClientHeight - MNP_SCROLLBAR_WIDTH,
+			ClientWidth, MNP_SCROLLBAR_WIDTH);
+		GDIUtil::fill(mdc, MNP_SCROLLBAR_COLOR, xoffset * ClientWidth / (textView_width + ClientWidth), ClientHeight - MNP_SCROLLBAR_WIDTH,
+			ClientWidth * ClientWidth / (textView_width + ClientWidth), MNP_SCROLLBAR_WIDTH);
 	}
 
 	// display
@@ -226,14 +227,14 @@ inline void seeCaret() {
 	// x
 	if (xoffset > caret_x)
 		xoffset = 0;
-	else if (xoffset < caret_x - ClientWidth + MMD_PADDING * 2)
-		xoffset = caret_x - ClientWidth + MMD_PADDING * 2;
+	else if (xoffset < caret_x - ClientWidth + MNP_PADDING * 2)
+		xoffset = caret_x - ClientWidth + MNP_PADDING * 2;
 	
 	// y
 	if (yoffset > caret_y)
 		yoffset = caret_y;
-	else if (yoffset < caret_y - ClientHeight + MMD_LINEHEIGHT)
-		yoffset = caret_y - ClientHeight + MMD_LINEHEIGHT;
+	else if (yoffset < caret_y - ClientHeight + MNP_LINEHEIGHT)
+		yoffset = caret_y - ClientHeight + MNP_LINEHEIGHT;
 }
 
 void OnKeyDown(int nChar) {
@@ -377,22 +378,22 @@ inline void OnKeyUp(int nChar) {
 auto getCaret(HDC hdc, int x, int y) {
 	auto i = all.begin();
 	{
-		int cursor_y = y - MMD_PADDING + yoffset;
+		int cursor_y = y - MNP_PADDING + yoffset;
 		if (cursor_y < 0)
 			cursor_y = 0;
 		else if (cursor_y > textView_height - 1)
-			cursor_y = textView_height - MMD_LINEHEIGHT;
+			cursor_y = textView_height - MNP_LINEHEIGHT;
 
 		// goto that line
-		for (int nReturn = 0; nReturn < cursor_y / MMD_LINEHEIGHT; ++i)
+		for (int nReturn = 0; nReturn < cursor_y / MNP_LINEHEIGHT; ++i)
 			if (*i == '\n') ++nReturn;
 	}
 
-	Font f(MMD_FONTSIZE, MMD_FONTFACE);
+	Font f(MNP_FONTSIZE, MNP_FONTFACE);
 	f.bind(hdc);	// for GetCharWidth32W()
 
 	int char_width, total_width = 0;
-	int cursor_x = x - MMD_PADDING + xoffset;
+	int cursor_x = x - MNP_PADDING + xoffset;
 	if (cursor_x < 0) cursor_x = 0;
 	while (i != all.end() && *i != '\n')
 	{
@@ -441,13 +442,13 @@ inline void OnRButtonDown(DWORD wParam, int x, int y) {
 }
 
 inline void OnMouseHWheel(short zDeta, int x, int y) {
-	if (textView_width < MMD_FONTSIZE) return;
+	if (textView_width < MNP_FONTSIZE) return;
 	xoffset += zDeta / 2;
 
 	if (xoffset < 0)
 		xoffset = 0;
-	else if (xoffset > textView_width - MMD_FONTSIZE)
-		xoffset = textView_width - MMD_FONTSIZE;
+	else if (xoffset > textView_width - MNP_FONTSIZE)
+		xoffset = textView_width - MNP_FONTSIZE;
 	
 	HDC hdc = GetDC(hWnd);
 	OnPaint(hdc);
@@ -492,26 +493,12 @@ inline void OnMenuCopyHtml() {
 	}
 
 	// !important
+	all.push_front('\n');
 	all.push_back('\n');
 
 	// to HTML
-	std::list<section> sections;
-	spliter(sections, all);
-
-	std::wstring str;
-	section::section_type last = section::Paragraph;
-	for (auto& s : sections) {
-		if (last == section::OrderedList && s.getType() != section::OrderedList)
-			str += L"</ol>";
-		else if (last == section::UnorderedList && s.getType() != section::UnorderedList)
-			str += L"</ul>";
-		if (last != section::OrderedList && s.getType() == section::OrderedList)
-			str += L"<ol>";
-		else if (last != section::UnorderedList && s.getType() == section::UnorderedList)
-			str += L"<ul>";
-		last = s.getType();
-		str += s.getHTMLStr();
-	}
+	std::wstring str(all.begin(), all.end());
+	parse_markdown(str);
 
 	HGLOBAL h = GlobalAlloc(GMEM_MOVEABLE, str.size() * 2 + 2);
 	LPTSTR p = static_cast<LPTSTR>(GlobalLock(h));
@@ -521,6 +508,7 @@ inline void OnMenuCopyHtml() {
 	}
 	*p = '\0';
 
+	all.pop_front();
 	all.pop_back();
 
 	GlobalUnlock(h);
@@ -559,34 +547,20 @@ inline void OnMenuExport() {
 	if (GetSaveFileNameW(&ofn) > 0) {
 
 		// !important
+		all.push_front('\n');
 		all.push_back('\n');
-
-		// to HTML
-		std::list<section> sections;
-		spliter(sections, all);
 
 		// write to file
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
 		f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><head><body>";
-		section::section_type last = section::Paragraph;
-
-		for (auto& s : sections) {
-			if (last == section::OrderedList && s.getType() != section::OrderedList)
-				f << "</ol>";
-			else if (last == section::UnorderedList && s.getType() != section::UnorderedList)
-				f << "</ul>";
-			if (last != section::OrderedList && s.getType() == section::OrderedList)
-				f << "<ol>";
-			else if (last != section::UnorderedList && s.getType() == section::UnorderedList)
-				f << "<ul>";
-			last = s.getType();
-			f << cvt.to_bytes(s.getHTMLStr());
-		}
-
+		std::wstring str(all.begin(), all.end());
+		parse_markdown(str);
+		f << cvt.to_bytes(str);
 		f << "</body>";
 		f.close();
 
+		all.pop_front();
 		all.pop_back();
 	}
 }
@@ -630,7 +604,7 @@ inline void OnMenuSave() {
 // true: quit, false: cancel
 bool sureToQuit() {
 	if (!bSaved) {
-		int r = MessageBoxW(hWnd, L"Save changes?", MMD_APPNAME, MB_YESNOCANCEL | MB_ICONQUESTION);
+		int r = MessageBoxW(hWnd, L"Save changes?", MNP_APPNAME, MB_YESNOCANCEL | MB_ICONQUESTION);
 		if (r == IDCANCEL)
 			return false;
 		else if (r == IDYES) {
@@ -660,7 +634,7 @@ void loadFile(LPTSTR path) {
 	if (f.fail()) {
 		std::wstringstream ss;
 		ss << L"Fail to load \"" << path << L"\".";
-		MessageBoxW(hWnd, ss.str().c_str(), MMD_APPNAME, MB_OK | MB_ICONWARNING);
+		MessageBoxW(hWnd, ss.str().c_str(), MNP_APPNAME, MB_OK | MB_ICONWARNING);
 		return;
 	}
 	// UTF-8 decode
@@ -672,14 +646,14 @@ void loadFile(LPTSTR path) {
 		str = cvt.from_bytes(bytes);
 	}
 	catch (std::range_error re) {
-		MessageBoxW(hWnd, L"Can only open UTF-8 file!", MMD_APPNAME, MB_OK | MB_ICONWARNING);
+		MessageBoxW(hWnd, L"Can only open UTF-8 file!", MNP_APPNAME, MB_OK | MB_ICONWARNING);
 		return;
 	}
 
 	// clean
 	all.clear();
 	textView_width = 0;
-	textView_height = MMD_LINEHEIGHT;
+	textView_height = MNP_LINEHEIGHT;
 
 	for (auto i = str.begin(); i != str.end(); ++i) {
 		if (*i == '\r')

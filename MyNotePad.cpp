@@ -4,18 +4,17 @@
 //---------------------------------
 
 #include "GDIUtil.h"
-#include "Parser.h"
-
-bool bSaved = true;						// set false when file is modified
+#include "MarkdownParser.h"
 
 MemDC* textView = nullptr;
+bool bSaved = true;						// set false when file is modified
 bool bWndSizeChgd = false;
 
 HINSTANCE hInst;
 HWND hWnd;
-LPCTSTR MMD_APPNAME = L"MyNotePad";
+LPCTSTR MNP_APPNAME = L"MyNotePad";
 
-#include "Editor.h"
+#include "MyNotePad.h"
 
 //---------------------------------
 
@@ -26,7 +25,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance;
 
-   hWnd = CreateWindowExW(WS_EX_ACCEPTFILES, MMD_APPNAME, L"Untitled - MyNotePad", WS_OVERLAPPEDWINDOW,
+   hWnd = CreateWindowExW(WS_EX_ACCEPTFILES, MNP_APPNAME, L"Untitled - MyNotePad", WS_OVERLAPPEDWINDOW,
 	   CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd) return FALSE;
@@ -218,7 +217,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	wcex.hCursor = LoadCursor(nullptr, IDC_IBEAM);
 	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 	wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_MYNOTEPAD);
-	wcex.lpszClassName = MMD_APPNAME;
+	wcex.lpszClassName = MNP_APPNAME;
 	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
 	return RegisterClassExW(&wcex);

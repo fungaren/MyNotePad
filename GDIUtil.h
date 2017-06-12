@@ -81,17 +81,10 @@ public:
 		SelectObject(hdc, ho);
 	}
 
-	Font& calcPrintWidthHeight(LPCTSTR str, int length, int* width, int* height) {
+	Font& calcPrintArea(LPCTSTR str, int length, int* width, int* height) {
 		RECT rc = { 0,0,0,0 };
 		DrawTextW(hdc, str, length, &rc, format | DT_CALCRECT);
 		*width = rc.right - rc.left;
-		*height = rc.bottom - rc.top;
-		return *this;
-	}
-
-	Font& calcPrintHeight(LPCTSTR str, int length, int width, int* height) {
-		RECT rc = { 0,0,width,0 };
-		DrawTextW(hdc, str, length, &rc, format | DT_CALCRECT);
 		*height = rc.bottom - rc.top;
 		return *this;
 	}

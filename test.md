@@ -19,7 +19,6 @@
 #include <iostream>
 int main(){
     // hello,world
-    // ```
 }
 ```
 以上。
