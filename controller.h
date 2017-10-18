@@ -1,5 +1,5 @@
 #pragma once
-#include <list>
+#include "MarkdownParser.h"
 
 const int MNP_PADDING = 20;							// padding 20px
 
@@ -16,11 +16,12 @@ const int MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
 const int MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
 const int MNP_SCROLLBAR_WIDTH = 10;
 
+
 //---------------------------------
 
-std::list<TCHAR> all;					// all text
-std::list<TCHAR>::iterator caret = all.begin();			// current position = end of selection
-std::list<TCHAR>::iterator sel_begin = all.begin();		// beginning of selection 
+std::list<Line> all;					// all text
+Position caret(0,0);			// current position = end of selection
+Position sel_begin(0, 0);		// beginning of selection 
 
 int caret_x = MNP_PADDING;				// caret position
 int caret_y = MNP_PADDING;
@@ -32,21 +33,12 @@ int textView_height = MNP_LINEHEIGHT;
 int xoffset = 0;						// offset-x of textView
 int yoffset = 0;						// offset-y of textView
 
-//---------------------------------
-
-// set i = first char in this line
-void toBeginOfLine(std::list<TCHAR>::iterator &i) {
-	_ASSERT(!all.empty());
-	while (i != all.begin() && *--i != '\n');
-	if (*i == '\n') ++i;
-}
-
-// set i = all.end() or '\n'
-void toEndOfLine(std::list<TCHAR>::iterator &i) {
-	_ASSERT(i != all.end());
-	while (i != --all.end() && *i != '\n')
-		++i;
-	if (*i != '\n') ++i;
+										//---------------------------------
+inline size_t toEndOfLine(Position caret)
+{
+	std::list<Line>::iterator l = all.begin();
+	std::advance(l, caret.n_line);
+	return l->characters.size();
 }
 
 // return true if sel_begin before caret 
@@ -229,7 +221,7 @@ inline void seeCaret() {
 		xoffset = 0;
 	else if (xoffset < caret_x - ClientWidth + MNP_PADDING * 2)
 		xoffset = caret_x - ClientWidth + MNP_PADDING * 2;
-	
+
 	// y
 	if (yoffset > caret_y)
 		yoffset = caret_y;
@@ -242,7 +234,7 @@ void OnKeyDown(int nChar) {
 	case VK_DELETE:
 		if (removeSelectedChars())
 			;
-		else if (caret != all.end()) 
+		else if (caret != all.end())
 		{
 			caret = all.erase(caret);
 			bSaved = false;
@@ -310,7 +302,7 @@ void OnKeyDown(int nChar) {
 		if (GetKeyState(VK_CONTROL) < 0)
 			caret = all.begin();
 		else
-			toBeginOfLine(caret);
+			caret.n_character = 0;
 		break;
 	case VK_END:
 		if (caret == all.end())	return;
@@ -330,7 +322,7 @@ there:
 	HDC hdc = GetDC(hWnd);
 	repaintView(hdc);
 	seeCaret();
-	
+
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
 }
@@ -342,7 +334,7 @@ inline void OnChar(WORD nChar)
 	switch (nChar) {
 	case VK_BACK:
 		if (flag) break;
-		if (caret != all.begin()) 
+		if (caret != all.begin())
 			caret = all.erase(--caret);
 		break;
 	case VK_RETURN:
@@ -357,7 +349,7 @@ inline void OnChar(WORD nChar)
 	default:
 		all.insert(caret, nChar);
 	}
-	
+
 	bSaved = false;
 	sel_begin = caret;
 
@@ -436,7 +428,7 @@ inline void OnRButtonDown(DWORD wParam, int x, int y) {
 	POINT p = { x,y };
 	ClientToScreen(hWnd, &p);
 	HMENU hm = LoadMenu(hInst, MAKEINTRESOURCE(IDC_POPUP));
-	
+
 	TrackPopupMenu(GetSubMenu(hm, 0), TPM_LEFTALIGN, p.x, p.y, NULL, hWnd, NULL);
 	DestroyMenu(hm);
 }
@@ -449,7 +441,7 @@ inline void OnMouseHWheel(short zDeta, int x, int y) {
 		xoffset = 0;
 	else if (xoffset > textView_width - MNP_FONTSIZE)
 		xoffset = textView_width - MNP_FONTSIZE;
-	
+
 	HDC hdc = GetDC(hWnd);
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
@@ -579,7 +571,7 @@ void OnMenuSaveAs() {
 		std::ofstream f(file);
 		f << cvt.to_bytes(str);
 		f.close();
-	
+
 		opened_file = file;
 		SetWindowTextW(hWnd, (opened_file + L" - MyNotePad").c_str());
 		bSaved = true;
@@ -611,7 +603,7 @@ bool sureToQuit() {
 			OnMenuSave();
 			return false;
 		}
-	}	
+	}
 	return true;
 }
 
@@ -711,7 +703,8 @@ inline void OnMenuCopy() {
 		LPTSTR p = static_cast<LPTSTR>(GlobalLock(h));
 		for (auto i = sel_begin; i != caret; ++i, ++p) *p = *i;
 		*p = '\0';
-	} else {
+	}
+	else {
 		h = GlobalAlloc(GMEM_MOVEABLE, std::distance(caret, sel_begin) * 2 + 2);
 		LPTSTR p = static_cast<LPTSTR>(GlobalLock(h));
 		for (auto i = caret; i != sel_begin; ++i, ++p) *p = *i;

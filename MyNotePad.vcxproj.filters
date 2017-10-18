@@ -24,13 +24,16 @@
     <ClInclude Include="Resource.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="GDIUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="MarkdownParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MyNotePad.h">
+    <ClInclude Include="view.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="controller.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="model.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -38,7 +41,7 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="MyNotePad.cpp">
+    <ClCompile Include="view.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

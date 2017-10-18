@@ -1,10 +1,8 @@
 #include "stdafx.h"
 #include "resource.h"
+#include "view.h"
 
 //---------------------------------
-
-#include "GDIUtil.h"
-#include "MarkdownParser.h"
 
 MemDC* textView = nullptr;
 bool bSaved = true;						// set false when file is modified
@@ -13,8 +11,6 @@ bool bWndSizeChgd = false;
 HINSTANCE hInst;
 HWND hWnd;
 LPCTSTR MNP_APPNAME = L"MyNotePad";
-
-#include "MyNotePad.h"
 
 //---------------------------------
 
@@ -237,7 +233,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return FALSE;
 
 	if(*lpCmdLine != '\0')
-		loadFile(lpCmdLine);		// open file by cmdLine
+		loadFile(lpCmdLine);		// load the file specified in cmdLine
 
 	HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR));
 	MSG msg;
