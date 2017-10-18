@@ -1,5 +1,6 @@
 #pragma once
 #include <list>
+#include <tuple>
 
 class GDIUtil
 {
@@ -130,7 +131,11 @@ struct Character
 		color = f.color;
 		style = f.style;
 	}
+
+	operator TCHAR() { return c; }
 };
+
+typedef std::list<Character> Sentence;
 
 struct Line
 {
@@ -140,28 +145,139 @@ struct Line
 	uint16_t padding_top;
 	bool transparent;
 	DWORD background_color;
-	std::list<Character> characters;
+	Sentence sentence;
 
 	Line(std::wstring& s, uint16_t padding_left = 0, uint16_t padding_top = 0)
 		:transparent(true),
 		background_color(MNP_BGCOLOR_EDIT)
 	{
 		for (TCHAR c : s)
-			characters.push_back(Character(c, ));
+			sentence.push_back(Character(c, ));
 		this->padding_left = padding_left
 		this->padding_top = padding_top;
 		this->height = ;
 	}
+
+	operator std::wstring()
+	{
+		return std::wstring(sentence.begin(), sentence.end());
+	}
 };
 
-struct Position
-{
-	uint32_t n_line;
-	uint32_t n_character;
+typedef std::list<Line> Article;
 
-	Position(uint32_t n_line, uint32_t n_character)
+struct Cursor
+{
+	size_t n_line;
+	size_t n_character;
+
+	Cursor(size_t n_line, size_t n_character)
 	{
 		this->n_line = n_line;
 		this->n_character = n_character;
+	}
+
+	void insert(const Character& c)
+	{
+
+	}
+
+	Article::const_iterator getSentence(const Article& a)
+	{
+		Article::const_iterator l = a.begin();
+		std::advance(l, n_line);
+		return l;
+	}
+
+	Article::iterator getSentence(Article& a)
+	{
+		Article::iterator l = a.begin();
+		std::advance(l, n_line);
+		return l;
+	}
+
+	//Sentence::iterator getCharacter(Article& a)
+	//{
+	//	Sentence::iterator c = getSentence(a)->sentence.begin();
+	//	std::advance(c, n_character);
+	//	return c;
+	//}
+
+	size_t getLineLength(const Article& a)
+	{
+		return getSentence(a)->sentence.size();
+	}
+
+	void eraseInLine(Article& a, size_t to)
+	{
+		Sentence::iterator i_from, i_to; 
+		Sentence& s = getSentence(a)->sentence;
+		i_from = i_to = s.begin();
+		if (n_character < to)
+		{
+			std::advance(i_from, n_character); 
+			std::advance(i_to, to);
+		}
+		else
+		{
+			std::advance(i_from, to);
+			std::advance(i_to, n_character); 
+		}
+		s.erase(i_from, i_to);
+	}
+
+	std::wstring subString(const Article& a, size_t to)
+	{
+		Sentence::const_iterator i_from, i_to;
+		const Sentence& s = getSentence(a)->sentence;
+		i_from = i_to = s.begin();
+		if (n_character < to)
+		{
+			std::advance(i_from, n_character);
+			std::advance(i_to, to);
+		}
+		else
+		{
+			std::advance(i_from, to);
+			std::advance(i_to, n_character);
+		}
+		return std::wstring(i_from, i_to);
+	}
+
+	void eraseToEnd(Article& a)
+	{
+		Sentence& s = getSentence(a)->sentence;
+		Sentence::iterator i_from = s.begin();
+		std::advance(i_from, n_character);
+		s.erase(i_from, s.end());
+	}
+
+	void eraseToStarting(Article& a)
+	{
+		Sentence& s = getSentence(a)->sentence;
+		Sentence::iterator i_to = s.begin();
+		std::advance(i_to, n_character);
+		s.erase(s.begin(), i_to);
+	}
+
+	std::wstring subStringToEnd(const Article& a)
+	{
+		const Sentence& s = getSentence(a)->sentence; 
+		Sentence::const_iterator i_from = s.begin();
+		std::advance(i_from, n_character);
+		return std::wstring(i_from, s.end());
+	}
+
+	std::wstring subStringToStarting(const Article& a)
+	{
+		const Sentence& s = getSentence(a)->sentence;
+		Sentence::const_iterator i_to = s.begin();
+		std::advance(i_to, n_character);
+		return std::wstring(s.begin(), i_to);
+	}
+
+	bool operator== (const Cursor& right)
+	{
+		return (n_line == right.n_line) && (n_character == right.n_character);
 	}
 };

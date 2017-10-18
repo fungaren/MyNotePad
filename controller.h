@@ -16,52 +16,76 @@ const int MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
 const int MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
 const int MNP_SCROLLBAR_WIDTH = 10;
 
-
 //---------------------------------
 
-std::list<Line> all;					// all text
-Position caret(0,0);			// current position = end of selection
-Position sel_begin(0, 0);		// beginning of selection 
-
-int caret_x = MNP_PADDING;				// caret position
-int caret_y = MNP_PADDING;
-int begin_x;
-int begin_y;
+Article article;				// article text
+Cursor caret(0, 0);			// current position = end of selection
+Cursor sel_begin(0, 0);		// beginning of selection 
 
 int textView_width = 0;
 int textView_height = MNP_LINEHEIGHT;
-int xoffset = 0;						// offset-x of textView
-int yoffset = 0;						// offset-y of textView
+int xoffset = 0;				// offset-x of textView
+int yoffset = 0;				// offset-y of textView
 
-										//---------------------------------
-inline size_t toEndOfLine(Position caret)
-{
-	std::list<Line>::iterator l = all.begin();
-	std::advance(l, caret.n_line);
-	return l->characters.size();
-}
+//---------------------------------
 
-// return true if sel_begin before caret 
-inline bool direction_forward() {
-	return (caret_y == begin_y && caret_x > begin_x || caret_y > begin_y);
-}
 
 // return true for success, false for no selected char.
 bool removeSelectedChars() {
-	if (sel_begin == caret) return false;
-	if (direction_forward())
+	if (sel_begin.n_line == caret.n_line)
 	{
-		all.erase(sel_begin, caret);
-		sel_begin = caret;
-		bSaved = false;
+		if (sel_begin.n_character == caret.n_character)
+			return false;
+		else
+			caret.eraseInLine(article, sel_begin.n_character);
 	}
-	else
+	else if (sel_begin.n_line < caret.n_line)	// forward selection
 	{
-		all.erase(caret, sel_begin);
-		caret = sel_begin;
-		bSaved = false;
+		std::wstring str = sel_begin.subStringToEnd(article) +
+			caret.subStringToStarting(article);
+		article.erase(sel_begin.getSentence(article), caret.getSentence(article));
+		caret.n_line = sel_begin.n_line;
+		article.insert(caret.getSentence(article), Line(str));
 	}
+	else	// backward selection
+	{
+		std::wstring str = caret.subStringToEnd(article) +
+			sel_begin.subStringToStarting(article);
+		article.erase(caret.getSentence(article), sel_begin.getSentence(article));
+		sel_begin.n_line = caret.n_line;
+		article.insert(caret.getSentence(article), Line(str));
+	}
+	bSaved = false;
 	return true;
+}
+
+// return the selected characters
+std::wstring getSelectedChars() {
+	if (sel_begin.n_line == caret.n_line)
+	{
+		if (sel_begin.n_character == caret.n_character)
+			return L"";
+		else
+			return caret.subString(article, sel_begin.n_character);
+	}
+	else if (sel_begin.n_line < caret.n_line)	// forward selection
+	{
+		std::wstring str = sel_begin.subStringToEnd(article);
+		for (auto& i = sel_begin.getSentence(article);
+			i != caret.getSentence(article);)
+			str.append(i->sentence.begin(), i->sentence.end());
+		str += caret.subStringToStarting(article);
+		return str;
+	}
+	else	// backward selection
+	{
+		std::wstring str = caret.subStringToEnd(article);
+		for (auto& i = caret.getSentence(article);
+			i != sel_begin.getSentence(article);)
+			str.append(i->sentence.begin(), i->sentence.end());
+		str += sel_begin.subStringToStarting(article);
+		return str;
+	}
 }
 
 //---------------------------------
@@ -71,7 +95,7 @@ void repaintView(HDC hdc) {
 	caret_x = begin_x = 0;
 	caret_y = begin_y = MNP_PADDING;
 
-	int BUFFSIZE = all.size() + 1;
+	int BUFFSIZE = article.size() + 1;
 	TCHAR* text = new TCHAR[BUFFSIZE];
 
 	{
@@ -84,10 +108,10 @@ void repaintView(HDC hdc) {
 
 		// p: TCHAR*	i: iterator
 		TCHAR* p = text;
-		auto i = all.begin();
+		auto i = article.begin();
 
 		// generate full view
-		for (; i != all.end() && p < text + BUFFSIZE - 1; ++p, ++i) {
+		for (; i != article.end() && p < text + BUFFSIZE - 1; ++p, ++i) {
 
 			*p = *i;	// convert list<TCHAR> to TCHAR[]
 
@@ -234,30 +258,30 @@ void OnKeyDown(int nChar) {
 	case VK_DELETE:
 		if (removeSelectedChars())
 			;
-		else if (caret != all.end())
+		else if (caret != article.end())
 		{
-			caret = all.erase(caret);
+			caret = article.erase(caret);
 			bSaved = false;
 		}
 		else return;
 		break;
 	case VK_LEFT:
-		if (caret != all.begin())
+		if (caret != article.begin())
 			--caret;		// backward
 		else return;
 		break;
 	case VK_RIGHT:
-		if (caret != all.end())
+		if (caret != article.end())
 			++caret;		// forward
 		else return;
 		break;
 	case VK_UP:
-		if (caret != all.begin())
+		if (caret != article.begin())
 		{
 			// upwards
 			int n = 0;		// number of characters in front of the caret in this line
 			auto i = caret;
-			for (--i; i != all.begin(); --i) {
+			for (--i; i != article.begin(); --i) {
 				if (*i == '\n')
 				{
 					if (*--i == '\n') {				// if previous line = "\n"
@@ -276,38 +300,38 @@ void OnKeyDown(int nChar) {
 		else return;
 		break;
 	case VK_DOWN:
-		if (caret != all.end())
+		if (caret != article.end())
 		{
 			// downwards
 			int n = 0;		// number of characters in front of the caret in this line
 			auto i = caret;
-			if (i != all.begin()) {					// count n
-				for (--i; i != all.begin() && *i != '\n'; --i) ++n;
-				if (i == all.begin() && *i != '\n') ++n;
+			if (i != article.begin()) {					// count n
+				for (--i; i != article.begin() && *i != '\n'; --i) ++n;
+				if (i == article.begin() && *i != '\n') ++n;
 				i = caret;
 			}
 			toEndOfLine(i);
-			// now i = all.end() or '\n'
-			if (i != all.end()) {
-				for (int t = 0; t < n + 1 && i != --all.end() && *++i != '\n'; ++t)
+			// now i = article.end() or '\n'
+			if (i != article.end()) {
+				for (int t = 0; t < n + 1 && i != --article.end() && *++i != '\n'; ++t)
 					;		// goto next line, offset = n
-				if (i == --all.end() && *i != '\n') ++i;
+				if (i == --article.end() && *i != '\n') ++i;
 				caret = i;
 			}
 		}
 		else return;
 		break;
 	case VK_HOME:
-		if (caret == all.begin()) return;
+		if (caret == article.begin()) return;
 		if (GetKeyState(VK_CONTROL) < 0)
-			caret = all.begin();
+			caret = article.begin();
 		else
 			caret.n_character = 0;
 		break;
 	case VK_END:
-		if (caret == all.end())	return;
+		if (caret == article.end())	return;
 		if (GetKeyState(VK_CONTROL) < 0)
-			caret = all.end();
+			caret = article.end();
 		else
 			toEndOfLine(caret);
 		break;
@@ -334,20 +358,25 @@ inline void OnChar(WORD nChar)
 	switch (nChar) {
 	case VK_BACK:
 		if (flag) break;
-		if (caret != all.begin())
-			caret = all.erase(--caret);
+		if (caret != article.begin())
+			caret = article.erase(--caret);
 		break;
 	case VK_RETURN:
-		all.insert(caret, '\n');
+		article.insert(caret, '\n');
 		break;
 	case VK_TAB:
-		all.insert(caret, ' ');		// convert tab to space
-		all.insert(caret, ' ');
-		all.insert(caret, ' ');
-		all.insert(caret, ' ');
+	{
+		Character c(L' ', );
+		caret.insert(c);		// convert tab to space
+		caret.insert(c);
+		caret.insert(c);
+		caret.insert(c);
+	}
 		break;
 	default:
-		all.insert(caret, nChar);
+	{
+		Character c(nChar, );
+		caret.insert(c);
 	}
 
 	bSaved = false;
@@ -363,12 +392,11 @@ inline void OnChar(WORD nChar)
 }
 
 inline void OnKeyUp(int nChar) {
-
-
+	;
 }
 
 auto getCaret(HDC hdc, int x, int y) {
-	auto i = all.begin();
+	auto i = article.begin();
 	{
 		int cursor_y = y - MNP_PADDING + yoffset;
 		if (cursor_y < 0)
@@ -387,7 +415,7 @@ auto getCaret(HDC hdc, int x, int y) {
 	int char_width, total_width = 0;
 	int cursor_x = x - MNP_PADDING + xoffset;
 	if (cursor_x < 0) cursor_x = 0;
-	while (i != all.end() && *i != '\n')
+	while (i != article.end() && *i != '\n')
 	{
 		// goto that char
 		GetCharWidth32W(hdc, *i, *i, &char_width);
@@ -485,11 +513,12 @@ inline void OnMenuCopyHtml() {
 	}
 
 	// !important
-	all.push_front('\n');
-	all.push_back('\n');
+	Character c(L'\n', );
+	article.front().sentence.push_front(c);
+	article.back().sentence.push_back(c);
 
 	// to HTML
-	std::wstring str(all.begin(), all.end());
+	std::wstring str(article.begin(), article.end());
 	parse_markdown(str);
 
 	HGLOBAL h = GlobalAlloc(GMEM_MOVEABLE, str.size() * 2 + 2);
@@ -500,8 +529,8 @@ inline void OnMenuCopyHtml() {
 	}
 	*p = '\0';
 
-	all.pop_front();
-	all.pop_back();
+	article.front().sentence.pop_front();
+	article.back().sentence.pop_back();
 
 	GlobalUnlock(h);
 	SetClipboardData(CF_UNICODETEXT, h);
@@ -539,21 +568,22 @@ inline void OnMenuExport() {
 	if (GetSaveFileNameW(&ofn) > 0) {
 
 		// !important
-		all.push_front('\n');
-		all.push_back('\n');
+		Character c(L'\n', );
+		article.front().sentence.push_front(c);
+		article.back().sentence.push_back(c);
 
 		// write to file
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
 		f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><head><body>";
-		std::wstring str(all.begin(), all.end());
+		std::wstring str(article.begin(), article.end());
 		parse_markdown(str);
 		f << cvt.to_bytes(str);
 		f << "</body>";
 		f.close();
 
-		all.pop_front();
-		all.pop_back();
+		article.front().sentence.pop_front();
+		article.back().sentence.pop_back();
 	}
 }
 
@@ -565,7 +595,7 @@ void OnMenuSaveAs() {
 	setOFN(ofn, L"MarkDown (*.md)\0*.md\0All Files (*.*)\0*.*\0\0", L"md");
 
 	if (GetSaveFileNameW(&ofn) > 0) {
-		std::wstring str(all.begin(), all.end());
+		std::wstring str(article.begin(), article.end());
 
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
@@ -583,7 +613,7 @@ inline void OnMenuSave() {
 		OnMenuSaveAs();
 	else
 	{
-		std::wstring str(all.begin(), all.end());
+		std::wstring str(article.begin(), article.end());
 
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(opened_file);
@@ -643,22 +673,30 @@ void loadFile(LPTSTR path) {
 	}
 
 	// clean
-	all.clear();
+	article.clear();
 	textView_width = 0;
 	textView_height = MNP_LINEHEIGHT;
-
+	caret = { 0,0 };
 	for (auto i = str.begin(); i != str.end(); ++i) {
 		if (*i == '\r')
+		{
 			;
-		else if (*i == '\t') {
-			all.push_back(' ');
-			all.push_back(' ');
-			all.push_back(' ');
-			all.push_back(' ');
 		}
-		else all.push_back(*i);
+		else if (*i == '\t')
+		{
+			Character c(L' ', );
+			caret.insert(c);		// convert tab to space
+			caret.insert(c);
+			caret.insert(c);
+			caret.insert(c);
+		}
+		else
+		{
+			Character c(*i, );
+			caret.insert(c);
+		}
 	}
-	sel_begin = caret = all.begin();
+	sel_begin = caret = { 0,0 };
 	bSaved = true;
 
 	opened_file = path;
@@ -698,18 +736,12 @@ inline void OnMenuCopy() {
 	}
 
 	HGLOBAL h;
-	if (direction_forward()) {
-		h = GlobalAlloc(GMEM_MOVEABLE, std::distance(sel_begin, caret) * 2 + 2);
-		LPTSTR p = static_cast<LPTSTR>(GlobalLock(h));
-		for (auto i = sel_begin; i != caret; ++i, ++p) *p = *i;
-		*p = '\0';
-	}
-	else {
-		h = GlobalAlloc(GMEM_MOVEABLE, std::distance(caret, sel_begin) * 2 + 2);
-		LPTSTR p = static_cast<LPTSTR>(GlobalLock(h));
-		for (auto i = caret; i != sel_begin; ++i, ++p) *p = *i;
-		*p = '\0';
-	}
+	std::wstring str = getSelectedChars();
+	h = GlobalAlloc(GMEM_MOVEABLE, str.size() * 2 + 2);
+	LPTSTR p = static_cast<LPTSTR>(GlobalLock(h));
+	for (TCHAR& c : str)
+		*p++ = c;
+	*p = L'\0';
 
 	GlobalUnlock(h);
 	SetClipboardData(CF_UNICODETEXT, h);
@@ -735,17 +767,25 @@ inline void OnMenuPaste() {
 	removeSelectedChars();
 	LPCTSTR str = (LPCTSTR)GlobalLock(h);
 
-	while (*str != '\0') {
-		if (*str == '\t') {
-			all.insert(caret, ' ');		// convert tab to space
-			all.insert(caret, ' ');
-			all.insert(caret, ' ');
-			all.insert(caret, ' ');
+	while (*str != '\0')
+	{
+		if (*str == '\t')
+		{
+			Character c(L' ', );
+			caret.insert(c);		// convert tab to space
+			caret.insert(c);
+			caret.insert(c);
+			caret.insert(c);
 		}
 		else if (*str == '\r')
+		{
 			;
+		}
 		else
-			all.insert(caret, *str);
+		{
+			Character c(*str, );
+			caret.insert(c);
+		}
 		++str;
 	}
 
@@ -756,7 +796,8 @@ inline void OnMenuPaste() {
 }
 
 inline void OnMenuAll() {
-	sel_begin = all.begin();
-	caret = all.end();
+	sel_begin = { 0, 0 };
+	caret.n_line = article.size() - 1;
+	caret.n_character = article.end()->sentence.size();
 	refresh();
 }
