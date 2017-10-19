@@ -1,24 +1,9 @@
 #pragma once
 #include "MarkdownParser.h"
 
-const int MNP_PADDING = 20;							// padding 20px
-
-LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI";		// L"Lucida Console";
-const int MNP_FONTSIZE = 30;						// 25;
-const int MNP_LINEHEIGHT = MNP_FONTSIZE;
-
-const int MNP_BGCOLOR_EDIT = 0x00EEEEEE;
-const int MNP_BGCOLOR_PREVIEW = 0x00F7F7F7;
-const int MNP_BGCOLOR_SEL = 0x00CCCCCC;
-const int MNP_FONTCOLOR = 0x00444444;
-
-const int MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
-const int MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
-const int MNP_SCROLLBAR_WIDTH = 10;
-
 //---------------------------------
-
-Article article;				// article text
+MemDC* textView = nullptr;
+Article article;			// article text
 Cursor caret(0, 0);			// current position = end of selection
 Cursor sel_begin(0, 0);		// beginning of selection 
 
@@ -28,7 +13,6 @@ int xoffset = 0;				// offset-x of textView
 int yoffset = 0;				// offset-y of textView
 
 //---------------------------------
-
 
 // return true for success, false for no selected char.
 bool removeSelectedChars() {
@@ -88,115 +72,192 @@ std::wstring getSelectedChars() {
 	}
 }
 
+void insertAtCursor(Article& a, const TCHAR& c)
+{
+	Sentence& s = caret.getSentence(a)->sentence;
+	Sentence::iterator i = s.begin();
+	std::advance(i, caret.n_character);
+	Character ch(c);
+	s.insert(i, ch);
+	++caret.n_character;
+	if (c == L'\n')
+	{
+		if (i == s.end())
+		{
+			++caret.n_line;
+			caret.n_character = 0;
+			article.insert(caret.getSentence(article), Line(std::wstring(L"")));
+		}
+		else
+		{
+			std::wstring t_str = caret.subStringToEnd(article);
+			caret.eraseToEnd(article);
+			++caret.n_line;
+			caret.n_character = 0;
+			article.insert(caret.getSentence(article), Line(t_str));
+		}
+	}
+}
+
+void insertAtCursor(Article& a, const std::wstring& str)
+{
+	Sentence& s = caret.getSentence(a)->sentence;
+	Sentence::iterator i_sentence = s.begin();
+	std::advance(i_sentence, caret.n_character);
+	for (auto i_str = str.begin(); i_str != str.end(); ++i_str)
+	{
+		if (*i_str == L'\r')
+		{
+			;
+		}
+		else if (*i_str == L'\t')
+		{
+			Character c(L' ');
+			Sentence t_sentence;
+			t_sentence.push_back(c);		// convert tab to space
+			t_sentence.push_back(c);
+			t_sentence.push_back(c);
+			t_sentence.push_back(c);
+			s.insert(i_sentence, t_sentence.begin(), t_sentence.end());
+			caret.n_character += 4;
+		}
+		else if (*i_str == L'\n')
+		{
+			insertAtCursor(article, L'\n');
+		}
+		else
+		{
+			s.insert(i_sentence, Character(*i_str));
+			++caret.n_character;
+		}
+	}
+}
+
 //---------------------------------
 
 // repaint edit area
 void repaintView(HDC hdc) {
-	caret_x = begin_x = 0;
-	caret_y = begin_y = MNP_PADDING;
-
-	int BUFFSIZE = article.size() + 1;
-	TCHAR* text = new TCHAR[BUFFSIZE];
-
+	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
+	f.bind(hdc);
+	for (Line& l : article)
 	{
-		int char_width;
-		Font f(MNP_FONTSIZE, MNP_FONTFACE);
-		f.bind(hdc);	// for GetCharWidth32W()
-
-		bool bCaretFound = false;
-		bool bBeginFound = false;
-
-		// p: TCHAR*	i: iterator
-		TCHAR* p = text;
-		auto i = article.begin();
-
-		// generate full view
-		for (; i != article.end() && p < text + BUFFSIZE - 1; ++p, ++i) {
-
-			*p = *i;	// convert list<TCHAR> to TCHAR[]
-
-			GetCharWidth32W(hdc, *p, *p, &char_width);
-
-			if (i == caret) bCaretFound = true;
-			if (!bCaretFound) {
-				switch (*p) {				// calculate caret position
-				case '\n':
-					caret_y += MNP_LINEHEIGHT;				// line height
-					caret_x = 0;							// new line
-					break;
-				default:
-					caret_x += char_width;					// a-zA-z0-9
-					break;
-				}
-			}
-			if (sel_begin != caret) {
-				if (i == sel_begin) bBeginFound = true;
-				if (!bBeginFound) {
-					switch (*p) {			// calculate sel_begin position
-					case '\n':
-						begin_y += MNP_LINEHEIGHT;			// line height
-						begin_x = 0;						// new line
-						break;
-					default:
-						begin_x += char_width;				// a-zA-z0-9
-						break;
-					}
-				}
-			}
+		int line_width = 0;
+		for (Character& c : l.sentence)
+		{
+			GetCharWidth32W(hdc, c.c, c.c, &c.width);
+			if ((line_width += c.width) > textView_width)
+				textView_width = line_width;
 		}
-		*p = '\0';
-		f.unbind();
+		textView_height += l.height + l.padding_top;
 	}
+	f.unbind();
 
-	// calculate width & height
-	RECT rc;
-	GetClientRect(hWnd, &rc);
-	Font tf(MNP_FONTSIZE, MNP_FONTFACE);
-	tf.bind(hdc).calcPrintArea(text, BUFFSIZE - 1, &textView_width, &textView_height).unbind();
-	int canvasWidth = (rc.right - rc.left) / 2 + textView_width;
-	int canvasHeight = rc.bottom - rc.top + textView_height;
+	int canvasWidth = 500 + textView_width;
+	int canvasHeight = 500 + textView_height;
+	int caret_x, caret_y, caret_h;
 
 	delete textView;
 	textView = new MemDC(hdc, canvasWidth, canvasHeight);
-	Font f(MNP_FONTSIZE, MNP_FONTFACE);						// set font
-	f.setColor(MNP_FONTCOLOR).bind(*textView);
+	f.bind(*textView);
 
 	// fill background
 	GDIUtil::fill(*textView, MNP_BGCOLOR_EDIT, 0, 0, canvasWidth, canvasHeight);
 
 	// fill selection background
-	if (sel_begin != caret) {
-		if (caret_y == begin_y && caret_x > begin_x)		// single line && forward
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, begin_x, begin_y, caret_x - begin_x, MNP_LINEHEIGHT);
-		else if (caret_y > begin_y)							// multi lines && forward
+	if (sel_begin.n_line == caret.n_line)
+	{
+		int x, y, width;
+		x = y = width = 0;
+		Article::const_iterator a_iter = article.begin();
+		for (int i = 0; i != sel_begin.n_line; ++i, ++a_iter)
+			y += a_iter->height + a_iter->padding_top;
+		caret_y = y;
+		caret_h = a_iter->height;
+
+		Sentence::const_iterator s_iter = a_iter->sentence.begin();
+		if (sel_begin.n_character < caret.n_character)
 		{
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, begin_x, begin_y, canvasWidth, MNP_LINEHEIGHT);
-
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, begin_y + MNP_LINEHEIGHT,
-				canvasWidth, caret_y - begin_y - MNP_LINEHEIGHT);
-
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, caret_y, caret_x, MNP_LINEHEIGHT);
+			int i = 0;
+			for (; i < sel_begin.n_line; ++i, ++s_iter)
+				x += s_iter->width;
+			for (; i < caret.n_line; ++i, ++s_iter)
+				width += s_iter->width;
+			caret_x = x + width;
 		}
-		else if (caret_y == begin_y && caret_x < begin_x)	// single line && backward
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, begin_x, begin_y, caret_x - begin_x, MNP_LINEHEIGHT);
-		else if (caret_y < begin_y)							// multi lines && backward
+		else if (sel_begin.n_character > caret.n_character)
 		{
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, caret_x, caret_y, canvasWidth, MNP_LINEHEIGHT);
-
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, caret_y + MNP_LINEHEIGHT,
-				canvasWidth, begin_y - caret_y - MNP_LINEHEIGHT);
-
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, begin_y, begin_x, MNP_LINEHEIGHT);
+			int i = 0;
+			for (; i < caret.n_line; ++i, ++s_iter)
+				x += s_iter->width;
+			caret_x = x;
+			for (; i < sel_begin.n_line; ++i, ++s_iter)
+				width += s_iter->width;
 		}
+		GDIUtil::fill(*textView, MNP_BGCOLOR_EDIT, x, y,
+			width, a_iter->height + a_iter->padding_top);
+	}
+	else
+	{
+#define _FROM_ (sel_begin.n_line < caret.n_line ? sel_begin : caret)
+#define _TO_ (sel_begin.n_line < caret.n_line ? caret : sel_begin)
+		int x, y, width;
+		x = y = width = 0;
+		Article::const_iterator a_iter = article.begin();
+		for (int i = 0; i != _FROM_.n_line; ++i, ++a_iter)
+			y += a_iter->height + a_iter->padding_top;
+
+		{
+			Sentence::const_iterator s_iter = a_iter->sentence.begin();
+			int i = 0;
+			for (; i < _FROM_.n_line; ++i, ++s_iter)
+				x += s_iter->width;
+			for (; i < a_iter->sentence.size(); ++i, ++s_iter)
+				width += s_iter->width;
+		
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, x, y,
+							width, a_iter->height + a_iter->padding_top);
+		}
+
+		width = 0;
+		++a_iter;
+		for (int i = _FROM_.n_line + 1; i != _TO_.n_line; ++i, ++a_iter)
+		{
+			Sentence::const_iterator s_iter = a_iter->sentence.begin();
+			for (int j = 0; j < a_iter->sentence.size(); ++j, ++s_iter)
+				width += s_iter->width;
+
+			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, y,
+				width, a_iter->height + a_iter->padding_top);
+			width = 0;
+			y += a_iter->height + a_iter->padding_top;
+		}
+		caret_y = y;
+		caret_h = a_iter->height;
+
+		Sentence::const_iterator s_iter = a_iter->sentence.begin();
+		for (int i = 0; i < _TO_.n_character; ++i, ++s_iter)
+			width += s_iter->width;
+
+		GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, y,
+			width, a_iter->height + a_iter->padding_top);
+#undef _FROM_
+#undef _TO_
 	}
 
-	// print text
-	f.print(text, BUFFSIZE - 1, 0, MNP_PADDING, textView_width, textView_height).unbind();
+	int y = 0;
+	for (Line& l : article)
+	{
+		f.printLine(static_cast<std::wstring>(l).c_str(),
+			l.sentence.size(),
+			l.padding_left,
+			y += l.padding_top);
+		y += l.height;
+	}
 
-	delete[] text;
+	f.unbind();
 
 	// darw caret
-	GDIUtil::line(*textView, MNP_FONTCOLOR, caret_x, caret_y, caret_x, caret_y + MNP_LINEHEIGHT);
+	GDIUtil::line(*textView, MNP_FONTCOLOR, caret_x, caret_y, caret_x, caret_y + caret_h);
 }
 
 void OnPaint(HDC hdc) {
@@ -214,18 +275,22 @@ void OnPaint(HDC hdc) {
 
 	// paste textView
 	if (textView == nullptr) repaintView(mdc);
-	BitBlt(mdc, MNP_PADDING, 0, ClientWidth, ClientHeight, *textView, xoffset, yoffset, SRCCOPY);
+	BitBlt(mdc, MNP_PADDING_CLIENT, 0, ClientWidth, ClientHeight, *textView, xoffset, yoffset, SRCCOPY);
 
-	// draw V scrollbar
+	// draw vertical scrollbar
 	GDIUtil::fill(mdc, MNP_SCROLLBAR_BGCOLOR, ClientWidth - MNP_SCROLLBAR_WIDTH, 0,
 		MNP_SCROLLBAR_WIDTH, ClientHeight);
-	GDIUtil::fill(mdc, MNP_SCROLLBAR_COLOR, ClientWidth - MNP_SCROLLBAR_WIDTH, yoffset * ClientHeight / (textView_height + ClientHeight),
+	GDIUtil::fill(mdc, MNP_SCROLLBAR_COLOR,
+		ClientWidth - MNP_SCROLLBAR_WIDTH,
+		yoffset * ClientHeight / (textView_height + ClientHeight),
 		MNP_SCROLLBAR_WIDTH, ClientHeight * ClientHeight / (textView_height + ClientHeight));
-	// draw H scrollbar
-	if (textView_width > ClientWidth - MNP_PADDING * 2) {
+	// draw horizontal scrollbar
+	if (textView_width > ClientWidth - MNP_PADDING_CLIENT * 2) {
 		GDIUtil::fill(mdc, MNP_SCROLLBAR_BGCOLOR, 0, ClientHeight - MNP_SCROLLBAR_WIDTH,
 			ClientWidth, MNP_SCROLLBAR_WIDTH);
-		GDIUtil::fill(mdc, MNP_SCROLLBAR_COLOR, xoffset * ClientWidth / (textView_width + ClientWidth), ClientHeight - MNP_SCROLLBAR_WIDTH,
+		GDIUtil::fill(mdc, MNP_SCROLLBAR_COLOR,
+			xoffset * ClientWidth / (textView_width + ClientWidth),
+			ClientHeight - MNP_SCROLLBAR_WIDTH,
 			ClientWidth * ClientWidth / (textView_width + ClientWidth), MNP_SCROLLBAR_WIDTH);
 	}
 
@@ -233,24 +298,31 @@ void OnPaint(HDC hdc) {
 	BitBlt(hdc, 0, 0, rc.right - rc.left, rc.bottom - rc.top, mdc, 0, 0, SRCCOPY);
 }
 
-// if caret out of sight, jump to caret
+// if caret out of user's sight, jump to see the caret
 inline void seeCaret() {
 	RECT rc;
 	GetClientRect(hWnd, &rc);
 	int ClientWidth = rc.right - rc.left;
 	int ClientHeight = rc.bottom - rc.top;
 
-	// x
-	if (xoffset > caret_x)
-		xoffset = 0;
-	else if (xoffset < caret_x - ClientWidth + MNP_PADDING * 2)
-		xoffset = caret_x - ClientWidth + MNP_PADDING * 2;
+	int x, y;
+	x = y = 0;
+	Article::const_iterator a_iter = article.begin();
+	for (int i = 0; i != caret.n_line; ++i, ++a_iter)
+		y += a_iter->height + a_iter->padding_top;
+	Sentence::const_iterator s_iter = a_iter->sentence.begin();
+	for (int i = 0; i < caret.n_character; ++i, ++s_iter)
+		x += s_iter->width;
 
-	// y
-	if (yoffset > caret_y)
-		yoffset = caret_y;
-	else if (yoffset < caret_y - ClientHeight + MNP_LINEHEIGHT)
-		yoffset = caret_y - ClientHeight + MNP_LINEHEIGHT;
+	if (xoffset > x)
+		xoffset = x;
+	else if (xoffset < x - ClientWidth + MNP_PADDING_CLIENT * 2)
+		xoffset = x - ClientWidth + MNP_PADDING_CLIENT * 2;
+
+	if (yoffset > y)
+		yoffset = y;
+	else if (yoffset < y - ClientHeight + MNP_LINEHEIGHT)
+		yoffset = y - ClientHeight + MNP_LINEHEIGHT;
 }
 
 void OnKeyDown(int nChar) {
@@ -258,82 +330,93 @@ void OnKeyDown(int nChar) {
 	case VK_DELETE:
 		if (removeSelectedChars())
 			;
-		else if (caret != article.end())
+		else if (caret.n_character != caret.getLineLength(article))
 		{
-			caret = article.erase(caret);
+			// delete the character
+			caret.eraseChar(article);
 			bSaved = false;
 		}
-		else return;
+		else return;	// end of all, nothing to delete
 		break;
 	case VK_LEFT:
-		if (caret != article.begin())
-			--caret;		// backward
-		else return;
+		if (caret.n_character == 0)
+		{
+			// the first char in this line
+			if (caret.n_line == 0)
+				return;	// first of all, nothing to do
+			else
+			{
+				// not the first line, back to the end of previous line
+				--caret.n_line;
+				caret.n_character = caret.getLineLength(article);
+			}
+		}
+		else
+			--caret.n_character;
 		break;
 	case VK_RIGHT:
-		if (caret != article.end())
-			++caret;		// forward
-		else return;
+		if (caret.n_character == caret.getLineLength(article))
+		{
+			// the last char in this line, go to the front of next line
+			if (caret.n_line == article.size() - 1)
+				return;	// end of all, nothing to do
+			else
+			{
+				// not the last line
+				++caret.n_line;
+				caret.n_character = 0;
+			}
+		}
+		else
+			++caret.n_character;
 		break;
 	case VK_UP:
-		if (caret != article.begin())
-		{
-			// upwards
-			int n = 0;		// number of characters in front of the caret in this line
-			auto i = caret;
-			for (--i; i != article.begin(); --i) {
-				if (*i == '\n')
-				{
-					if (*--i == '\n') {				// if previous line = "\n"
-						caret = ++i;
-						goto there;
-					}
-					toBeginOfLine(i);
-					for (int t = 0; t < n && *i != '\n'; ++t) ++i;		// offset n
-					caret = i;
-					goto there;
-				}
-				++n;
-			}
-			if (*i == '\n') caret = i;
-		}
-		else return;
+		
 		break;
 	case VK_DOWN:
-		if (caret != article.end())
-		{
-			// downwards
-			int n = 0;		// number of characters in front of the caret in this line
-			auto i = caret;
-			if (i != article.begin()) {					// count n
-				for (--i; i != article.begin() && *i != '\n'; --i) ++n;
-				if (i == article.begin() && *i != '\n') ++n;
-				i = caret;
-			}
-			toEndOfLine(i);
-			// now i = article.end() or '\n'
-			if (i != article.end()) {
-				for (int t = 0; t < n + 1 && i != --article.end() && *++i != '\n'; ++t)
-					;		// goto next line, offset = n
-				if (i == --article.end() && *i != '\n') ++i;
-				caret = i;
-			}
-		}
-		else return;
+		
 		break;
 	case VK_HOME:
-		if (caret == article.begin()) return;
 		if (GetKeyState(VK_CONTROL) < 0)
-			caret = article.begin();
+		{
+			if (caret == Cursor{ 0,0 })
+				return;
+			else
+			{
+				caret.n_line = 0;
+				caret.n_character = 0;
+			}
+		}
 		else
-			caret.n_character = 0;
+		{
+			if (caret.n_character != 0)
+				caret.n_character = 0;
+			else
+				return;
+		}
 		break;
 	case VK_END:
-		if (caret == article.end())	return;
+	{
+		size_t n_chars = caret.getLineLength(article);
 		if (GetKeyState(VK_CONTROL) < 0)
-			caret = article.end();
+		{
+			size_t n_lines = article.size() - 1;
+			if (caret.n_line == n_lines && caret.n_character == n_chars)
+				return;
+			else
+			{
+				caret.n_line = n_lines;
+				caret.n_character = n_chars;
+			}
+		}
 		else
-			toEndOfLine(caret);
+		{
+			if (caret.n_character != n_chars)
+				caret.n_character = n_chars;
+			else
+				return;
+		}
+	}
 		break;
 	default:
 		return;
@@ -355,28 +438,29 @@ inline void OnChar(WORD nChar)
 {
 	// replace selected characters
 	bool flag = removeSelectedChars();
-	switch (nChar) {
+	switch (nChar)
+	{
 	case VK_BACK:
 		if (flag) break;
-		if (caret != article.begin())
-			caret = article.erase(--caret);
+		if (caret != Cursor{ 0,0 })
+			caret.backspace(article);
+		else
+			return;
 		break;
 	case VK_RETURN:
-		article.insert(caret, '\n');
+		insertAtCursor(article, L'\n');
 		break;
 	case VK_TAB:
 	{
-		Character c(L' ', );
-		caret.insert(c);		// convert tab to space
-		caret.insert(c);
-		caret.insert(c);
-		caret.insert(c);
+		Character c(L' ');
+		insertAtCursor(article, c);		// convert tab to space
+		insertAtCursor(article, c);
+		insertAtCursor(article, c);
+		insertAtCursor(article, c);
 	}
 		break;
 	default:
-	{
-		Character c(nChar, );
-		caret.insert(c);
+		insertAtCursor(article, Character(nChar));
 	}
 
 	bSaved = false;
@@ -391,49 +475,49 @@ inline void OnChar(WORD nChar)
 	ReleaseDC(hWnd, hdc);
 }
 
-inline void OnKeyUp(int nChar) {
+inline void OnKeyUp(int nChar)
+{
 	;
 }
 
-auto getCaret(HDC hdc, int x, int y) {
-	auto i = article.begin();
-	{
-		int cursor_y = y - MNP_PADDING + yoffset;
-		if (cursor_y < 0)
-			cursor_y = 0;
-		else if (cursor_y > textView_height - 1)
-			cursor_y = textView_height - MNP_LINEHEIGHT;
+Cursor PosToCaret(int cursor_x, int cursor_y)
+{
+	cursor_y = cursor_y - MNP_PADDING_CLIENT + yoffset;
+	if (cursor_y < 0)
+		cursor_y = 0;
+	else if (cursor_y >= textView_height)
+		cursor_y = textView_height - MNP_LINEHEIGHT;
 
-		// goto that line
-		for (int nReturn = 0; nReturn < cursor_y / MNP_LINEHEIGHT; ++i)
-			if (*i == '\n') ++nReturn;
+	cursor_x += xoffset;
+	if (cursor_x < 0)
+		cursor_x = 0;
+	
+	int x, y;
+	x = y = 0;
+	Cursor cursor = { 0,0 };
+	for (Article::const_iterator a_iter = article.begin(); a_iter != article.end(); ++a_iter)
+	{
+		y += a_iter->height + a_iter->padding_top;
+		if (y < cursor_y)
+			++cursor.n_line;
+		else
+			break;
+	}
+	Sentence& s = cursor.getSentence(article)->sentence;
+	for (Sentence::const_iterator s_iter = s.begin(); s_iter != s.end(); ++s_iter)
+	{
+		if ((x += s_iter->width) < cursor_x)
+			++cursor.n_character;
+		else
+			break;
 	}
 
-	Font f(MNP_FONTSIZE, MNP_FONTFACE);
-	f.bind(hdc);	// for GetCharWidth32W()
-
-	int char_width, total_width = 0;
-	int cursor_x = x - MNP_PADDING + xoffset;
-	if (cursor_x < 0) cursor_x = 0;
-	while (i != article.end() && *i != '\n')
-	{
-		// goto that char
-		GetCharWidth32W(hdc, *i, *i, &char_width);
-		if (cursor_x > total_width + char_width / 2) {
-			total_width += char_width;
-			++i;
-		}
-		else break;
-	}
-	f.unbind();
-	return i;
+	return cursor;
 }
 
 inline void OnLButtonDown(DWORD wParam, int x, int y) {
 	HDC hdc = GetDC(hWnd);
-
-	sel_begin = caret = getCaret(hdc, x, y);
-
+	sel_begin = caret = PosToCaret(x, y);
 	repaintView(hdc);
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
@@ -442,7 +526,7 @@ inline void OnLButtonDown(DWORD wParam, int x, int y) {
 inline void OnMouseMove(DWORD wParam, int x, int y) {
 	if (wParam & MK_LBUTTON) {
 		HDC hdc = GetDC(hWnd);
-		std::list<TCHAR>::iterator new_caret = getCaret(hdc, x, y);
+		Cursor new_caret = PosToCaret(x, y);
 		if (caret != new_caret) {
 			caret = new_caret;
 			repaintView(hdc);
@@ -513,7 +597,7 @@ inline void OnMenuCopyHtml() {
 	}
 
 	// !important
-	Character c(L'\n', );
+	Character c(L'\n');
 	article.front().sentence.push_front(c);
 	article.back().sentence.push_back(c);
 
@@ -568,7 +652,7 @@ inline void OnMenuExport() {
 	if (GetSaveFileNameW(&ofn) > 0) {
 
 		// !important
-		Character c(L'\n', );
+		Character c(L'\n');
 		article.front().sentence.push_front(c);
 		article.back().sentence.push_back(c);
 
@@ -625,15 +709,18 @@ inline void OnMenuSave() {
 
 // true: quit, false: cancel
 bool sureToQuit() {
-	if (!bSaved) {
+	if (!bSaved)
+	{
 		int r = MessageBoxW(hWnd, L"Save changes?", MNP_APPNAME, MB_YESNOCANCEL | MB_ICONQUESTION);
 		if (r == IDCANCEL)
 			return false;
-		else if (r == IDYES) {
+		else if (r == IDYES)
+		{
 			OnMenuSave();
 			return false;
 		}
 	}
+	delete textView;
 	return true;
 }
 
@@ -676,26 +763,10 @@ void loadFile(LPTSTR path) {
 	article.clear();
 	textView_width = 0;
 	textView_height = MNP_LINEHEIGHT;
+	
 	caret = { 0,0 };
-	for (auto i = str.begin(); i != str.end(); ++i) {
-		if (*i == '\r')
-		{
-			;
-		}
-		else if (*i == '\t')
-		{
-			Character c(L' ', );
-			caret.insert(c);		// convert tab to space
-			caret.insert(c);
-			caret.insert(c);
-			caret.insert(c);
-		}
-		else
-		{
-			Character c(*i, );
-			caret.insert(c);
-		}
-	}
+	insertAtCursor(article, str);
+
 	sel_begin = caret = { 0,0 };
 	bSaved = true;
 
@@ -766,29 +837,7 @@ inline void OnMenuPaste() {
 
 	removeSelectedChars();
 	LPCTSTR str = (LPCTSTR)GlobalLock(h);
-
-	while (*str != '\0')
-	{
-		if (*str == '\t')
-		{
-			Character c(L' ', );
-			caret.insert(c);		// convert tab to space
-			caret.insert(c);
-			caret.insert(c);
-			caret.insert(c);
-		}
-		else if (*str == '\r')
-		{
-			;
-		}
-		else
-		{
-			Character c(*str, );
-			caret.insert(c);
-		}
-		++str;
-	}
-
+	insertAtCursor(article, str);
 	GlobalUnlock(h);
 	CloseClipboard();
 

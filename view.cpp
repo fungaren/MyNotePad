@@ -1,15 +1,16 @@
 #include "stdafx.h"
 #include "resource.h"
+
+HWND hWnd;
+bool bSaved = true;						// set false when file is modified
+
 #include "view.h"
 
 //---------------------------------
 
-MemDC* textView = nullptr;
-bool bSaved = true;						// set false when file is modified
 bool bWndSizeChgd = false;
 
 HINSTANCE hInst;
-HWND hWnd;
 LPCTSTR MNP_APPNAME = L"MyNotePad";
 
 //---------------------------------
@@ -101,10 +102,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				OnMenuCopyHtml();
 				break;
 			case IDM_EXIT:
-				if (sureToQuit()) {
-					delete textView;
+				if (sureToQuit())
 					DestroyWindow(hWnd);
-				}
 				break;
 			default:
 				return DefWindowProc(hWnd, message, wParam, lParam);
@@ -183,10 +182,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
         break;
 	case WM_CLOSE:
-		if (sureToQuit()) {
-			delete textView;
+		if (sureToQuit())
 			return DefWindowProc(hWnd, message, wParam, lParam);
-		}
 		else
 			return 0;
     case WM_DESTROY:
@@ -231,6 +228,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 	if (!InitInstance(hInstance, nCmdShow))
 		return FALSE;
+
+	article.push_back(Line(std::wstring(L"")));
 
 	if(*lpCmdLine != '\0')
 		loadFile(lpCmdLine);		// load the file specified in cmdLine

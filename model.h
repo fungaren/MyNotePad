@@ -62,26 +62,18 @@ class Font {
 	HFONT hf;
 	HGDIOBJ ho;
 	HDC hdc;
-	UINT format = DT_NOPREFIX;
+	// UINT format = DT_NOPREFIX;
 
 public:
-	DWORD color = 0x00000000;
+	DWORD color;
 	CharStyle style;	// unuse now
 
-	Font(int size, LPCTSTR fontname, int weight = 100, CharStyle style = default_style) {
+	Font(int size, LPCTSTR fontname, int weight = 100, DWORD color = 0x00000000, CharStyle style = default_style)
+		:color(color)
+	{
 		hf = CreateFont(size, 0, 0, 0, weight, FALSE, FALSE, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
 			CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_SWISS, fontname);
 		this->style = style;
-	}
-
-	Font& setColor(DWORD color) {
-		this->color = color;
-		return *this;
-	}
-
-	Font& setWordBreak() {
-		format |= DT_WORDBREAK | DT_EDITCONTROL;
-		return *this;
 	}
 
 	Font& bind(HDC hdc) {
@@ -94,21 +86,34 @@ public:
 		SelectObject(hdc, ho);
 	}
 
-	Font& calcPrintArea(LPCTSTR str, int length, int* width, int* height) {
-		RECT rc = { 0,0,0,0 };
-		DrawTextW(hdc, str, length, &rc, format | DT_CALCRECT);
-		*width = rc.right - rc.left;
-		*height = rc.bottom - rc.top;
-		return *this;
-	}
+	//Font& setWordBreak() {
+	//	format |= DT_WORDBREAK | DT_EDITCONTROL;
+	//	return *this;
+	//}
 
-	Font& print(LPCTSTR str, int length, int left, int top, int width, int height) {
-		RECT rc = { left, top, left + width, top + height };
+	//Font& calcPrintArea(LPCTSTR str, int length, int* width, int* height) {
+	//	RECT rc = { 0,0,0,0 };
+	//	DrawTextW(hdc, str, length, &rc, format | DT_CALCRECT);
+	//	*width = rc.right - rc.left;
+	//	*height = rc.bottom - rc.top;
+	//	return *this;
+	//}
 
+	//Font& print(LPCTSTR str, int length, int left, int top, int width, int height) {
+	//	RECT rc = { left, top, left + width, top + height };
+
+	//	SetBkMode(hdc, TRANSPARENT);
+	//	SetTextColor(hdc, color);
+
+	//	DrawTextW(hdc, str, length, &rc, format);
+	//	return *this;
+	//}
+
+	Font& printLine(LPCTSTR str, int length, int left, int top) {
 		SetBkMode(hdc, TRANSPARENT);
 		SetTextColor(hdc, color);
 
-		DrawTextW(hdc, str, length, &rc, format);
+		TextOutW(hdc, left, top, str, length);
 		return *this;
 	}
 
@@ -120,16 +125,30 @@ public:
 struct Character
 {
 	TCHAR c;
-	uint16_t width;
+	int width;
 	DWORD color;
 	CharStyle style;
 
-	Character (TCHAR c, Font& f)
+	Character(TCHAR c, DWORD color, CharStyle style)
 	{
 		this->c = c;
-		width = ;
-		color = f.color;
-		style = f.style;
+		this->color = color;
+		this->style = style;
+		
+#ifdef DEBUG
+		width = 0;
+#endif // DEBUG
+	}
+
+	Character(TCHAR c)
+	{
+		this->c = c;
+		this->color = MNP_FONTCOLOR;
+		this->style = { 0,0 };
+
+#ifdef DEBUG
+		width = 0;
+#endif // DEBUG
 	}
 
 	operator TCHAR() { return c; }
@@ -147,15 +166,15 @@ struct Line
 	DWORD background_color;
 	Sentence sentence;
 
-	Line(std::wstring& s, uint16_t padding_left = 0, uint16_t padding_top = 0)
+	Line(const std::wstring& s, uint16_t padding_left = 0, uint16_t padding_top = 0)
 		:transparent(true),
 		background_color(MNP_BGCOLOR_EDIT)
 	{
 		for (TCHAR c : s)
-			sentence.push_back(Character(c, ));
-		this->padding_left = padding_left
+			sentence.push_back(Character(c, MNP_FONTCOLOR, {0,0}));
+		this->padding_left = padding_left;
 		this->padding_top = padding_top;
-		this->height = ;
+		this->height = MNP_LINEHEIGHT;
 	}
 
 	operator std::wstring()
@@ -168,18 +187,13 @@ typedef std::list<Line> Article;
 
 struct Cursor
 {
-	size_t n_line;
-	size_t n_character;
+	size_t n_line;			// the first line is No.zero
+	size_t n_character;		// the first char is No.zero
 
 	Cursor(size_t n_line, size_t n_character)
 	{
 		this->n_line = n_line;
 		this->n_character = n_character;
-	}
-
-	void insert(const Character& c)
-	{
-
 	}
 
 	Article::const_iterator getSentence(const Article& a)
@@ -196,16 +210,47 @@ struct Cursor
 		return l;
 	}
 
-	//Sentence::iterator getCharacter(Article& a)
-	//{
-	//	Sentence::iterator c = getSentence(a)->sentence.begin();
-	//	std::advance(c, n_character);
-	//	return c;
-	//}
-
-	size_t getLineLength(const Article& a)
+	Sentence::const_iterator getCharacter(Article::iterator l)
 	{
-		return getSentence(a)->sentence.size();
+		Sentence::const_iterator c = l->sentence.begin();
+		std::advance(c, n_character);
+		return c;
+	}
+	
+	void eraseChar(Article& a)
+	{
+		Article::iterator a_iter = getSentence(a);
+		Sentence& s_iter = a_iter->sentence;
+		Sentence::iterator c_iter = s_iter.begin();
+		std::advance(c_iter, n_character);
+		if (c_iter->c == L'\n')
+		{
+			s_iter.erase(c_iter);
+			s_iter.merge((++a_iter)->sentence);
+			a.erase(a_iter);
+		}
+		else
+			s_iter.erase(c_iter);
+	}
+
+	void backspace(Article& a)
+	{
+		if (n_character == 0)
+		{
+			_ASSERT(n_line != 0);
+			Article::iterator l,t = a.begin();
+			std::advance(l, n_line - 1);
+			l->sentence.pop_back();
+			l->sentence.merge((++t)->sentence);
+			a.erase(t);
+		}
+		else
+		{
+			Sentence& s_iter = getSentence(a)->sentence;
+			Sentence::iterator c_iter = s_iter.begin();
+			std::advance(c_iter, n_character - 1);
+			s_iter.erase(c_iter);
+		}
 	}
 
 	void eraseInLine(Article& a, size_t to)
@@ -276,8 +321,18 @@ struct Cursor
 		return std::wstring(s.begin(), i_to);
 	}
 
+	size_t getLineLength(Article& a)
+	{
+		return getSentence(a)->sentence.size();
+	}
+
 	bool operator== (const Cursor& right)
 	{
 		return (n_line == right.n_line) && (n_character == right.n_character);
+	}
+
+	bool operator!= (const Cursor& right)
+	{
+		return (n_line != right.n_line) || (n_character != right.n_character);
 	}
 };
