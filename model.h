@@ -157,7 +157,6 @@ typedef std::list<Character> Sentence;
 
 struct Line
 {
-	uint16_t width;
 	uint16_t height;
 	uint16_t padding_left;
 	uint16_t padding_top;
@@ -173,13 +172,11 @@ struct Line
 		HDC hdc = GetDC(hWnd);
 		Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
 		f.bind(hdc);
-		width = 0;
 		for (TCHAR c : s)
 		{
 			Character ch(c, MNP_FONTCOLOR, { 0,0 });
 			GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
 			sentence.push_back(ch);
-			width += ch.width;
 		}
 		f.unbind();
 		ReleaseDC(hWnd, hdc);
