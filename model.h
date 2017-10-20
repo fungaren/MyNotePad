@@ -38,7 +38,7 @@ public:
 		oldBmp = (HBITMAP)SelectObject(compatibleDC, bmp);
 	}
 
-	operator HDC() { return compatibleDC; }
+	operator HDC() const { return compatibleDC; }
 
 	~MemDC() {
 		SelectObject(compatibleDC, oldBmp);
@@ -150,8 +150,7 @@ struct Character
 		width = 0;
 #endif // DEBUG
 	}
-
-	operator TCHAR() { return c; }
+	operator TCHAR() const { return c; }
 };
 
 typedef std::list<Character> Sentence;
@@ -177,7 +176,7 @@ struct Line
 		this->height = MNP_LINEHEIGHT;
 	}
 
-	operator std::wstring()
+	operator std::wstring() const 
 	{
 		return std::wstring(sentence.begin(), sentence.end());
 	}
@@ -196,41 +195,43 @@ struct Cursor
 		this->n_character = n_character;
 	}
 
-	Article::const_iterator getSentence(const Article& a)
+	Article::const_iterator getSentence(const Article& a) const
 	{
 		Article::const_iterator l = a.begin();
 		std::advance(l, n_line);
 		return l;
 	}
 
-	Article::iterator getSentence(Article& a)
+	Article::iterator getSentence(Article& a) const
 	{
 		Article::iterator l = a.begin();
 		std::advance(l, n_line);
 		return l;
 	}
 
-	Sentence::const_iterator getCharacter(Article::iterator l)
+	Sentence::const_iterator getCharacter(Article::iterator l) const
 	{
+		_ASSERT(!l->sentence.empty());
 		Sentence::const_iterator c = l->sentence.begin();
 		std::advance(c, n_character);
 		return c;
 	}
 	
-	void eraseChar(Article& a)
+	void eraseChar(Article& a) const 
 	{
 		Article::iterator a_iter = getSentence(a);
-		Sentence& s_iter = a_iter->sentence;
-		Sentence::iterator c_iter = s_iter.begin();
-		std::advance(c_iter, n_character);
-		if (c_iter->c == L'\n')
+		Sentence& s = a_iter->sentence;
+		Sentence::iterator s_iter = s.begin();
+		std::advance(s_iter, n_character);
+		if (s_iter->c == L'\n')
 		{
-			s_iter.erase(c_iter);
-			s_iter.merge((++a_iter)->sentence);
+			s.erase(s_iter);
+			for(Character& c: (++a_iter)->sentence)
+				s.push_back(c);
 			a.erase(a_iter);
 		}
 		else
-			s_iter.erase(c_iter);
+			s.erase(s_iter);
 	}
 
 	void backspace(Article& a)
@@ -238,10 +239,14 @@ struct Cursor
 		if (n_character == 0)
 		{
 			_ASSERT(n_line != 0);
-			Article::iterator l,t = a.begin();
+			Article::iterator l, t;
+			l = t = a.begin();
 			std::advance(l, n_line - 1);
 			l->sentence.pop_back();
-			l->sentence.merge((++t)->sentence);
+			n_character = l->sentence.size();
+			for(Character& c: (++t)->sentence)
+				l->sentence.push_back(c);
+			--n_line;
 			a.erase(t);
 		}
 		else
@@ -250,10 +255,11 @@ struct Cursor
 			Sentence::iterator c_iter = s_iter.begin();
 			std::advance(c_iter, n_character - 1);
 			s_iter.erase(c_iter);
+			--n_character;
 		}
 	}
 
-	void eraseInLine(Article& a, size_t to)
+	void eraseInLine(Article& a, size_t to) const
 	{
 		Sentence::iterator i_from, i_to; 
 		Sentence& s = getSentence(a)->sentence;
@@ -271,7 +277,7 @@ struct Cursor
 		s.erase(i_from, i_to);
 	}
 
-	std::wstring subString(const Article& a, size_t to)
+	std::wstring subString(const Article& a, size_t to) const
 	{
 		Sentence::const_iterator i_from, i_to;
 		const Sentence& s = getSentence(a)->sentence;
@@ -289,7 +295,7 @@ struct Cursor
 		return std::wstring(i_from, i_to);
 	}
 
-	void eraseToEnd(Article& a)
+	void eraseToEnd(Article& a) const
 	{
 		Sentence& s = getSentence(a)->sentence;
 		Sentence::iterator i_from = s.begin();
@@ -297,7 +303,7 @@ struct Cursor
 		s.erase(i_from, s.end());
 	}
 
-	void eraseToStarting(Article& a)
+	void eraseToStarting(Article& a) const
 	{
 		Sentence& s = getSentence(a)->sentence;
 		Sentence::iterator i_to = s.begin();
@@ -305,7 +311,7 @@ struct Cursor
 		s.erase(s.begin(), i_to);
 	}
 
-	std::wstring subStringToEnd(const Article& a)
+	std::wstring subStringToEnd(const Article& a) const
 	{
 		const Sentence& s = getSentence(a)->sentence; 
 		Sentence::const_iterator i_from = s.begin();
@@ -313,7 +319,7 @@ struct Cursor
 		return std::wstring(i_from, s.end());
 	}
 
-	std::wstring subStringToStarting(const Article& a)
+	std::wstring subStringToStarting(const Article& a) const
 	{
 		const Sentence& s = getSentence(a)->sentence;
 		Sentence::const_iterator i_to = s.begin();
@@ -321,17 +327,22 @@ struct Cursor
 		return std::wstring(s.begin(), i_to);
 	}
 
-	size_t getLineLength(Article& a)
+	size_t getLineLength(Article& a) const
 	{
-		return getSentence(a)->sentence.size();
+		Sentence& s = getSentence(a)->sentence;
+		size_t len = s.size();
+		if (!s.empty() && s.back().c == L'\n')
+			return len - 1;	// - 1 for '\n'
+		else
+			return len;
 	}
 
-	bool operator== (const Cursor& right)
+	bool operator== (const Cursor& right) const 
 	{
 		return (n_line == right.n_line) && (n_character == right.n_character);
 	}
 
-	bool operator!= (const Cursor& right)
+	bool operator!= (const Cursor& right) const
 	{
 		return (n_line != right.n_line) || (n_character != right.n_character);
 	}

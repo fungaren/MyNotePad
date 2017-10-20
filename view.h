@@ -2,7 +2,7 @@
 #include <windows.h>
 
 const int MNP_PADDING_CLIENT = 20;					// padding 20px
-
+LPCTSTR   MNP_APPNAME = L"MyNotePad";
 LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI";		// L"Lucida Console";
 const int MNP_FONTSIZE = 30;						// 25;
 const int MNP_LINEHEIGHT = MNP_FONTSIZE;

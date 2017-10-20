@@ -9,8 +9,9 @@ Cursor sel_begin(0, 0);		// beginning of selection
 
 int textView_width = 0;
 int textView_height = MNP_LINEHEIGHT;
-int xoffset = 0;				// offset-x of textView
-int yoffset = 0;				// offset-y of textView
+int caret_x, caret_y;		// for ime
+int xoffset = 0;			// offset-x of textView
+int yoffset = 0;			// offset-y of textView
 
 //---------------------------------
 
@@ -154,7 +155,7 @@ void repaintView(HDC hdc) {
 
 	int canvasWidth = 500 + textView_width;
 	int canvasHeight = 500 + textView_height;
-	int caret_x, caret_y, caret_h;
+	int caret_h;
 
 	delete textView;
 	textView = new MemDC(hdc, canvasWidth, canvasHeight);
@@ -173,27 +174,31 @@ void repaintView(HDC hdc) {
 			y += a_iter->height + a_iter->padding_top;
 		caret_y = y;
 		caret_h = a_iter->height;
-
-		Sentence::const_iterator s_iter = a_iter->sentence.begin();
-		if (sel_begin.n_character < caret.n_character)
+		
+		Sentence::const_iterator s_iter;
+		if (!a_iter->sentence.empty())
+			s_iter = a_iter->sentence.begin();
+		if (sel_begin.n_character <= caret.n_character)
 		{
 			int i = 0;
-			for (; i < sel_begin.n_line; ++i, ++s_iter)
+			for (; i < sel_begin.n_character; ++i, ++s_iter)
 				x += s_iter->width;
-			for (; i < caret.n_line; ++i, ++s_iter)
+			for (; i < caret.n_character; ++i, ++s_iter)
 				width += s_iter->width;
 			caret_x = x + width;
+			if (sel_begin.n_character == caret.n_character)
+				goto there;
 		}
 		else if (sel_begin.n_character > caret.n_character)
 		{
 			int i = 0;
-			for (; i < caret.n_line; ++i, ++s_iter)
+			for (; i < caret.n_character; ++i, ++s_iter)
 				x += s_iter->width;
 			caret_x = x;
-			for (; i < sel_begin.n_line; ++i, ++s_iter)
+			for (; i < sel_begin.n_character; ++i, ++s_iter)
 				width += s_iter->width;
 		}
-		GDIUtil::fill(*textView, MNP_BGCOLOR_EDIT, x, y,
+		GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, x, y,
 			width, a_iter->height + a_iter->padding_top);
 	}
 	else
@@ -202,27 +207,41 @@ void repaintView(HDC hdc) {
 #define _TO_ (sel_begin.n_line < caret.n_line ? caret : sel_begin)
 		int x, y, width;
 		x = y = width = 0;
+	
 		Article::const_iterator a_iter = article.begin();
 		for (int i = 0; i != _FROM_.n_line; ++i, ++a_iter)
 			y += a_iter->height + a_iter->padding_top;
 
 		{
-			Sentence::const_iterator s_iter = a_iter->sentence.begin();
+			Sentence::const_iterator s_iter;
+			if (!a_iter->sentence.empty())
+				s_iter = a_iter->sentence.begin();
+			
 			int i = 0;
-			for (; i < _FROM_.n_line; ++i, ++s_iter)
+			for (; i < _FROM_.n_character; ++i, ++s_iter)
 				x += s_iter->width;
 			for (; i < a_iter->sentence.size(); ++i, ++s_iter)
 				width += s_iter->width;
 		
 			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, x, y,
 							width, a_iter->height + a_iter->padding_top);
+
+			if (sel_begin.n_line >= caret.n_line)
+			{
+				caret_x = x;
+				caret_y = y;
+				caret_h = a_iter->height;
+			}
 		}
 
+		y += a_iter->height + a_iter->padding_top;
 		width = 0;
 		++a_iter;
 		for (int i = _FROM_.n_line + 1; i != _TO_.n_line; ++i, ++a_iter)
 		{
-			Sentence::const_iterator s_iter = a_iter->sentence.begin();
+			Sentence::const_iterator s_iter;
+			if (!a_iter->sentence.empty())
+				s_iter = a_iter->sentence.begin();
 			for (int j = 0; j < a_iter->sentence.size(); ++j, ++s_iter)
 				width += s_iter->width;
 
@@ -231,18 +250,26 @@ void repaintView(HDC hdc) {
 			width = 0;
 			y += a_iter->height + a_iter->padding_top;
 		}
-		caret_y = y;
-		caret_h = a_iter->height;
-
-		Sentence::const_iterator s_iter = a_iter->sentence.begin();
+		
+		Sentence::const_iterator s_iter;
+		if (!a_iter->sentence.empty())
+			s_iter = a_iter->sentence.begin();
 		for (int i = 0; i < _TO_.n_character; ++i, ++s_iter)
 			width += s_iter->width;
+		
+		if (sel_begin.n_line < caret.n_line)
+		{
+			caret_x = width;
+			caret_y = y;
+			caret_h = a_iter->height;
+		}
 
 		GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, y,
 			width, a_iter->height + a_iter->padding_top);
 #undef _FROM_
 #undef _TO_
 	}
+there:
 
 	int y = 0;
 	for (Line& l : article)
@@ -310,7 +337,9 @@ inline void seeCaret() {
 	Article::const_iterator a_iter = article.begin();
 	for (int i = 0; i != caret.n_line; ++i, ++a_iter)
 		y += a_iter->height + a_iter->padding_top;
-	Sentence::const_iterator s_iter = a_iter->sentence.begin();
+	Sentence::const_iterator s_iter;
+	if (!a_iter->sentence.empty())
+		s_iter = a_iter->sentence.begin();
 	for (int i = 0; i < caret.n_character; ++i, ++s_iter)
 		x += s_iter->width;
 
@@ -326,11 +355,13 @@ inline void seeCaret() {
 }
 
 void OnKeyDown(int nChar) {
-	switch (nChar) {
+	switch (nChar)
+	{
 	case VK_DELETE:
 		if (removeSelectedChars())
 			;
-		else if (caret.n_character != caret.getLineLength(article))
+		else if (caret.n_line != article.size() - 1 
+			|| caret.n_character != caret.getLineLength(article))
 		{
 			// delete the character
 			caret.eraseChar(article);
@@ -371,10 +402,30 @@ void OnKeyDown(int nChar) {
 			++caret.n_character;
 		break;
 	case VK_UP:
-		
+		// the first line
+		if (caret.n_line == 0)
+			return;	// nothing to do
+		else
+		{
+			// not the first line, back to the end of previous line
+			--caret.n_line;
+			size_t len = caret.getLineLength(article);
+			if (len < caret.n_character)
+				caret.n_character = len;
+		}
 		break;
 	case VK_DOWN:
-		
+		// the last char in this line, go to the front of next line
+		if (caret.n_line == article.size() - 1)
+			return;	// nothing to do
+		else
+		{
+			// not the last line
+			++caret.n_line;
+			size_t len = caret.getLineLength(article);
+			if (len < caret.n_character)
+				caret.n_character = len;
+		}
 		break;
 	case VK_HOME:
 		if (GetKeyState(VK_CONTROL) < 0)
@@ -421,7 +472,6 @@ void OnKeyDown(int nChar) {
 	default:
 		return;
 	};
-there:
 
 	if (GetKeyState(VK_SHIFT) >= 0)
 		sel_begin = caret;
@@ -482,31 +532,33 @@ inline void OnKeyUp(int nChar)
 
 Cursor PosToCaret(int cursor_x, int cursor_y)
 {
-	cursor_y = cursor_y - MNP_PADDING_CLIENT + yoffset;
+	cursor_y = cursor_y + yoffset;
 	if (cursor_y < 0)
 		cursor_y = 0;
 	else if (cursor_y >= textView_height)
 		cursor_y = textView_height - MNP_LINEHEIGHT;
 
-	cursor_x += xoffset;
+	cursor_x += xoffset - MNP_PADDING_CLIENT;
 	if (cursor_x < 0)
 		cursor_x = 0;
 	
 	int x, y;
 	x = y = 0;
 	Cursor cursor = { 0,0 };
+	size_t size = article.size() - 1;
 	for (Article::const_iterator a_iter = article.begin(); a_iter != article.end(); ++a_iter)
 	{
 		y += a_iter->height + a_iter->padding_top;
-		if (y < cursor_y)
+		if (y < cursor_y && cursor.n_line < size)
 			++cursor.n_line;
 		else
 			break;
 	}
 	Sentence& s = cursor.getSentence(article)->sentence;
+	size = cursor.getLineLength(article);
 	for (Sentence::const_iterator s_iter = s.begin(); s_iter != s.end(); ++s_iter)
 	{
-		if ((x += s_iter->width) < cursor_x)
+		if ((x += s_iter->width) < cursor_x + s_iter->width/2 && cursor.n_character < size)
 			++cursor.n_character;
 		else
 			break;
@@ -524,10 +576,12 @@ inline void OnLButtonDown(DWORD wParam, int x, int y) {
 }
 
 inline void OnMouseMove(DWORD wParam, int x, int y) {
-	if (wParam & MK_LBUTTON) {
+	if (wParam & MK_LBUTTON)
+	{
 		HDC hdc = GetDC(hWnd);
 		Cursor new_caret = PosToCaret(x, y);
-		if (caret != new_caret) {
+		if (caret != new_caret)
+		{
 			caret = new_caret;
 			repaintView(hdc);
 			OnPaint(hdc);
@@ -602,7 +656,9 @@ inline void OnMenuCopyHtml() {
 	article.back().sentence.push_back(c);
 
 	// to HTML
-	std::wstring str(article.begin(), article.end());
+	std::wstring str;
+	for (const Line& l : article)
+		str += l;
 	parse_markdown(str);
 
 	HGLOBAL h = GlobalAlloc(GMEM_MOVEABLE, str.size() * 2 + 2);
@@ -660,7 +716,9 @@ inline void OnMenuExport() {
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
 		f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><head><body>";
-		std::wstring str(article.begin(), article.end());
+		std::wstring str;
+		for (const Line& l : article)
+			str += l;
 		parse_markdown(str);
 		f << cvt.to_bytes(str);
 		f << "</body>";
@@ -679,7 +737,9 @@ void OnMenuSaveAs() {
 	setOFN(ofn, L"MarkDown (*.md)\0*.md\0All Files (*.*)\0*.*\0\0", L"md");
 
 	if (GetSaveFileNameW(&ofn) > 0) {
-		std::wstring str(article.begin(), article.end());
+		std::wstring str;
+		for (const Line& l : article)
+			str += l;
 
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
@@ -697,7 +757,9 @@ inline void OnMenuSave() {
 		OnMenuSaveAs();
 	else
 	{
-		std::wstring str(article.begin(), article.end());
+		std::wstring str;
+		for (const Line& l : article)
+			str += l;
 
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(opened_file);

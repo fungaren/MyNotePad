@@ -2,16 +2,10 @@
 #include "resource.h"
 
 HWND hWnd;
-bool bSaved = true;						// set false when file is modified
-
-#include "view.h"
-
-//---------------------------------
-
-bool bWndSizeChgd = false;
-
 HINSTANCE hInst;
-LPCTSTR MNP_APPNAME = L"MyNotePad";
+bool bSaved = true;	// set false when file is modified
+#include "view.h"
+bool bWndSizeChgd = false;
 
 //---------------------------------
 
@@ -226,10 +220,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 	MyRegisterClass(hInstance);
 
+	article.push_back(Line(std::wstring(L"")));
+
 	if (!InitInstance(hInstance, nCmdShow))
 		return FALSE;
-
-	article.push_back(Line(std::wstring(L"")));
 
 	if(*lpCmdLine != '\0')
 		loadFile(lpCmdLine);		// load the file specified in cmdLine
