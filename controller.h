@@ -556,9 +556,6 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 	cursor_y = cursor_y + yoffset;
 	if (cursor_y < 0)
 		cursor_y = 0;
-	else if (cursor_y >= textView_height)
-		cursor_y = textView_height - MNP_LINEHEIGHT;
-
 	cursor_x += xoffset - MNP_PADDING_CLIENT;
 	if (cursor_x < 0)
 		cursor_x = 0;
@@ -809,6 +806,7 @@ bool sureToQuit() {
 		}
 	}
 	delete textView;
+	textView = nullptr;
 	return true;
 }
 
@@ -838,7 +836,7 @@ void loadFile(LPTSTR path) {
 		MessageBoxW(hWnd, L"Can only open UTF-8 file!", MNP_APPNAME, MB_OK | MB_ICONWARNING);
 		return;
 	}
-
+	
 	// clean
 	article.clear();
 	article.push_back(Line(std::wstring(L"")));
@@ -858,7 +856,6 @@ void loadFile(LPTSTR path) {
 
 inline void OnMenuOpen() {
 	sureToQuit();
-
 	TCHAR file[MAX_PATH];		*file = '\0';
 	OPENFILENAME ofn;
 	ofn.lpstrFile = file;
