@@ -167,13 +167,25 @@ struct Line
 
 	Line(const std::wstring& s, uint16_t padding_left = 0, uint16_t padding_top = 0)
 		:transparent(true),
-		background_color(MNP_BGCOLOR_EDIT)
+		background_color(MNP_BGCOLOR_EDIT),
+		height(MNP_LINEHEIGHT)
 	{
+		HDC hdc = GetDC(hWnd);
+		Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
+		f.bind(hdc);
+		width = 0;
 		for (TCHAR c : s)
-			sentence.push_back(Character(c, MNP_FONTCOLOR, {0,0}));
+		{
+			Character ch(c, MNP_FONTCOLOR, { 0,0 });
+			GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
+			sentence.push_back(ch);
+			width += ch.width;
+		}
+		f.unbind();
+		ReleaseDC(hWnd, hdc);
+
 		this->padding_left = padding_left;
 		this->padding_top = padding_top;
-		this->height = MNP_LINEHEIGHT;
 	}
 
 	operator std::wstring() const 
@@ -240,13 +252,14 @@ struct Cursor
 		{
 			_ASSERT(n_line != 0);
 			Article::iterator l, t;
-			l = t = a.begin();
+			l = a.begin();
 			std::advance(l, n_line - 1);
 			l->sentence.pop_back();
 			n_character = l->sentence.size();
+			--n_line;
+			t = l;
 			for(Character& c: (++t)->sentence)
 				l->sentence.push_back(c);
-			--n_line;
 			a.erase(t);
 		}
 		else
@@ -259,7 +272,7 @@ struct Cursor
 		}
 	}
 
-	void eraseInLine(Article& a, size_t to) const
+	void eraseInLine(Article& a, size_t to)
 	{
 		Sentence::iterator i_from, i_to; 
 		Sentence& s = getSentence(a)->sentence;
@@ -272,7 +285,8 @@ struct Cursor
 		else
 		{
 			std::advance(i_from, to);
-			std::advance(i_to, n_character); 
+			std::advance(i_to, n_character);
+			n_character = to;
 		}
 		s.erase(i_from, i_to);
 	}

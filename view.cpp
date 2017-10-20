@@ -3,7 +3,7 @@
 
 HWND hWnd;
 HINSTANCE hInst;
-bool bSaved = true;	// set false when file is modified
+
 #include "view.h"
 bool bWndSizeChgd = false;
 

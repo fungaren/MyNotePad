@@ -4,7 +4,7 @@
 const int MNP_PADDING_CLIENT = 20;					// padding 20px
 LPCTSTR   MNP_APPNAME = L"MyNotePad";
 LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI";		// L"Lucida Console";
-const int MNP_FONTSIZE = 30;						// 25;
+const int MNP_FONTSIZE = 32;						// 25;
 const int MNP_LINEHEIGHT = MNP_FONTSIZE;
 
 const int MNP_BGCOLOR_EDIT = 0x00EEEEEE;
