@@ -164,7 +164,7 @@ struct Line
 	DWORD background_color;
 	Sentence sentence;
 
-	Line(const std::wstring& s, uint16_t padding_left = 0, uint16_t padding_top = 0)
+	explicit Line(const std::wstring& s, uint16_t padding_left = 0, uint16_t padding_top = 0)
 		:transparent(true),
 		background_color(MNP_BGCOLOR_EDIT),
 		height(MNP_LINEHEIGHT)
@@ -193,168 +193,240 @@ struct Line
 
 typedef std::list<Line> Article;
 
-struct Cursor
+class Cursor
 {
-	size_t n_line;			// the first line is No.zero
-	size_t n_character;		// the first char is No.zero
+	Article& a;
+	Article::iterator l;		// the first line is No.zero
+	Sentence::iterator c;		// the first char is No.zero
 
-	Cursor(size_t n_line, size_t n_character)
+public:
+	Cursor(Article& a) : a(a)
 	{
-		this->n_line = n_line;
-		this->n_character = n_character;
+		reset();
 	}
 
-	Article::const_iterator getSentence(const Article& a) const
+	Cursor(Article& a, Article::iterator l, Sentence::iterator c) :
+		a(a),
+		l(l),
+		c(c)
 	{
-		Article::const_iterator l = a.begin();
-		std::advance(l, n_line);
+		;
+	}
+
+	void reset()
+	{
+		toFirstLine();
+		toFirstChar();
+	}
+
+	void end()
+	{
+		toLastLine();
+		toLastChar();
+	}
+
+	void toFirstLine()
+	{
+		l = a.begin();
+	}
+
+	void toLastLine()
+	{
+		l = --a.end();
+	}
+
+	void toFirstChar()
+	{
+		c = l->sentence.begin();
+	}
+
+	void toLastChar()
+	{
+		c = l->sentence.end();
+	}
+	
+	void move_left()
+	{
+		if (c == l->sentence.begin())
+		{
+			// the first char in this line
+			if (l == a.begin())
+				return;	// first of all, nothing to do
+			else
+			{
+				// not the first line, back to the end of previous line
+				--l;
+				toLastChar();
+			}
+		}
+		else
+			--c;
+	}
+
+	void move_right()
+	{
+		if (c == l->sentence.end())
+		{
+			// the last char in this line, go to the front of next line
+			if (l == a.end())
+				return;	// end of all, nothing to do
+			else
+			{
+				// not the last line, to the first of next line
+				++l;
+				toFirstChar();
+			}
+		}
+		else
+			++c;
+	}
+
+	Article::const_iterator getSentence() const
+	{
 		return l;
 	}
-
-	Article::iterator getSentence(Article& a) const
+	
+	Sentence::const_iterator getCharacter() const
 	{
-		Article::iterator l = a.begin();
-		std::advance(l, n_line);
-		return l;
-	}
-
-	Sentence::const_iterator getCharacter(Article::iterator l) const
-	{
-		_ASSERT(!l->sentence.empty());
-		Sentence::const_iterator c = l->sentence.begin();
-		std::advance(c, n_character);
 		return c;
 	}
 	
-	void eraseChar(Article& a) const 
+	void eraseChar() 
 	{
-		Article::iterator a_iter = getSentence(a);
-		Sentence& s = a_iter->sentence;
-		Sentence::iterator s_iter = s.begin();
-		std::advance(s_iter, n_character);
-		if (s_iter->c == L'\n')
+		Article::iterator a_iter = l;
+		Sentence& s = l->sentence;
+		if (c->c == L'\n')
 		{
-			s.erase(s_iter);
-			for(Character& c: (++a_iter)->sentence)
-				s.push_back(c);
+			c = s.erase(c);
+			for(Character& ch: (++a_iter)->sentence)
+				s.push_back(ch);
 			a.erase(a_iter);
 		}
 		else
-			s.erase(s_iter);
+			c = s.erase(c);
 	}
 
-	void backspace(Article& a)
+	void backspace()
 	{
-		if (n_character == 0)
+		if (c == l->sentence.begin())
 		{
-			_ASSERT(n_line != 0);
-			Article::iterator l, t;
-			l = a.begin();
-			std::advance(l, n_line - 1);
-			l->sentence.pop_back();
-			n_character = l->sentence.size();
-			--n_line;
-			t = l;
-			for(Character& c: (++t)->sentence)
-				l->sentence.push_back(c);
-			a.erase(t);
+			if (l == a.begin())
+				return;
+			Article::iterator previous_line = l;
+			(--previous_line)->sentence.pop_back();	// pop '\n'
+			c = previous_line->sentence.end();
+			for (Character& ch: l->sentence)
+				previous_line->sentence.push_back(ch);
+			a.erase(l);
+			l = previous_line;
 		}
 		else
 		{
-			Sentence& s_iter = getSentence(a)->sentence;
-			Sentence::iterator c_iter = s_iter.begin();
-			std::advance(c_iter, n_character - 1);
-			s_iter.erase(c_iter);
-			--n_character;
+			Sentence::iterator t = c;
+			l->sentence.erase(--t);
 		}
 	}
 
-	void eraseInLine(Article& a, size_t to)
+	int distance_x(const Cursor& right) const
 	{
-		Sentence::iterator i_from, i_to; 
-		Sentence& s = getSentence(a)->sentence;
-		i_from = i_to = s.begin();
-		if (n_character < to)
+		_ASSERT(l == right.getSentence());
+		return std::distance(l->sentence.begin(), c) -
+			std::distance(static_cast<Sentence::const_iterator>(l->sentence.begin()),
+				right.getCharacter());
+	}
+
+	int distance_y(const Cursor& right) const
+	{
+		return std::distance(a.begin(), l) -
+			std::distance(static_cast<Article::const_iterator>(a.begin()),
+				right.getSentence());
+	}
+
+	std::wstring subString(const Cursor& to) const
+	{
+		_ASSERT(distance_x(to) < 0);
+		return std::wstring(static_cast<Sentence::const_iterator>(c), to.getCharacter());
+	}
+
+	void eraseInLine(const Cursor& to)
+	{
+		_ASSERT(distance_x(to) < 0);
+		c = l->sentence.erase(c, to.getCharacter());
+	}
+
+	void eraseToEnd() 
+	{
+		c = l->sentence.erase(c, l->sentence.end());
+	}
+
+	void eraseToStarting()
+	{
+		l->sentence.erase(l->sentence.begin(), c);
+		c = l->sentence.begin();
+	}
+
+	std::wstring subStringToEnd() const
+	{
+		return std::wstring(c, l->sentence.end());
+	}
+
+	std::wstring subStringToStarting() const
+	{
+		return std::wstring(l->sentence.begin(), c);
+	}
+
+	void eraseLines(const Article::const_iterator& to)
+	{
+		l = a.erase(l, to);
+	}
+
+	void insertInLine(const Character& ch)
+	{
+		if (ch.c == L'\n')
 		{
-			std::advance(i_from, n_character); 
-			std::advance(i_to, to);
+			if (c == l->sentence.end())
+			{
+				a.push_back(Line(L""));
+				l->sentence.insert(c, ch);
+			}
+			else
+			{
+				l->sentence.insert(c, ch);
+				auto t = l;
+				a.insert(++t, Line(subStringToEnd()));
+				eraseToEnd();
+			}
+			++l;
+			c = l->sentence.begin();
 		}
 		else
 		{
-			std::advance(i_from, to);
-			std::advance(i_to, n_character);
-			n_character = to;
+			l->sentence.insert(c, ch);
 		}
-		s.erase(i_from, i_to);
 	}
 
-	std::wstring subString(const Article& a, size_t to) const
-	{
-		Sentence::const_iterator i_from, i_to;
-		const Sentence& s = getSentence(a)->sentence;
-		i_from = i_to = s.begin();
-		if (n_character < to)
-		{
-			std::advance(i_from, n_character);
-			std::advance(i_to, to);
-		}
-		else
-		{
-			std::advance(i_from, to);
-			std::advance(i_to, n_character);
-		}
-		return std::wstring(i_from, i_to);
-	}
-
-	void eraseToEnd(Article& a) const
-	{
-		Sentence& s = getSentence(a)->sentence;
-		Sentence::iterator i_from = s.begin();
-		std::advance(i_from, n_character);
-		s.erase(i_from, s.end());
-	}
-
-	void eraseToStarting(Article& a) const
-	{
-		Sentence& s = getSentence(a)->sentence;
-		Sentence::iterator i_to = s.begin();
-		std::advance(i_to, n_character);
-		s.erase(s.begin(), i_to);
-	}
-
-	std::wstring subStringToEnd(const Article& a) const
-	{
-		const Sentence& s = getSentence(a)->sentence; 
-		Sentence::const_iterator i_from = s.begin();
-		std::advance(i_from, n_character);
-		return std::wstring(i_from, s.end());
-	}
-
-	std::wstring subStringToStarting(const Article& a) const
-	{
-		const Sentence& s = getSentence(a)->sentence;
-		Sentence::const_iterator i_to = s.begin();
-		std::advance(i_to, n_character);
-		return std::wstring(s.begin(), i_to);
-	}
-
-	size_t getLineLength(Article& a) const
-	{
-		Sentence& s = getSentence(a)->sentence;
-		size_t len = s.size();
-		if (!s.empty() && s.back().c == L'\n')
-			return len - 1;	// - 1 for '\n'
-		else
-			return len;
-	}
+	//size_t getLineLength(Article& a) const
+	//{
+	//	if (!l->sentence.empty() && l->sentence.back().c == L'\n')
+	//		return l->sentence.size() - 1;	// - 1 for '\n'
+	//	else
+	//		return l->sentence.size();
+	//}
 
 	bool operator== (const Cursor& right) const 
 	{
-		return (n_line == right.n_line) && (n_character == right.n_character);
+		return (l == right.l) && (c == right.c);
 	}
 
 	bool operator!= (const Cursor& right) const
 	{
-		return (n_line != right.n_line) || (n_character != right.n_character);
+		return (l != right.l) || (c != right.c);
+	}
+
+	Cursor& operator= (const Cursor& right)
+	{
+		a = right.a;
+		c = right.c;
+		return *this;
 	}
 };
