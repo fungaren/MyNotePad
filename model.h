@@ -268,7 +268,7 @@ public:
 		if (c == l->sentence.end())
 		{
 			// the last char in this line, go to the front of next line
-			if (l == a.end())
+			if (l == --a.end())
 				return;	// end of all, nothing to do
 			else
 			{
@@ -294,16 +294,14 @@ public:
 	void eraseChar() 
 	{
 		Article::iterator a_iter = l;
-		Sentence& s = l->sentence;
-		if (c->c == L'\n')
+		if (c == l->sentence.end())
 		{
-			c = s.erase(c);
 			for(Character& ch: (++a_iter)->sentence)
-				s.push_back(ch);
+				l->sentence.push_back(ch);
 			a.erase(a_iter);
 		}
 		else
-			c = s.erase(c);
+			c = l->sentence.erase(c);
 	}
 
 	void backspace()
@@ -313,8 +311,7 @@ public:
 			if (l == a.begin())
 				return;
 			Article::iterator previous_line = l;
-			(--previous_line)->sentence.pop_back();	// pop '\n'
-			c = previous_line->sentence.end();
+			c = (--previous_line)->sentence.end();
 			for (Character& ch: l->sentence)
 				previous_line->sentence.push_back(ch);
 			a.erase(l);
@@ -375,9 +372,12 @@ public:
 		return std::wstring(l->sentence.begin(), c);
 	}
 
-	void eraseLines(const Article::const_iterator& to)
+	// this will cause `c` invalid, use toFirstChar() to fix it 
+	size_t eraseLines(const Article::const_iterator& to)
 	{
+		size_t index_in_the_line = std::distance(l->sentence.begin(), c);
 		l = a.erase(l, to);
+		return index_in_the_line;
 	}
 
 	void insertInLine(const Character& ch)
@@ -387,11 +387,9 @@ public:
 			if (c == l->sentence.end())
 			{
 				a.push_back(Line(L""));
-				l->sentence.insert(c, ch);
 			}
 			else
 			{
-				l->sentence.insert(c, ch);
 				auto t = l;
 				a.insert(++t, Line(subStringToEnd()));
 				eraseToEnd();
@@ -403,6 +401,14 @@ public:
 		{
 			l->sentence.insert(c, ch);
 		}
+	}
+
+	// insert a line and set `c` to the `index`th char in the line
+	void insertLine(const Line& line, size_t index_in_the_line)
+	{
+		l = a.insert(l, line);
+		toFirstChar();
+		std::advance(c, index_in_the_line);
 	}
 
 	//size_t getLineLength(Article& a) const
@@ -425,7 +431,7 @@ public:
 
 	Cursor& operator= (const Cursor& right)
 	{
-		a = right.a;
+		l = right.l;
 		c = right.c;
 		return *this;
 	}

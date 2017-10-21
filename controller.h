@@ -3,7 +3,7 @@
 
 //---------------------------------
 MemDC* textView = nullptr;
-Article article;			// article text
+Article article = { Line(std::wstring(L"")) };	// article text
 Cursor caret(article);		// current position = end of selection
 Cursor sel_begin(article);	// beginning of selection 
 bool bSaved = true;			// set false when file is modified
@@ -30,16 +30,16 @@ bool removeSelectedChars() {
 	else if (distance_y < 0)	// forward selection
 	{
 		std::wstring str = sel_begin.subStringToStarting() + caret.subStringToEnd();
-		sel_begin.eraseLines(++caret.getSentence());
+		size_t index = sel_begin.eraseLines(++caret.getSentence());
+		sel_begin.insertLine(Line(str), index);
 		caret = sel_begin;
-		article.insert(sel_begin.getSentence(), Line(str));
 	}
 	else	// backward selection
 	{
 		std::wstring str = caret.subStringToStarting() + sel_begin.subStringToEnd();
-		caret.eraseLines(++sel_begin.getSentence());
+		size_t index = caret.eraseLines(++sel_begin.getSentence());
+		caret.insertLine(Line(str), index);
 		sel_begin = caret;
-		article.insert(caret.getSentence(), Line(str));
 	}
 	bSaved = false;
 	return true;
@@ -78,12 +78,10 @@ std::wstring getSelectedChars() {
 	}
 }
 
-void insertAtCursor(const TCHAR& c, int width = 0)
+void insertAtCursor(const TCHAR& c)
 {
 	Character ch(c);
-	if (width)
-		ch.width = width;
-	else
+	if (c != '\n')
 	{
 		HDC hdc = GetDC(hWnd);
 		Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
@@ -119,9 +117,7 @@ void insertAtCursor(const std::wstring& str)
 		}
 		else if (*i == L'\n')
 		{
-			int w;
-			GetCharWidth32W(hdc, L'\n', L'\n', &w);
-			insertAtCursor(L'\n', w);
+			insertAtCursor(L'\n');
 		}
 		else
 		{
@@ -494,7 +490,7 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 	
 	Article::iterator l;
 	int y = 0;
-	for (l = article.begin(); l != article.end(); ++l)
+	for (l = article.begin(); l != --article.end(); ++l)
 	{
 		if ((y += l->height + l->padding_top) >= cursor_y)
 			break;
@@ -600,14 +596,12 @@ inline void OnMenuCopyHtml() {
 	}
 
 	// !important
-	Character c(L'\n');
-	article.front().sentence.push_front(c);
-	article.back().sentence.push_back(c);
 
 	// to HTML
-	std::wstring str;
+	std::wstring str = L"\n";
 	for (const Line& l : article)
-		str += l;
+		str += static_cast<std::wstring>(l) + L"\n";
+	str += L'\n';
 	parse_markdown(str);
 
 	HGLOBAL h = GlobalAlloc(GMEM_MOVEABLE, str.size() * 2 + 2);
@@ -617,10 +611,7 @@ inline void OnMenuCopyHtml() {
 		++p;
 	}
 	*p = '\0';
-
-	article.front().sentence.pop_front();
-	article.back().sentence.pop_back();
-
+	
 	GlobalUnlock(h);
 	SetClipboardData(CF_UNICODETEXT, h);
 	CloseClipboard();
@@ -655,26 +646,18 @@ inline void OnMenuExport() {
 	setOFN(ofn, L"HTML (*.html)\0*.html\0All Files (*.*)\0*.*\0\0", L"html");
 
 	if (GetSaveFileNameW(&ofn) > 0) {
-
-		// !important
-		Character c(L'\n');
-		article.front().sentence.push_front(c);
-		article.back().sentence.push_back(c);
-
 		// write to file
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
 		f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><head><body>";
-		std::wstring str;
+		std::wstring str = L"\n";
 		for (const Line& l : article)
-			str += l;
+			str += static_cast<std::wstring>(l) + L"\n";
+		str += L'\n';
 		parse_markdown(str);
 		f << cvt.to_bytes(str);
 		f << "</body>";
 		f.close();
-
-		article.front().sentence.pop_front();
-		article.back().sentence.pop_back();
 	}
 }
 

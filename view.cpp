@@ -219,9 +219,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
 	MyRegisterClass(hInstance);
-
-	article.push_back(Line(std::wstring(L"")));
-
+	
 	if (!InitInstance(hInstance, nCmdShow))
 		return FALSE;
 
