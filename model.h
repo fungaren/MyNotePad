@@ -167,7 +167,9 @@ struct Line
 	explicit Line(const std::wstring& s, uint16_t padding_left = 0, uint16_t padding_top = 0)
 		:transparent(true),
 		background_color(MNP_BGCOLOR_EDIT),
-		height(MNP_LINEHEIGHT)
+		height(MNP_LINEHEIGHT),
+		padding_left(padding_left),
+		padding_top(padding_top)
 	{
 		HDC hdc = GetDC(hWnd);
 		Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
@@ -180,9 +182,6 @@ struct Line
 		}
 		f.unbind();
 		ReleaseDC(hWnd, hdc);
-
-		this->padding_left = padding_left;
-		this->padding_top = padding_top;
 	}
 
 	operator std::wstring() const 
@@ -196,8 +195,8 @@ typedef std::list<Line> Article;
 class Cursor
 {
 	Article& a;
-	Article::iterator l;		// the first line is No.zero
-	Sentence::iterator c;		// the first char is No.zero
+	Article::iterator l;		// index of the first line is 0.
+	Sentence::iterator c;		// index of the first char is 0.
 
 public:
 	Cursor(Article& a) : a(a)
@@ -265,9 +264,9 @@ public:
 
 	void move_right()
 	{
+		// the last char in this line, go to the beginning of next line
 		if (c == l->sentence.end())
 		{
-			// the last char in this line, go to the front of next line
 			if (l == --a.end())
 				return;	// end of all, nothing to do
 			else
@@ -293,12 +292,11 @@ public:
 	
 	void eraseChar() 
 	{
-		Article::iterator a_iter = l;
+		Article::iterator next_line = l;
 		if (c == l->sentence.end())
 		{
-			for(Character& ch: (++a_iter)->sentence)
-				l->sentence.push_back(ch);
-			a.erase(a_iter);
+			l->sentence.splice(l->sentence.end(), (++next_line)->sentence);
+			a.erase(next_line);
 		}
 		else
 			c = l->sentence.erase(c);
@@ -312,8 +310,7 @@ public:
 				return;
 			Article::iterator previous_line = l;
 			c = (--previous_line)->sentence.end();
-			for (Character& ch: l->sentence)
-				previous_line->sentence.push_back(ch);
+			previous_line->sentence.splice(previous_line->sentence.end(), l->sentence);
 			a.erase(l);
 			l = previous_line;
 		}
@@ -372,7 +369,7 @@ public:
 		return std::wstring(l->sentence.begin(), c);
 	}
 
-	// this will cause `c` invalid, use toFirstChar() to fix it 
+	// this function makes `c` invalid, use toFirstChar() to relocate it 
 	size_t eraseLines(const Article::const_iterator& to)
 	{
 		size_t index_in_the_line = std::distance(l->sentence.begin(), c);
@@ -380,21 +377,18 @@ public:
 		return index_in_the_line;
 	}
 
-	void insertInLine(const Character& ch)
+	void insertCharacter(const Character& ch)
 	{
 		if (ch.c == L'\n')
 		{
-			if (c == l->sentence.end())
-			{
-				a.push_back(Line(L""));
+			Article::iterator old_l = l;
+			a.insert(++l, Line(L""));
+			--l;// go to the new line
+			if (c != l->sentence.end()) {
+				// cursor at the middle of the line,
+				// move the string after the cursor to new line
+				l->sentence.splice(l->sentence.end(), old_l->sentence, c, old_l->sentence.end());
 			}
-			else
-			{
-				auto t = l;
-				a.insert(++t, Line(subStringToEnd()));
-				eraseToEnd();
-			}
-			++l;
 			c = l->sentence.begin();
 		}
 		else

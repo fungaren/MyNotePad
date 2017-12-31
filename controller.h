@@ -90,7 +90,7 @@ void insertAtCursor(const TCHAR& c)
 		f.unbind();
 		ReleaseDC(hWnd, hdc);
 	}
-	caret.insertInLine(ch);
+	caret.insertCharacter(ch);
 }
 
 void insertAtCursor(const std::wstring& str)
@@ -110,10 +110,10 @@ void insertAtCursor(const std::wstring& str)
 			Character ch(L' ');
 			GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
 			// convert tab to space
-			caret.insertInLine(ch);
-			caret.insertInLine(ch);
-			caret.insertInLine(ch);
-			caret.insertInLine(ch);
+			caret.insertCharacter(ch);
+			caret.insertCharacter(ch);
+			caret.insertCharacter(ch);
+			caret.insertCharacter(ch);
 		}
 		else if (*i == L'\n')
 		{
@@ -123,7 +123,7 @@ void insertAtCursor(const std::wstring& str)
 		{
 			Character ch(*i);
 			GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
-			caret.insertInLine(ch);
+			caret.insertCharacter(ch);
 		}
 	}
 
