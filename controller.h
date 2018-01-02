@@ -2,15 +2,14 @@
 #include "MarkdownParser.h"
 
 //---------------------------------
-MemDC* textView = nullptr;
-Article article = { Line(std::wstring(L"")) };	// article text
+Article article = { Line(L"") };				// article text
 Cursor caret(article);							// current position = end of selection
 Cursor sel_begin(article);						// beginning of selection 
 bool bSaved = true;								// set false when file is modified
-int textView_width = 0, textView_height = 0;
-int caret_x, caret_y;							// for IME
-signed int xoffset = -MNP_PADDING_CLIENT;		// offset-x of textView
-signed int yoffset = -MNP_PADDING_CLIENT;		// offset-y of textView
+unsigned int textView_width = 0, textView_height = 0;
+unsigned int caret_x, caret_y;					// for IME (relative to EditArea)
+unsigned int xoffset = 0;		// offset-x of textView
+unsigned int yoffset = 0;		// offset-y of textView
 
 //---------------------------------
 
@@ -67,176 +66,166 @@ void insertAtCursor(const std::wstring& str)
 	ReleaseDC(hWnd, hdc);
 }
 
-//---------------------------------
+void repaintLine(HDC clientDC, const Line& l,
+	const Sentence::const_iterator sel_from,
+	const Sentence::const_iterator sel_to)
+{
+	size_t x_sel_from = 0, x_sel_to = 0;
 
-// repaint edit area
-void repaintView(HDC hdc) {
-	textView_width = textView_height = 0;
-	for (const Line& l : article)
+	// calc width of each line
+	l.text_width = 0;
+	for (Sentence::const_iterator i = l.sentence.begin(); i != l.sentence.end(); ++i)
 	{
-		int width = 0;
-		for (const Character& c : l.sentence)
-			width += c.width;
-		if (width > textView_width)
-			textView_width = width;
-		textView_height += l.height + l.padding_top;
+		if (i == sel_from)
+			x_sel_from = l.text_width;
+		if (i == sel_to)
+			x_sel_to = l.text_width;
+		l.text_width += i->width;
 	}
+	if (l.text_width + l.padding_left > textView_width)
+		textView_width = l.text_width + l.padding_left;
 
-	int canvasWidth = 100 + textView_width;
-	int canvasHeight = 200 + textView_height;
-	int caret_h;
+	// calc textView height
+	textView_height = 0;
+	for (const Line& i : article)
+		textView_height += i.text_height + i.padding_top;
 
-	delete textView;
-	textView = new MemDC(hdc, canvasWidth, canvasHeight);
+	// discard present MemDC and recreate
+	l.mdc = std::make_unique<MemDC>(clientDC, l.text_width + l.padding_left, l.text_height + l.padding_top);
 
 	// fill background
-	GDIUtil::fill(*textView, MNP_BGCOLOR_EDIT, 0, 0, canvasWidth, canvasHeight);
+	GDIUtil::fill(*l.mdc, MNP_BGCOLOR_EDIT, 0, 0, l.text_width + l.padding_left, l.text_height + l.padding_top);
 
 	// fill selection background
-	int distance_y = sel_begin.distance_y(caret);
-	if (distance_y == 0)
-	{
-		int x, y, width;
-		x = y = width = 0;
-		
-		for (Article::const_iterator a_iter = article.begin();
-			a_iter != sel_begin.getSentence();
-			++a_iter)
-			y += a_iter->height + a_iter->padding_top;
-		caret_y = y;
-		caret_h = sel_begin.getSentence()->height;
-		
-		Sentence::const_iterator i = sel_begin.getSentence()->sentence.begin();
-		int distance_x = sel_begin.distance_x(caret);
-		if (distance_x <= 0)
-		{
-			for (; i != sel_begin.getCharacter(); ++i)
-				x += i->width;
-			for (; i != caret.getCharacter(); ++i)
-				width += i->width;
-			caret_x = x + width;
-			if (distance_x == 0)
-				goto there;
-		}
-		else if (distance_x > 0)
-		{
-			for (; i != caret.getCharacter(); ++i)
-				x += i->width;
-			caret_x = x;
-			for (; i != sel_begin.getCharacter(); ++i)
-				width += i->width;
-		}
-		GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, x, y, width, caret_h);
-	}
-	else
-	{
-#define _FROM_ (distance_y < 0 ? sel_begin : caret)
-#define _TO_ (distance_y < 0 ? caret : sel_begin)
-		int y = 0;
-		Article::const_iterator a_iter = article.begin();
-		for (; a_iter != _FROM_.getSentence(); ++a_iter)
-			y += a_iter->height + a_iter->padding_top;
+	GDIUtil::fill(*l.mdc, MNP_BGCOLOR_SEL, l.padding_left, l.padding_top, x_sel_to - x_sel_from, l.text_height);
 
-		// header line
-		{
-			int x = 0, width = 0;
-			Sentence::const_iterator s_iter = a_iter->sentence.begin();
-			for (; s_iter != _FROM_.getCharacter(); ++s_iter)
-				x += s_iter->width;
-			for (; s_iter != a_iter->sentence.end(); ++s_iter)
-				width += s_iter->width;
-
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, x, y, width, a_iter->height);
-
-			if (distance_y >= 0)
-			{
-				caret_x = x;
-				caret_y = y;
-				caret_h = a_iter->height;
-			}
-		}
-		y += a_iter->height + a_iter->padding_top;
-
-		// middle lines
-		for (++a_iter; a_iter != _TO_.getSentence(); ++a_iter)
-		{
-			int width = 0;
-			for (Sentence::const_iterator s_iter = a_iter->sentence.begin();
-				s_iter != a_iter->sentence.end();
-				++s_iter)
-				width += s_iter->width;
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, y, width, a_iter->height);
-			y += a_iter->height + a_iter->padding_top;
-		}
-
-		// tail line
-		{
-			int width = 0;
-			
-			for (Sentence::const_iterator s_iter = a_iter->sentence.begin();
-				s_iter != _TO_.getCharacter();
-				++s_iter)
-				width += s_iter->width;
-
-			GDIUtil::fill(*textView, MNP_BGCOLOR_SEL, 0, y, width, a_iter->height);
-
-			if (distance_y < 0)
-			{
-				caret_x = width;
-				caret_y = y;
-				caret_h = a_iter->height;
-			}
-		}
-#undef _FROM_
-#undef _TO_
-	}
-there:
-
+	// draw text
 	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
-	f.bind(*textView);
-	size_t y = 0;
-	for (const Line& l : article)
-	{
-		f.printLine(static_cast<std::wstring>(l).c_str(),
-			l.sentence.size(),
-			l.padding_left,
-			y += l.padding_top);
-		y += l.height;
-	}
+	f.bind(*l.mdc);
+	f.printLine(static_cast<std::wstring>(l).c_str(), l.sentence.size(), l.padding_left, l.padding_top);
 	f.unbind();
-
-	// darw caret
-	GDIUtil::line(*textView, MNP_FONTCOLOR, caret_x, caret_y, caret_x, caret_y + caret_h);
 }
 
 void OnPaint(HDC hdc) {
 
 	RECT rc;
 	GetClientRect(hWnd, &rc);
-	int ClientWidth = rc.right - rc.left;
-	int ClientHeight = rc.bottom - rc.top;
+	size_t ClientWidth = rc.right - rc.left;
+	size_t ClientHeight = rc.bottom - rc.top;
+	size_t EditAreaWidth = ClientWidth - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
+	size_t EditAreaHeight = ClientHeight - MNP_SCROLLBAR_WIDTH;
 
-	// create MemDC
-	MemDC mdc = MemDC(hdc, rc.right - rc.left, rc.bottom - rc.top);
+	// create clientDC
+	MemDC clientDC(hdc, ClientWidth, ClientHeight);
 
 	// background color of edit area
-	GDIUtil::fill(mdc, MNP_BGCOLOR_EDIT, 0, 0, ClientWidth, ClientHeight);
+	GDIUtil::fill(clientDC, MNP_BGCOLOR_EDIT, 0, 0, ClientWidth, ClientHeight);
 
-	// paste textView
-	if (textView == nullptr)
-		repaintView(mdc);
-	BitBlt(mdc, 0, 0, ClientWidth, ClientHeight, *textView, xoffset, yoffset, SRCCOPY);
+	// paste lines can be seen to mdc
+	size_t y = 0;
+	Article::const_iterator l = article.begin();
+	// draw first line (probably can't be seen entirely)
+	for (; l != article.end(); ++l)
+	{
+		y += l->text_height + l->padding_top;
+		if (y > yoffset)	// first line in edit area
+		{
+			BitBlt(clientDC,
+				MNP_PADDING_CLIENT,	// dest x
+				0,					// dest y
+				l->text_width + l->padding_left,	// dest width
+				y - yoffset,		// dest height
+				*(l->mdc),
+				xoffset,			// source x
+				yoffset - (y - l->text_height - l->padding_top),	// source y
+				SRCCOPY);
+			// caret is in this line
+			if (caret.getSentence() == l)
+			{
+				caret_x = 0;	// calc caret_x
+				for (Sentence::const_iterator c = l->sentence.begin();
+					c != caret.getCharacter(); ++c)
+				{
+					caret_x += c->width;
+					// caret at the right of edit area
+					if (caret_x > xoffset + EditAreaWidth)
+						break;
+				}
+				// caret is in edit area, draw caret
+				if (caret_x >= xoffset && caret_x <= xoffset + EditAreaWidth)
+				{
+					caret_x -= xoffset;
+					caret_y = (y - l->text_height - l->padding_top) - yoffset;
+					GDIUtil::line(clientDC, MNP_FONTCOLOR, caret_x + MNP_PADDING_CLIENT, caret_y,
+						caret_x + MNP_PADDING_CLIENT, caret_y + caret.getSentence()->text_height
+						+ caret.getSentence()->padding_top);
+				}
+			}
+			++l;
+			break;
+		}
+	}
+	y -= yoffset;	// Y-Axis to paint the second line 
+	// draw medium lines
+	for (; l != article.end(); ++l)
+	{
+		if (y > EditAreaHeight)	// last line (can't be seen entirely) 
+		{
+			BitBlt(clientDC,
+				MNP_PADDING_CLIENT,	// dest x
+				y,					// dest y
+				l->text_width + l->padding_left,	// dest width
+				EditAreaHeight - (y - l->text_height - l->padding_top),	// dest height
+				*(l->mdc),
+				xoffset,			// source x
+				0,					// source y
+				SRCCOPY);
+			break;
+		}
+		BitBlt(clientDC,
+			MNP_PADDING_CLIENT,		// dest x
+			y,						// dest y
+			l->text_width + l->padding_left,	// dest width
+			l->text_height + l->padding_top,	// dest height
+			*(l->mdc),
+			xoffset,				// source x
+			0,						// source y
+			SRCCOPY);
+		// caret at this line
+		if (caret.getSentence() == l)
+		{
+			caret_x = 0;
+			for (Sentence::const_iterator c = l->sentence.begin();
+				c != caret.getCharacter(); ++c)
+			{
+				caret_x += c->width;
+				// caret at the right of edit area
+				if (caret_x > xoffset + EditAreaWidth)
+					break;
+			}
+			// caret is in edit area, draw caret
+			if (caret_x >= xoffset && caret_x <= xoffset + EditAreaWidth)
+			{
+				caret_x -= xoffset;
+				caret_y = y;
+				GDIUtil::line(clientDC, MNP_FONTCOLOR, caret_x + MNP_PADDING_CLIENT, caret_y,
+					caret_x + MNP_PADDING_CLIENT, caret_y + caret.getSentence()->text_height
+					+ caret.getSentence()->padding_top);
+			}
+		}
+		y += l->text_height + l->padding_top;
+	}
 
 	// draw vertical scrollbar
 	if (textView_height > ClientHeight - MNP_PADDING_CLIENT) {
-		GDIUtil::fill(mdc,
+		GDIUtil::fill(clientDC,
 			MNP_SCROLLBAR_BGCOLOR,
 			ClientWidth - MNP_SCROLLBAR_WIDTH,
 			0,
 			MNP_SCROLLBAR_WIDTH,
 			ClientHeight
 		);
-		GDIUtil::fill(mdc,
+		GDIUtil::fill(clientDC,
 			MNP_SCROLLBAR_COLOR,
 			ClientWidth - MNP_SCROLLBAR_WIDTH,
 			yoffset * ClientHeight / textView_height,
@@ -246,14 +235,14 @@ void OnPaint(HDC hdc) {
 	}
 	// draw horizontal scrollbar
 	if (textView_width > ClientWidth - MNP_PADDING_CLIENT) {
-		GDIUtil::fill(mdc,
+		GDIUtil::fill(clientDC,
 			MNP_SCROLLBAR_BGCOLOR,
 			0,
 			ClientHeight - MNP_SCROLLBAR_WIDTH,
 			ClientWidth,
 			MNP_SCROLLBAR_WIDTH
 		);
-		GDIUtil::fill(mdc,
+		GDIUtil::fill(clientDC,
 			MNP_SCROLLBAR_COLOR,
 			xoffset * ClientWidth / textView_width,
 			ClientHeight - MNP_SCROLLBAR_WIDTH,
@@ -263,23 +252,23 @@ void OnPaint(HDC hdc) {
 	}
 
 	// display
-	BitBlt(hdc, 0, 0, rc.right - rc.left, rc.bottom - rc.top, mdc, 0, 0, SRCCOPY);
+	BitBlt(hdc, 0, 0, ClientWidth, ClientHeight, clientDC, 0, 0, SRCCOPY);
 }
 
 // if caret is out of client area, jump there
 void seeCaret() {
 	RECT rc;
 	GetClientRect(hWnd, &rc);
-	int ClientWidth = rc.right - rc.left;
-	int ClientHeight = rc.bottom - rc.top;
+	size_t EditAreaWidth = rc.right - rc.left - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
+	size_t EditAreaHeight = rc.bottom - rc.top - MNP_SCROLLBAR_WIDTH;
 
-	int x = 0, y = 0;
+	size_t x = 0, y = 0;
 
 	// count y
 	for (Article::const_iterator a_iter = article.begin();
 		a_iter != caret.getSentence();
 		++a_iter)
-		y += a_iter->height + a_iter->padding_top;
+		y += a_iter->text_height + a_iter->padding_top;
 
 	// count x
 	for (Sentence::const_iterator s_iter = caret.getSentence()->sentence.begin();
@@ -289,13 +278,13 @@ void seeCaret() {
 
 	if (y < yoffset)	// over the client area
 		yoffset = y;
-	else if (y + MNP_LINEHEIGHT > yoffset + ClientHeight)	// below the client area
-		yoffset = y + MNP_LINEHEIGHT - ClientHeight;
+	else if (y + MNP_LINEHEIGHT > yoffset + EditAreaHeight)	// below the client area
+		yoffset = y + MNP_LINEHEIGHT - EditAreaHeight;
 
 	if (x < xoffset)	// on the left of client area
 		xoffset = x;
-	else if (x > xoffset + ClientWidth)	// on the right of client area
-		xoffset = x - ClientWidth;
+	else if (x > xoffset + EditAreaWidth)	// on the right of client area
+		xoffset = x - EditAreaWidth;
 }
 
 void OnKeyDown(int nChar) {
@@ -385,7 +374,10 @@ void OnKeyDown(int nChar) {
 		sel_begin = caret;
 
 	HDC hdc = GetDC(hWnd);
-	repaintView(hdc);
+	// repaint each line and calc textView area
+	for (auto& l : article)
+		repaintLine(hdc, l, l.sentence.begin(), l.sentence.end());
+	
 	seeCaret();
 
 	OnPaint(hdc);
@@ -413,7 +405,7 @@ inline void OnChar(WORD nChar)
 		insertAtCursor(c);		// convert tab to space
 		insertAtCursor(c);
 		insertAtCursor(c);
-		insertAtCursor( c);
+		insertAtCursor(c);
 	}
 		break;
 	default:
@@ -424,8 +416,18 @@ inline void OnChar(WORD nChar)
 	sel_begin = caret;
 
 	HDC hdc = GetDC(hWnd);
-	repaintView(hdc);
-
+	if (nChar == VK_BACK || nChar == VK_RETURN)
+	{
+		// repaint each line and calc textView area
+		for (auto& l : article)
+			repaintLine(hdc, l, l.sentence.begin(), l.sentence.end());
+	}
+	else
+		repaintLine(hdc,
+			*caret.getSentence(),
+			caret.getSentence()->sentence.begin(),
+			caret.getSentence()->sentence.end()
+		);
 	seeCaret();
 
 	OnPaint(hdc);
@@ -442,7 +444,7 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 	cursor_y += yoffset;
 	if (cursor_y < 0)
 		cursor_y = 0;
-	cursor_x += xoffset;
+	cursor_x += xoffset - MNP_PADDING_CLIENT;
 	if (cursor_x < 0)
 		cursor_x = 0;
 	
@@ -450,7 +452,7 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 	int y = 0;
 	for (l = article.begin(); l != --article.end(); ++l)
 	{
-		if ((y += l->height + l->padding_top) >= cursor_y)
+		if ((y += l->text_height + l->padding_top) >= cursor_y)
 			break;
 	}
 
@@ -468,15 +470,19 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 inline void OnLButtonDown(DWORD wParam, int x, int y) {
 	HDC hdc = GetDC(hWnd);
 	sel_begin = caret = PosToCaret(x, y);
-	repaintView(hdc);
+	// repaint each line and calc textView area
+	for (auto& l : article)
+		repaintLine(hdc, l, l.sentence.begin(), l.sentence.end());
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
 }
 
-// repaintView() & OnPaint()
+// repaintLine() and OnPaint()
 inline void refresh() {
 	HDC hdc = GetDC(hWnd);
-	repaintView(hdc);
+	// repaint each line and calc textView area
+	for (auto& l : article)
+		repaintLine(hdc, l, l.sentence.begin(), l.sentence.end());
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
 }
@@ -505,16 +511,15 @@ inline void OnRButtonDown(DWORD wParam, int x, int y) {
 void OnMouseHWheel(short zDeta, int x, int y) {
 	RECT rc;
 	GetClientRect(hWnd, &rc);
-	int ClientWidth = rc.right - rc.left;
-	int ClientHeight = rc.bottom - rc.top;
+	size_t EditAreaWidth = rc.right - rc.left - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
 
-	if (textView_width < ClientWidth - MNP_PADDING_CLIENT) return;
+	if (textView_width < EditAreaWidth) return;
 	xoffset += zDeta / 2;
 
-	if (xoffset < -MNP_PADDING_CLIENT)
-		xoffset = -MNP_PADDING_CLIENT;
-	else if (xoffset + ClientWidth > textView_width + MNP_SCROLLBAR_WIDTH)
-		xoffset = textView_width + MNP_SCROLLBAR_WIDTH - ClientWidth;
+	if ((int)xoffset < 0)
+		xoffset = 0;
+	else if (xoffset + EditAreaWidth > textView_width)
+		xoffset = textView_width - EditAreaWidth;
 
 	HDC hdc = GetDC(hWnd);
 	OnPaint(hdc);
@@ -528,16 +533,15 @@ void OnMouseWheel(short zDeta, int x, int y) {
 	}
 	RECT rc;
 	GetClientRect(hWnd, &rc);
-	int ClientWidth = rc.right - rc.left;
-	int ClientHeight = rc.bottom - rc.top;
+	size_t EditAreaHeight = rc.bottom - rc.top - MNP_SCROLLBAR_WIDTH;
 
-	if (textView_height < ClientHeight - MNP_PADDING_CLIENT) return;
+	if (textView_height < EditAreaHeight) return;
 	yoffset -= zDeta / 2;
 
-	if (yoffset < -MNP_PADDING_CLIENT)
-		yoffset = -MNP_PADDING_CLIENT;
-	else if (yoffset + ClientHeight > textView_height + MNP_SCROLLBAR_WIDTH)
-		yoffset = textView_height + MNP_SCROLLBAR_WIDTH - ClientHeight;
+	if ((int)yoffset < 0)
+		yoffset = 0;
+	else if (yoffset + EditAreaHeight > textView_height)
+		yoffset = textView_height - EditAreaHeight;
 
 	HDC hdc = GetDC(hWnd);
 	OnPaint(hdc);
@@ -683,8 +687,6 @@ bool sureToQuit() {
 			return false;
 		}
 	}
-	delete textView;
-	textView = nullptr;
 	return true;
 }
 
@@ -717,7 +719,7 @@ void loadFile(LPTSTR path) {
 	
 	// clean
 	article.clear();
-	article.push_back(Line(std::wstring(L"")));
+	article.push_back(Line(L""));
 	
 	caret.reset();
 	insertAtCursor(str);
@@ -763,6 +765,7 @@ inline void OnMenuCopy() {
 	HGLOBAL h;
 	std::wstring str = sel_begin.getSelectedChars(caret);
 	h = GlobalAlloc(GMEM_MOVEABLE, str.size() * 2 + 2);
+	if (NULL == h) return;
 	LPTSTR p = static_cast<LPTSTR>(GlobalLock(h));
 	for (TCHAR& c : str)
 		*(p++) = c;

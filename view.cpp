@@ -21,6 +21,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    if (!hWnd) return FALSE;
 
+   HDC hdc = GetDC(hWnd);
+   for (auto& l : article)
+	   repaintLine(hdc, l, l.sentence.begin(), l.sentence.end());
+   ReleaseDC(hWnd, hdc);
+
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
    return TRUE;
@@ -109,8 +114,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			HIMC hImc = ImmGetContext(hWnd);
 			COMPOSITIONFORM Composition;
 			Composition.dwStyle = CFS_POINT;
-			Composition.ptCurrentPos.x = caret_x;	// IME follow
-			Composition.ptCurrentPos.y = caret_y + MNP_LINEHEIGHT;	// set IME position
+			Composition.ptCurrentPos.x = caret_x + MNP_PADDING_CLIENT;	// IME follow
+			Composition.ptCurrentPos.y = caret_y + MNP_FONTSIZE / 4;	// set IME position
 			ImmSetCompositionWindow(hImc, &Composition);
 			ImmReleaseContext(hWnd, hImc);
 		}

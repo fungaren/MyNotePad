@@ -1,12 +1,14 @@
 #pragma once
 #include <list>
 #include <tuple>
+#include <memory>
 
 class GDIUtil
 {
 public:
-
 	static void fill(HDC hdc, DWORD color, int left, int top, int width, int height) {
+		if (width == 0 || height == 0)
+			return;
 		RECT rc = { left, top, left + width, top + height };
 		SetBkColor(hdc, color);
 		ExtTextOut(hdc, 0, 0, ETO_OPAQUE, &rc, NULL, 0, NULL);
@@ -14,6 +16,7 @@ public:
 
 	static void line(HDC hdc, DWORD color, int x1, int y1, int x2, int y2)
 	{
+		_ASSERT(x1 != x2 || y1 != y2);
 		HPEN hp = CreatePen(BS_SOLID, 1, color);
 		HGDIOBJ ho = SelectObject(hdc, hp);
 		MoveToEx(hdc, x1, y1, NULL);
@@ -157,32 +160,24 @@ typedef std::list<Character> Sentence;
 
 struct Line
 {
-	uint16_t height;
-	uint16_t padding_left;
-	uint16_t padding_top;
-	bool transparent;
+	mutable size_t text_width;
+	size_t text_height;
+	size_t padding_left;
+	size_t padding_top;
+	mutable std::shared_ptr<MemDC> mdc;
 	DWORD background_color;
+	bool transparent;
 	Sentence sentence;
 
 	explicit Line(const std::wstring& s, uint16_t padding_left = 0, uint16_t padding_top = 0)
 		:transparent(true),
 		background_color(MNP_BGCOLOR_EDIT),
-		height(MNP_LINEHEIGHT),
+		text_width(0),
+		text_height(MNP_LINEHEIGHT),
 		padding_left(padding_left),
-		padding_top(padding_top)
-	{
-		HDC hdc = GetDC(hWnd);
-		Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
-		f.bind(hdc);
-		for (TCHAR c : s)
-		{
-			Character ch(c, MNP_FONTCOLOR, { 0,0 });
-			GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
-			sentence.push_back(ch);
-		}
-		f.unbind();
-		ReleaseDC(hWnd, hdc);
-	}
+		padding_top(padding_top),
+		mdc(nullptr)
+	{ }
 
 	operator std::wstring() const 
 	{
@@ -392,7 +387,10 @@ public:
 			std::wstring str(c, l->sentence.end());
 			auto i = l;
 			for (++i; i != to.l; ++i)
+			{
 				str.append(i->sentence.begin(), i->sentence.end());
+				str.push_back(L'\n');
+			}
 			str += std::wstring(to.l->sentence.begin(), to.c);
 			return str;
 		}
@@ -401,7 +399,10 @@ public:
 			std::wstring str(to.c, to.l->sentence.end());
 			auto& i = to.l;
 			for (++i; i != l; ++i)
+			{
 				str.append(i->sentence.begin(), i->sentence.end());
+				str.push_back(L'\n');
+			}
 			str += std::wstring(l->sentence.begin(), c);
 			return str;
 		}
