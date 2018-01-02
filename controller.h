@@ -8,75 +8,11 @@ Cursor caret(article);		// current position = end of selection
 Cursor sel_begin(article);	// beginning of selection 
 bool bSaved = true;			// set false when file is modified
 int textView_width = 0, textView_height = 0;
-int caret_x, caret_y;		// for ime
+int caret_x, caret_y;		// for IME
 int xoffset = 0;			// offset-x of textView
 int yoffset = 0;			// offset-y of textView
 
 //---------------------------------
-
-// return true for success, false for no selected char.
-bool removeSelectedChars() {
-	int distance_y = sel_begin.distance_y(caret);
-	if (distance_y == 0)
-	{
-		int distance_x = sel_begin.distance_x(caret);
-		if (distance_x > 0)
-			caret.eraseInLine(sel_begin);
-		else if (distance_x < 0)
-			sel_begin.eraseInLine(caret);
-		else
-			return false;
-	}
-	else if (distance_y < 0)	// forward selection
-	{
-		std::wstring str = sel_begin.subStringToStarting() + caret.subStringToEnd();
-		size_t index = sel_begin.eraseLines(++caret.getSentence());
-		sel_begin.insertLine(Line(str), index);
-		caret = sel_begin;
-	}
-	else	// backward selection
-	{
-		std::wstring str = caret.subStringToStarting() + sel_begin.subStringToEnd();
-		size_t index = caret.eraseLines(++sel_begin.getSentence());
-		caret.insertLine(Line(str), index);
-		sel_begin = caret;
-	}
-	bSaved = false;
-	return true;
-}
-
-// return the selected characters
-std::wstring getSelectedChars() {
-	int distance_y = sel_begin.distance_y(caret);
-	if (distance_y == 0)
-	{
-		int distance_x = sel_begin.distance_x(caret);
-		if (distance_x > 0)
-			return caret.subString(sel_begin);
-		else if (distance_x < 0)
-			return sel_begin.subString(caret);
-		else
-			return L"";
-	}
-	else if (distance_y < 0)	// forward selection
-	{
-		std::wstring str = sel_begin.subStringToEnd();
-		auto& i = sel_begin.getSentence();
-		for (++i; i != caret.getSentence(); ++i)
-			str.append(i->sentence.begin(), i->sentence.end());
-		str += caret.subStringToStarting();
-		return str;
-	}
-	else	// backward selection
-	{
-		std::wstring str = caret.subStringToEnd();
-		auto& i = caret.getSentence();
-		for (++i; i != sel_begin.getSentence(); ++i)
-			str.append(i->sentence.begin(), i->sentence.end());
-		str += sel_begin.subStringToStarting();
-		return str;
-	}
-}
 
 void insertAtCursor(const TCHAR& c)
 {
@@ -258,7 +194,7 @@ there:
 
 	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
 	f.bind(*textView);
-	int y = 0;
+	size_t y = 0;
 	for (const Line& l : article)
 	{
 		f.printLine(static_cast<std::wstring>(l).c_str(),
@@ -312,20 +248,22 @@ void OnPaint(HDC hdc) {
 }
 
 // if caret out of user's sight, jump to see the caret
-inline void seeCaret() {
+void seeCaret() {
 	RECT rc;
 	GetClientRect(hWnd, &rc);
 	int ClientWidth = rc.right - rc.left;
 	int ClientHeight = rc.bottom - rc.top;
 
-	int x, y;
+	size_t x, y;
 	x = y = 0;
 	
+	// count y
 	for (Article::const_iterator a_iter = article.begin();
 		a_iter != caret.getSentence();
 		++a_iter)
 		y += a_iter->height + a_iter->padding_top;
 
+	// count x
 	for (Sentence::const_iterator s_iter = caret.getSentence()->sentence.begin();
 		s_iter != caret.getCharacter();
 		++s_iter)
@@ -346,8 +284,8 @@ void OnKeyDown(int nChar) {
 	switch (nChar)
 	{
 	case VK_DELETE:
-		if (removeSelectedChars())
-			;
+		if (sel_begin.removeSelectedChars(caret))
+			bSaved = false;
 		else if (caret.getSentence() != --article.end()
 			|| caret.getCharacter() != caret.getSentence()->sentence.end())
 		{
@@ -355,7 +293,7 @@ void OnKeyDown(int nChar) {
 			caret.eraseChar();
 			bSaved = false;
 		}
-		else return;	// end of all, nothing to delete
+		else return;	// end of all, nothing to do
 		break;
 	case VK_LEFT:
 		caret.move_left();
@@ -376,7 +314,7 @@ void OnKeyDown(int nChar) {
 		break;
 	case VK_DOWN:
 		// the last char in this line, go to the front of next line
-		if (caret.getSentence() != --article.end())
+		if (caret.getSentence() == --article.end())
 			return;	// nothing to do
 		else
 		{
@@ -439,7 +377,9 @@ void OnKeyDown(int nChar) {
 inline void OnChar(WORD nChar)
 {
 	// replace selected characters
-	bool flag_removed = removeSelectedChars();
+	bool flag_removed = sel_begin.removeSelectedChars(caret);
+	if (flag_removed)
+		bSaved = false;
 	switch (nChar)
 	{
 	case VK_BACK:
@@ -792,7 +732,7 @@ inline void OnMenuCopy() {
 	}
 
 	HGLOBAL h;
-	std::wstring str = getSelectedChars();
+	std::wstring str = sel_begin.getSelectedChars(caret);
 	h = GlobalAlloc(GMEM_MOVEABLE, str.size() * 2 + 2);
 	LPTSTR p = static_cast<LPTSTR>(GlobalLock(h));
 	for (TCHAR& c : str)
@@ -806,7 +746,8 @@ inline void OnMenuCopy() {
 
 inline void OnMenuCut() {
 	OnMenuCopy();
-	removeSelectedChars();
+	if (sel_begin.removeSelectedChars(caret))
+		bSaved = false;
 	refresh();
 }
 
@@ -820,7 +761,8 @@ inline void OnMenuPaste() {
 		return;
 	}
 
-	removeSelectedChars();
+	if (sel_begin.removeSelectedChars(caret))
+		bSaved = false;
 	LPCTSTR str = (LPCTSTR)GlobalLock(h);
 	insertAtCursor(str);
 	sel_begin = caret;

@@ -5,7 +5,7 @@ HWND hWnd;
 HINSTANCE hInst;
 
 #include "view.h"
-bool bWndSizeChgd = false;
+//bool bWndSizeChgd = false;
 
 //---------------------------------
 
@@ -109,8 +109,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			HIMC hImc = ImmGetContext(hWnd);
 			COMPOSITIONFORM Composition;
 			Composition.dwStyle = CFS_POINT;
-			Composition.ptCurrentPos.x = caret_x;	// ime follow
-			Composition.ptCurrentPos.y = caret_y;	// set caret position
+			Composition.ptCurrentPos.x = caret_x;	// IME follow
+			Composition.ptCurrentPos.y = caret_y;	// set IME position
 			ImmSetCompositionWindow(hImc, &Composition);
 			ImmReleaseContext(hWnd, hImc);
 		}
@@ -125,7 +125,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		OnKeyUp(wParam);
 		break;
 	case WM_SIZE:
-		bWndSizeChgd = true;
+		//bWndSizeChgd = true;
 		break;
 	case WM_ERASEBKGND:
 		return TRUE;

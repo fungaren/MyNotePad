@@ -321,62 +321,92 @@ public:
 		}
 	}
 
-	int distance_x(const Cursor& right) const
+	size_t distance_x(const Cursor& right) const
 	{
-		_ASSERT(l == right.getSentence());
+		_ASSERT(l == right.l);
 		return std::distance(l->sentence.begin(), c) -
-			std::distance(static_cast<Sentence::const_iterator>(l->sentence.begin()),
-				right.getCharacter());
+			std::distance(l->sentence.begin(), right.c);
 	}
 
-	int distance_y(const Cursor& right) const
+	size_t distance_y(const Cursor& right) const
 	{
 		return std::distance(a.begin(), l) -
-			std::distance(static_cast<Article::const_iterator>(a.begin()),
-				right.getSentence());
+			std::distance(a.begin(), right.l);
+	}
+	
+	// return true for success, false for no selected char.
+	bool removeSelectedChars(Cursor& to) {
+		int dist_y = distance_y(to);
+		if (dist_y == 0)
+		{
+			int dist_x = distance_x(to);
+			if (dist_x < 0)
+				c = l->sentence.erase(c, to.c);
+			else if (dist_x > 0)
+				to.c = to.l->sentence.erase(to.c, c);
+			else
+				return false;
+		}
+		else if (dist_y < 0)	// forward selection
+		{
+			auto t_c = c;
+			if (t_c != l->sentence.begin())
+				--t_c;
+			c = l->sentence.erase(c, l->sentence.end());
+			l->sentence.splice(c, to.l->sentence, to.c, to.l->sentence.end());
+			auto t_l = l;
+			a.erase(++t_l, ++to.l);
+			to.l = l;
+			to.c = c = ++t_c;
+		}
+		else	// backward selection
+		{
+			auto t_c = to.c;
+			if (t_c != to.l->sentence.begin())
+				--t_c;
+			to.c = to.l->sentence.erase(to.c, to.l->sentence.end());
+			to.l->sentence.splice(to.c, l->sentence, c, l->sentence.end());
+			auto t_l = to.l;
+			to.a.erase(++t_l, ++l);
+			l = to.l;
+			c = to.c = ++t_c;
+		}
+		return true;
 	}
 
-	std::wstring subString(const Cursor& to) const
-	{
-		_ASSERT(distance_x(to) < 0);
-		return std::wstring(static_cast<Sentence::const_iterator>(c), to.getCharacter());
+	// return the selected characters
+	std::wstring getSelectedChars(Cursor& to) {
+		int dist_y = distance_y(to);
+		if (dist_y == 0)
+		{
+			int dist_x = distance_x(to);
+			if (dist_x > 0)
+				return std::wstring(to.c, c);
+			else if (dist_x < 0)
+				return std::wstring(c, to.c);
+			else
+				return L"";
+		}
+		else if (dist_y < 0)	// forward selection
+		{
+			std::wstring str(c, l->sentence.end());
+			auto i = l;
+			for (++i; i != to.l; ++i)
+				str.append(i->sentence.begin(), i->sentence.end());
+			str += std::wstring(to.l->sentence.begin(), to.c);
+			return str;
+		}
+		else	// backward selection
+		{
+			std::wstring str(to.c, to.l->sentence.end());
+			auto& i = to.l;
+			for (++i; i != l; ++i)
+				str.append(i->sentence.begin(), i->sentence.end());
+			str += std::wstring(l->sentence.begin(), c);
+			return str;
+		}
 	}
-
-	void eraseInLine(const Cursor& to)
-	{
-		_ASSERT(distance_x(to) < 0);
-		c = l->sentence.erase(c, to.getCharacter());
-	}
-
-	void eraseToEnd() 
-	{
-		c = l->sentence.erase(c, l->sentence.end());
-	}
-
-	void eraseToStarting()
-	{
-		l->sentence.erase(l->sentence.begin(), c);
-		c = l->sentence.begin();
-	}
-
-	std::wstring subStringToEnd() const
-	{
-		return std::wstring(c, l->sentence.end());
-	}
-
-	std::wstring subStringToStarting() const
-	{
-		return std::wstring(l->sentence.begin(), c);
-	}
-
-	// this function makes `c` invalid, use toFirstChar() to relocate it 
-	size_t eraseLines(const Article::const_iterator& to)
-	{
-		size_t index_in_the_line = std::distance(l->sentence.begin(), c);
-		l = a.erase(l, to);
-		return index_in_the_line;
-	}
-
+	
 	void insertCharacter(const Character& ch)
 	{
 		if (ch.c == L'\n')
@@ -384,7 +414,7 @@ public:
 			Article::iterator old_l = l;
 			a.insert(++l, Line(L""));
 			--l;// go to the new line
-			if (c != l->sentence.end()) {
+			if (c != old_l->sentence.end()) {
 				// cursor at the middle of the line,
 				// move the string after the cursor to new line
 				l->sentence.splice(l->sentence.end(), old_l->sentence, c, old_l->sentence.end());
@@ -396,15 +426,7 @@ public:
 			l->sentence.insert(c, ch);
 		}
 	}
-
-	// insert a line and set `c` to the `index`th char in the line
-	void insertLine(const Line& line, size_t index_in_the_line)
-	{
-		l = a.insert(l, line);
-		toFirstChar();
-		std::advance(c, index_in_the_line);
-	}
-
+	
 	//size_t getLineLength(Article& a) const
 	//{
 	//	if (!l->sentence.empty() && l->sentence.back().c == L'\n')
