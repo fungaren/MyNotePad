@@ -15,7 +15,7 @@ HINSTANCE hInst;
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance;
-
+   
    hWnd = CreateWindowExW(WS_EX_ACCEPTFILES, MNP_APPNAME, L"Untitled - MyNotePad", WS_OVERLAPPEDWINDOW,
 	   CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
@@ -110,7 +110,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			COMPOSITIONFORM Composition;
 			Composition.dwStyle = CFS_POINT;
 			Composition.ptCurrentPos.x = caret_x;	// IME follow
-			Composition.ptCurrentPos.y = caret_y;	// set IME position
+			Composition.ptCurrentPos.y = caret_y + MNP_LINEHEIGHT;	// set IME position
 			ImmSetCompositionWindow(hImc, &Composition);
 			ImmReleaseContext(hWnd, hImc);
 		}

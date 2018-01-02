@@ -109,7 +109,7 @@ public:
 	//	return *this;
 	//}
 
-	Font& printLine(LPCTSTR str, int length, int left, int top) {
+	Font& printLine(LPCTSTR str, size_t length, int left, int top) {
 		SetBkMode(hdc, TRANSPARENT);
 		SetTextColor(hdc, color);
 
@@ -321,17 +321,17 @@ public:
 		}
 	}
 
-	size_t distance_x(const Cursor& right) const
+	int distance_x(const Cursor& right) const
 	{
 		_ASSERT(l == right.l);
-		return std::distance(l->sentence.begin(), c) -
-			std::distance(l->sentence.begin(), right.c);
+		return (int)(std::distance(l->sentence.begin(), c) -
+			std::distance(l->sentence.begin(), right.c));
 	}
 
-	size_t distance_y(const Cursor& right) const
+	int distance_y(const Cursor& right) const
 	{
-		return std::distance(a.begin(), l) -
-			std::distance(a.begin(), right.l);
+		return (int)(std::distance(a.begin(), l) -
+			std::distance(a.begin(), right.l));
 	}
 	
 	// return true for success, false for no selected char.

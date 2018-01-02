@@ -1,10 +1,10 @@
 #pragma once
 #include <windows.h>
 
-const int MNP_PADDING_CLIENT = 20;					// padding 20px
+const int MNP_PADDING_CLIENT = 20;		// padding 20px
 LPCTSTR   MNP_APPNAME = L"MyNotePad";
-LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI Light";		// L"Lucida Console";
-const int MNP_FONTSIZE = 32;						// 25;
+LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI Light";	// L"Lucida Console";
+const int MNP_FONTSIZE = 28;
 const int MNP_LINEHEIGHT = MNP_FONTSIZE;
 
 const int MNP_BGCOLOR_EDIT = 0x00EEEEEE;

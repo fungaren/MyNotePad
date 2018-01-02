@@ -4,13 +4,13 @@
 //---------------------------------
 MemDC* textView = nullptr;
 Article article = { Line(std::wstring(L"")) };	// article text
-Cursor caret(article);		// current position = end of selection
-Cursor sel_begin(article);	// beginning of selection 
-bool bSaved = true;			// set false when file is modified
+Cursor caret(article);							// current position = end of selection
+Cursor sel_begin(article);						// beginning of selection 
+bool bSaved = true;								// set false when file is modified
 int textView_width = 0, textView_height = 0;
-int caret_x, caret_y;		// for IME
-int xoffset = 0;			// offset-x of textView
-int yoffset = 0;			// offset-y of textView
+int caret_x, caret_y;							// for IME
+signed int xoffset = -MNP_PADDING_CLIENT;		// offset-x of textView
+signed int yoffset = -MNP_PADDING_CLIENT;		// offset-y of textView
 
 //---------------------------------
 
@@ -223,40 +223,58 @@ void OnPaint(HDC hdc) {
 	GDIUtil::fill(mdc, MNP_BGCOLOR_EDIT, 0, 0, ClientWidth, ClientHeight);
 
 	// paste textView
-	if (textView == nullptr) repaintView(mdc);
-	BitBlt(mdc, MNP_PADDING_CLIENT, 0, ClientWidth, ClientHeight, *textView, xoffset, yoffset, SRCCOPY);
+	if (textView == nullptr)
+		repaintView(mdc);
+	BitBlt(mdc, 0, 0, ClientWidth, ClientHeight, *textView, xoffset, yoffset, SRCCOPY);
 
 	// draw vertical scrollbar
-	GDIUtil::fill(mdc, MNP_SCROLLBAR_BGCOLOR, ClientWidth - MNP_SCROLLBAR_WIDTH, 0,
-		MNP_SCROLLBAR_WIDTH, ClientHeight);
-	GDIUtil::fill(mdc, MNP_SCROLLBAR_COLOR,
-		ClientWidth - MNP_SCROLLBAR_WIDTH,
-		yoffset * ClientHeight / (textView_height + ClientHeight),
-		MNP_SCROLLBAR_WIDTH, ClientHeight * ClientHeight / (textView_height + ClientHeight));
+	if (textView_height > ClientHeight - MNP_PADDING_CLIENT) {
+		GDIUtil::fill(mdc,
+			MNP_SCROLLBAR_BGCOLOR,
+			ClientWidth - MNP_SCROLLBAR_WIDTH,
+			0,
+			MNP_SCROLLBAR_WIDTH,
+			ClientHeight
+		);
+		GDIUtil::fill(mdc,
+			MNP_SCROLLBAR_COLOR,
+			ClientWidth - MNP_SCROLLBAR_WIDTH,
+			yoffset * ClientHeight / textView_height,
+			MNP_SCROLLBAR_WIDTH,
+			ClientHeight * ClientHeight / textView_height
+		);
+	}
 	// draw horizontal scrollbar
-	if (textView_width > ClientWidth - MNP_PADDING_CLIENT * 2) {
-		GDIUtil::fill(mdc, MNP_SCROLLBAR_BGCOLOR, 0, ClientHeight - MNP_SCROLLBAR_WIDTH,
-			ClientWidth, MNP_SCROLLBAR_WIDTH);
-		GDIUtil::fill(mdc, MNP_SCROLLBAR_COLOR,
-			xoffset * ClientWidth / (textView_width + ClientWidth),
+	if (textView_width > ClientWidth - MNP_PADDING_CLIENT) {
+		GDIUtil::fill(mdc,
+			MNP_SCROLLBAR_BGCOLOR,
+			0,
 			ClientHeight - MNP_SCROLLBAR_WIDTH,
-			ClientWidth * ClientWidth / (textView_width + ClientWidth), MNP_SCROLLBAR_WIDTH);
+			ClientWidth,
+			MNP_SCROLLBAR_WIDTH
+		);
+		GDIUtil::fill(mdc,
+			MNP_SCROLLBAR_COLOR,
+			xoffset * ClientWidth / textView_width,
+			ClientHeight - MNP_SCROLLBAR_WIDTH,
+			ClientWidth * ClientWidth / textView_width,
+			MNP_SCROLLBAR_WIDTH
+		);
 	}
 
 	// display
 	BitBlt(hdc, 0, 0, rc.right - rc.left, rc.bottom - rc.top, mdc, 0, 0, SRCCOPY);
 }
 
-// if caret out of user's sight, jump to see the caret
+// if caret is out of client area, jump there
 void seeCaret() {
 	RECT rc;
 	GetClientRect(hWnd, &rc);
 	int ClientWidth = rc.right - rc.left;
 	int ClientHeight = rc.bottom - rc.top;
 
-	size_t x, y;
-	x = y = 0;
-	
+	int x = 0, y = 0;
+
 	// count y
 	for (Article::const_iterator a_iter = article.begin();
 		a_iter != caret.getSentence();
@@ -269,15 +287,15 @@ void seeCaret() {
 		++s_iter)
 		x += s_iter->width;
 
-	if (xoffset > x)
-		xoffset = x;
-	else if (xoffset < x - ClientWidth + MNP_PADDING_CLIENT * 2)
-		xoffset = x - ClientWidth + MNP_PADDING_CLIENT * 2;
-
-	if (yoffset > y)
+	if (y < yoffset)	// over the client area
 		yoffset = y;
-	else if (yoffset < y - ClientHeight + MNP_LINEHEIGHT)
-		yoffset = y - ClientHeight + MNP_LINEHEIGHT;
+	else if (y + MNP_LINEHEIGHT > yoffset + ClientHeight)	// below the client area
+		yoffset = y + MNP_LINEHEIGHT - ClientHeight;
+
+	if (x < xoffset)	// on the left of client area
+		xoffset = x;
+	else if (x > xoffset + ClientWidth)	// on the right of client area
+		xoffset = x - ClientWidth;
 }
 
 void OnKeyDown(int nChar) {
@@ -421,10 +439,10 @@ inline void OnKeyUp(int nChar)
 
 Cursor PosToCaret(int cursor_x, int cursor_y)
 {
-	cursor_y = cursor_y + yoffset;
+	cursor_y += yoffset;
 	if (cursor_y < 0)
 		cursor_y = 0;
-	cursor_x += xoffset - MNP_PADDING_CLIENT;
+	cursor_x += xoffset;
 	if (cursor_x < 0)
 		cursor_x = 0;
 	
@@ -484,31 +502,42 @@ inline void OnRButtonDown(DWORD wParam, int x, int y) {
 	DestroyMenu(hm);
 }
 
-inline void OnMouseHWheel(short zDeta, int x, int y) {
-	if (textView_width < MNP_FONTSIZE) return;
+void OnMouseHWheel(short zDeta, int x, int y) {
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+	int ClientWidth = rc.right - rc.left;
+	int ClientHeight = rc.bottom - rc.top;
+
+	if (textView_width < ClientWidth - MNP_PADDING_CLIENT) return;
 	xoffset += zDeta / 2;
 
-	if (xoffset < 0)
-		xoffset = 0;
-	else if (xoffset > textView_width - MNP_FONTSIZE)
-		xoffset = textView_width - MNP_FONTSIZE;
+	if (xoffset < -MNP_PADDING_CLIENT)
+		xoffset = -MNP_PADDING_CLIENT;
+	else if (xoffset + ClientWidth > textView_width + MNP_SCROLLBAR_WIDTH)
+		xoffset = textView_width + MNP_SCROLLBAR_WIDTH - ClientWidth;
 
 	HDC hdc = GetDC(hWnd);
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
 }
 
-inline void OnMouseWheel(short zDeta, int x, int y) {
+void OnMouseWheel(short zDeta, int x, int y) {
 	if (GetKeyState(VK_SHIFT) < 0) {
 		OnMouseHWheel(-zDeta, x, y);
 		return;
 	}
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+	int ClientWidth = rc.right - rc.left;
+	int ClientHeight = rc.bottom - rc.top;
+
+	if (textView_height < ClientHeight - MNP_PADDING_CLIENT) return;
 	yoffset -= zDeta / 2;
 
-	if (yoffset < 0)
-		yoffset = 0;
-	else if (yoffset > textView_height)
-		yoffset = textView_height;
+	if (yoffset < -MNP_PADDING_CLIENT)
+		yoffset = -MNP_PADDING_CLIENT;
+	else if (yoffset + ClientHeight > textView_height + MNP_SCROLLBAR_WIDTH)
+		yoffset = textView_height + MNP_SCROLLBAR_WIDTH - ClientHeight;
 
 	HDC hdc = GetDC(hWnd);
 	OnPaint(hdc);
