@@ -102,14 +102,18 @@ void repaintLine(HDC clientDC, const Line& l,
 	l.text_width = 0;
 	for (Sentence::const_iterator i = l.sentence.begin(); i != l.sentence.end(); ++i)
 	{
-		if (i == sel_from)
-			x_sel_from = l.text_width;
-		if (i == sel_to)
-			x_sel_to = l.text_width;
+		if (i == sel_from)	// if sel_to equals sentence.end(), 
+			x_sel_from = l.text_width;	// x_sel_from will not be assigned a value
+		if (i == sel_to)	// if sel_to equals sentence.end(), 
+			x_sel_to = l.text_width;	// x_sel_to will not be assigned a value
 		l.text_width += i->width;
 	}
 	if (l.text_width + l.padding_left > textView_width)
 		textView_width = l.text_width + l.padding_left;
+	if (l.sentence.end() == sel_from)
+		x_sel_from = l.text_width;
+	if (l.sentence.end() == sel_to)
+		x_sel_to = l.text_width;
 
 	// todo: calc height of each line
 	//...
@@ -121,7 +125,11 @@ void repaintLine(HDC clientDC, const Line& l,
 	GDIUtil::fill(*l.mdc, MNP_BGCOLOR_EDIT, 0, 0, l.text_width + l.padding_left, l.text_height + l.padding_top);
 
 	// fill selection background
-	GDIUtil::fill(*l.mdc, MNP_BGCOLOR_SEL, l.padding_left, l.padding_top, x_sel_to - x_sel_from, l.text_height);
+	GDIUtil::fill(*l.mdc, MNP_BGCOLOR_SEL,
+		l.padding_left + x_sel_from,
+		l.padding_top,
+		x_sel_to - x_sel_from,
+		l.text_height);
 
 	// draw text
 	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
@@ -311,6 +319,7 @@ void seeCaret() {
 		xoffset = x - EditAreaWidth;
 }
 
+// fill selection background
 void repaintSelectedLines()
 {
 	if (sel_begin.getSentence() != caret.getSentence())
@@ -340,7 +349,6 @@ void repaintSelectedLines()
 			// repaint last line
 			repaintLine(hdc, *l, l->sentence.begin(), sel_begin.getCharacter());
 		}
-		OnPaint(hdc);
 		ReleaseDC(hWnd, hdc);
 	}
 	else if (sel_begin.getCharacter() != caret.getCharacter())
@@ -351,11 +359,11 @@ void repaintSelectedLines()
 			repaintLine(hdc, *caret.getSentence(), sel_begin.getCharacter(), caret.getCharacter());
 		else
 			repaintLine(hdc, *caret.getSentence(), caret.getCharacter(), sel_begin.getCharacter());
-		OnPaint(hdc);
 		ReleaseDC(hWnd, hdc);
 	}
 }
 
+// remove selection background
 void repaintSelectionCanceledLines()
 {
 	// repaint selected lines to remove selection background
@@ -376,14 +384,12 @@ void repaintSelectionCanceledLines()
 				l != ++sel_begin.getSentence(); ++l)
 				repaintLine(hdc, *l);
 		}
-		OnPaint(hdc);
 		ReleaseDC(hWnd, hdc);
 	}
 	else if (sel_begin.getCharacter() != caret.getCharacter())
 	{
 		HDC hdc = GetDC(hWnd);
 		repaintLine(hdc, *caret.getSentence());
-		OnPaint(hdc);
 		ReleaseDC(hWnd, hdc);
 	}
 }
@@ -398,8 +404,14 @@ void calc_textView_height()
 	// textView_width will be updated when repaintLine() is called
 }
 
+inline void force_OnPaint()
+{
+	HDC hdc = GetDC(hWnd);
+	OnPaint(hdc);
+	ReleaseDC(hWnd, hdc);
+}
+
 void OnKeyDown(int nChar) {
-	bool flag_no_selection = (sel_begin == caret);
 	bool flag_ShiftPressed = (GetKeyState(VK_SHIFT) < 0);
 
 	switch (nChar)
@@ -408,12 +420,16 @@ void OnKeyDown(int nChar) {
 		if (sel_begin.removeSelectedChars(caret))
 		{
 			bSaved = false;
+			calc_textView_height();
 
 			// update MemDC, text_width, text_height in this line
 			HDC hdc = GetDC(hWnd);
 			repaintLine(hdc, *caret.getSentence());
 			OnPaint(hdc);
 			ReleaseDC(hWnd, hdc);
+
+			seeCaret();
+			return;
 		}
 		else if (caret.getSentence() != --article.end()
 			|| caret.getCharacter() != caret.getSentence()->sentence.end())
@@ -421,33 +437,40 @@ void OnKeyDown(int nChar) {
 			// delete the character
 			caret.eraseChar();
 			bSaved = false;
+			calc_textView_height();
 
 			// update MemDC, text_width, text_height in this line
 			HDC hdc = GetDC(hWnd);
 			repaintLine(hdc, *caret.getSentence());
 			OnPaint(hdc);
 			ReleaseDC(hWnd, hdc);
+
+			seeCaret();
+			return;
 		}
-		else return;	// end of all, nothing to do
-		break;
+		// end of all, nothing to do
+		return;
 	case VK_LEFT:
 		// some lines were selected, but Shift was not pressed,
 		// remove selection background
-		if (!flag_ShiftPressed && !flag_no_selection)
+		if (!flag_ShiftPressed)
 			repaintSelectionCanceledLines();
 		caret.move_left();
 		break;
 	case VK_RIGHT:
-		if (!flag_ShiftPressed && !flag_no_selection)
+		if (!flag_ShiftPressed)
 			repaintSelectionCanceledLines();
 		caret.move_right();
 		break;
 	case VK_UP:
-		if (!flag_ShiftPressed && !flag_no_selection)
+		if (!flag_ShiftPressed)
 			repaintSelectionCanceledLines();
 		// the first line
 		if (caret.getSentence() == article.begin())
+		{
+			force_OnPaint();
 			return;	// nothing to do
+		}
 		else
 		{
 			// not the first line, go to previous line
@@ -456,11 +479,14 @@ void OnKeyDown(int nChar) {
 		}
 		break;
 	case VK_DOWN:
-		if (!flag_ShiftPressed && !flag_no_selection)
+		if (!flag_ShiftPressed)
 			repaintSelectionCanceledLines();
 		// the last char in this line, go to the front of next line
 		if (caret.getSentence() == --article.end())
+		{
+			force_OnPaint();
 			return;	// nothing to do
+		}
 		else
 		{
 			// not the last line, go to next line
@@ -469,13 +495,16 @@ void OnKeyDown(int nChar) {
 		}
 		break;
 	case VK_HOME:
-		if (!flag_ShiftPressed && !flag_no_selection)
+		if (!flag_ShiftPressed)
 			repaintSelectionCanceledLines();
-		if (GetKeyState(VK_CONTROL) < 0)
+		if (GetKeyState(VK_CONTROL) < 0)	// Ctrl was pressed
 		{
 			if (caret.getSentence() == article.begin() 
 				&& caret.getCharacter() == caret.getSentence()->sentence.begin())
+			{
+				force_OnPaint();
 				return;
+			}
 			else
 				caret.reset();
 		}
@@ -488,14 +517,16 @@ void OnKeyDown(int nChar) {
 		}
 		break;
 	case VK_END:
-	{
-		if (!flag_ShiftPressed && !flag_no_selection)
+		if (!flag_ShiftPressed)
 			repaintSelectionCanceledLines();
-		if (GetKeyState(VK_CONTROL) < 0)
+		if (GetKeyState(VK_CONTROL) < 0)	// Ctrl was pressed
 		{
 			if (caret.getSentence() == --article.end()
 				&& caret.getCharacter() == caret.getSentence()->sentence.end())
+			{
+				force_OnPaint();
 				return;
+			}
 			else
 				caret.end();
 		}
@@ -504,9 +535,11 @@ void OnKeyDown(int nChar) {
 			if (caret.getCharacter() != caret.getSentence()->sentence.end())
 				caret.toLastChar();
 			else
+			{
+				force_OnPaint();
 				return;
+			}
 		}
-	}
 		break;
 	default:
 		return;
@@ -518,6 +551,8 @@ void OnKeyDown(int nChar) {
 		sel_begin = caret;
 
 	seeCaret();
+	
+	force_OnPaint();
 }
 
 inline void OnChar(WORD nChar)
@@ -556,6 +591,8 @@ inline void OnChar(WORD nChar)
 	ReleaseDC(hWnd, hdc);
 
 	bSaved = false;
+	calc_textView_height();
+
 	sel_begin = caret;
 	seeCaret();
 }
@@ -598,6 +635,7 @@ inline void OnLButtonDown(DWORD wParam, int x, int y) {
 	repaintSelectionCanceledLines();
 
 	sel_begin = caret = PosToCaret(x, y);
+	force_OnPaint();
 }
 
 inline void OnRButtonDown(DWORD wParam, int x, int y) {
@@ -618,6 +656,7 @@ inline void OnMouseMove(DWORD wParam, int x, int y) {
 			repaintSelectionCanceledLines();
 			caret = new_caret;
 			repaintSelectedLines();
+			force_OnPaint();
 		}
 	}
 }
@@ -636,9 +675,7 @@ void OnMouseHWheel(short zDeta, int x, int y) {
 	else if (xoffset + EditAreaWidth > textView_width)
 		xoffset = textView_width - EditAreaWidth;
 
-	HDC hdc = GetDC(hWnd);
-	OnPaint(hdc);
-	ReleaseDC(hWnd, hdc);
+	force_OnPaint();
 }
 
 void OnMouseWheel(short zDeta, int x, int y) {
@@ -659,9 +696,7 @@ void OnMouseWheel(short zDeta, int x, int y) {
 	else if (yoffset + EditAreaHeight > textView_height)
 		yoffset = textView_height - EditAreaHeight;
 
-	HDC hdc = GetDC(hWnd);
-	OnPaint(hdc);
-	ReleaseDC(hWnd, hdc);
+	force_OnPaint();
 }
 
 #include <shellapi.h>
@@ -837,16 +872,17 @@ void loadFile(LPTSTR path) {
 	article.clear();
 	article.push_back(Line(L""));
 	
+	// set text
 	caret.reset();
 	insertAtCursor(str);
 
+	// init
 	sel_begin.reset();
 	caret.reset();
 	bSaved = true;
-
+	calc_textView_height();
 	opened_file = path;
 	SetWindowTextW(hWnd, (opened_file + L" - MyNotePad").c_str());
-	bSaved = true;
 
 	HDC hdc = GetDC(hWnd);
 	for (auto& l : article)
@@ -901,6 +937,7 @@ inline void OnMenuCut() {
 	if (sel_begin.removeSelectedChars(caret))
 	{
 		bSaved = false;
+		calc_textView_height();
 
 		// update MemDC, text_width, text_height in this line
 		HDC hdc = GetDC(hWnd);
@@ -911,7 +948,6 @@ inline void OnMenuCut() {
 }
 
 inline void OnMenuPaste() {
-
 	if (!OpenClipboard(hWnd)) return;
 
 	HANDLE h = GetClipboardData(CF_UNICODETEXT);
@@ -920,11 +956,16 @@ inline void OnMenuPaste() {
 		return;
 	}
 
-	if (sel_begin.removeSelectedChars(caret))
-		bSaved = false;
+	sel_begin.removeSelectedChars(caret);
+	
 	LPCTSTR str = (LPCTSTR)GlobalLock(h);
+
 	insertAtCursor(str);
+	bSaved = false;
+	calc_textView_height();
+
 	sel_begin = caret;
+
 	GlobalUnlock(h);
 	CloseClipboard();
 
@@ -939,4 +980,6 @@ inline void OnMenuAll() {
 	sel_begin.reset();
 	caret.end();
 	repaintSelectedLines();
+
+	force_OnPaint();
 }

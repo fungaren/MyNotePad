@@ -11,11 +11,12 @@ HINSTANCE hInst;
 
 #include "imm.h"
 #pragma comment(lib, "imm32.lib")
+#pragma comment(lib, "version.lib")
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance;
-   
+
    hWnd = CreateWindowExW(WS_EX_ACCEPTFILES, MNP_APPNAME, L"Untitled - MyNotePad", WS_OVERLAPPEDWINDOW,
 	   CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
@@ -23,12 +24,47 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    HDC hdc = GetDC(hWnd);
    for (auto& l : article)
-	   repaintLine(hdc, l, l.sentence.begin(), l.sentence.end());
+	   repaintLine(hdc, l);
    ReleaseDC(hWnd, hdc);
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
    return TRUE;
+}
+
+std::wstring GetFileVersion(HMODULE hModule)
+{
+	TCHAR filename[MAX_PATH];
+
+	if (GetModuleFileName(hModule, filename, MAX_PATH) == 0)
+		return L"";
+
+	DWORD dwHandle;
+	int size = GetFileVersionInfoSize(filename, &dwHandle);
+	if (size <= 0)
+		return L"";
+
+	LPBYTE buffer = new BYTE[size];
+	if (GetFileVersionInfo(filename, dwHandle, size, buffer) == 0)
+	{
+		delete buffer;
+		return L"";
+	}
+
+	VS_FIXEDFILEINFO *pVi;
+	if (VerQueryValue(buffer, L"\\", (LPVOID *)&pVi, (PUINT)&size))
+	{
+		std::wstringstream result;
+		result << HIWORD(pVi->dwFileVersionMS) << L'.'
+			<< LOWORD(pVi->dwFileVersionMS) << L'.'
+			<< HIWORD(pVi->dwFileVersionLS) << L'.'
+			<< LOWORD(pVi->dwFileVersionLS);
+
+		delete buffer;
+		return result.str();
+	}
+	delete buffer;
+	return L"";
 }
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
@@ -37,6 +73,10 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_INITDIALOG:
+		SetWindowText(GetDlgItem(hDlg, IDC_VERSION),
+			(std::wstring(MNP_APPNAME) + L" v" + GetFileVersion(hInst)).c_str()
+		);
+		
 		return (INT_PTR)TRUE;
 
 	case WM_COMMAND:

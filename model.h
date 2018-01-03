@@ -385,6 +385,7 @@ public:
 		else if (dist_y < 0)	// forward selection
 		{
 			std::wstring str(c, l->sentence.end());
+			str.push_back(L'\n');
 			auto i = l;
 			for (++i; i != to.l; ++i)
 			{
@@ -397,6 +398,7 @@ public:
 		else	// backward selection
 		{
 			std::wstring str(to.c, to.l->sentence.end());
+			str.push_back(L'\n');
 			auto& i = to.l;
 			for (++i; i != l; ++i)
 			{
