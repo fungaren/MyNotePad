@@ -18,7 +18,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    hInst = hInstance;
 
    hWnd = CreateWindowExW(WS_EX_ACCEPTFILES, MNP_APPNAME, L"Untitled - MyNotePad", WS_OVERLAPPEDWINDOW,
-	   CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+	   CW_USEDEFAULT, 0, 800, 600, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd) return FALSE;
 

@@ -344,27 +344,35 @@ public:
 		}
 		else if (dist_y < 0)	// forward selection
 		{
+			c = l->sentence.erase(c, l->sentence.end());
 			auto t_c = c;
 			if (t_c != l->sentence.begin())
 				--t_c;
-			c = l->sentence.erase(c, l->sentence.end());
+
 			l->sentence.splice(c, to.l->sentence, to.c, to.l->sentence.end());
 			auto t_l = l;
 			a.erase(++t_l, ++to.l);
+
 			to.l = l;
-			to.c = c = ++t_c;
+			if (t_c != l->sentence.end())
+				++t_c;
+			to.c = c = t_c;
 		}
 		else	// backward selection
 		{
+			to.c = to.l->sentence.erase(to.c, to.l->sentence.end());
 			auto t_c = to.c;
 			if (t_c != to.l->sentence.begin())
 				--t_c;
-			to.c = to.l->sentence.erase(to.c, to.l->sentence.end());
+
 			to.l->sentence.splice(to.c, l->sentence, c, l->sentence.end());
 			auto t_l = to.l;
 			to.a.erase(++t_l, ++l);
+
 			l = to.l;
-			c = to.c = ++t_c;
+			if (t_c != to.l->sentence.end())
+				++t_c;
+			c = to.c = t_c;
 		}
 		return true;
 	}
