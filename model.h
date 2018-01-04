@@ -72,11 +72,11 @@ public:
 	CharStyle style;	// unuse now
 
 	Font(int size, LPCTSTR fontname, int weight = 100, DWORD color = 0x00000000, CharStyle style = default_style)
-		:color(color)
+		:color(color),
+		style(style)
 	{
 		hf = CreateFont(size, 0, 0, 0, weight, FALSE, FALSE, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
 			CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_SWISS, fontname);
-		this->style = style;
 	}
 
 	Font& bind(HDC hdc) {
@@ -133,26 +133,19 @@ struct Character
 	CharStyle style;
 
 	Character(TCHAR c, DWORD color, CharStyle style)
-	{
-		this->c = c;
-		this->color = color;
-		this->style = style;
-		
-#ifdef DEBUG
-		width = 0;
-#endif // DEBUG
-	}
+		:c(c),
+		color(color),
+		style(style),
+		width(0)
+	{ }
 
 	Character(TCHAR c)
-	{
-		this->c = c;
-		this->color = MNP_FONTCOLOR;
-		this->style = { 0,0 };
+		:c(c),
+		color(MNP_FONTCOLOR),
+		style(default_style),
+		width(0)
+	{ }
 
-#ifdef DEBUG
-		width = 0;
-#endif // DEBUG
-	}
 	operator TCHAR() const { return c; }
 };
 
@@ -166,12 +159,10 @@ struct Line
 	size_t padding_top;
 	mutable std::shared_ptr<MemDC> mdc;
 	DWORD background_color;
-	bool transparent;
 	Sentence sentence;
 
-	explicit Line(const std::wstring& s, uint16_t padding_left = 0, uint16_t padding_top = 0)
-		:transparent(true),
-		background_color(MNP_BGCOLOR_EDIT),
+	explicit Line(const std::wstring& s)
+		:background_color(MNP_BGCOLOR_EDIT),
 		text_width(0),
 		text_height(MNP_LINEHEIGHT),
 		padding_left(padding_left),

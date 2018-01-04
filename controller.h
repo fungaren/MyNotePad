@@ -83,7 +83,7 @@ void repaintLine(HDC clientDC, const Line& l)
 	l.mdc = std::make_unique<MemDC>(clientDC, l.text_width + l.padding_left, l.text_height + l.padding_top);
 
 	// fill background
-	GDIUtil::fill(*l.mdc, MNP_BGCOLOR_EDIT, 0, 0, l.text_width + l.padding_left, l.text_height + l.padding_top);
+	GDIUtil::fill(*l.mdc, l.background_color, 0, 0, l.text_width + l.padding_left, l.text_height + l.padding_top);
 
 	// draw text
 	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
@@ -122,7 +122,7 @@ void repaintLine(HDC clientDC, const Line& l,
 	l.mdc = std::make_unique<MemDC>(clientDC, l.text_width + l.padding_left, l.text_height + l.padding_top);
 
 	// fill background
-	GDIUtil::fill(*l.mdc, MNP_BGCOLOR_EDIT, 0, 0, l.text_width + l.padding_left, l.text_height + l.padding_top);
+	GDIUtil::fill(*l.mdc, l.background_color, 0, 0, l.text_width + l.padding_left, l.text_height + l.padding_top);
 
 	// fill selection background
 	GDIUtil::fill(*l.mdc, MNP_BGCOLOR_SEL,
