@@ -420,36 +420,37 @@ void OnKeyDown(int nChar) {
 		if (sel_begin.removeSelectedChars(caret))
 		{
 			bSaved = false;
-			calc_textView_height();
 
 			// update MemDC, text_width, text_height in this line
 			HDC hdc = GetDC(hWnd);
 			repaintLine(hdc, *caret.getSentence());
+
+			calc_textView_height();
+			seeCaret();
+
 			OnPaint(hdc);
 			ReleaseDC(hWnd, hdc);
-
-			seeCaret();
 			return;
 		}
-		else if (caret.getSentence() != --article.end()
-			|| caret.getCharacter() != caret.getSentence()->sentence.end())
+		else
 		{
 			// delete the character
-			caret.eraseChar();
+			if (!caret.eraseChar())
+				return;
 			bSaved = false;
-			calc_textView_height();
+			sel_begin = caret;
 
 			// update MemDC, text_width, text_height in this line
 			HDC hdc = GetDC(hWnd);
 			repaintLine(hdc, *caret.getSentence());
+
+			calc_textView_height();
+			seeCaret();
+
 			OnPaint(hdc);
 			ReleaseDC(hWnd, hdc);
-
-			seeCaret();
 			return;
 		}
-		// end of all, nothing to do
-		return;
 	case VK_LEFT:
 		// some lines were selected, but Shift was not pressed,
 		// remove selection background
@@ -555,7 +556,7 @@ void OnKeyDown(int nChar) {
 	force_OnPaint();
 }
 
-inline void OnChar(WORD nChar)
+void OnChar(WORD nChar)
 {
 	// replace selected characters
 	bool flag_removed = sel_begin.removeSelectedChars(caret);
@@ -565,8 +566,8 @@ inline void OnChar(WORD nChar)
 	switch (nChar)
 	{
 	case VK_BACK:
-		if (!flag_removed)
-			caret.backspace();
+		if (!flag_removed && !caret.backspace())
+			return;
 		break;
 	case VK_RETURN:
 		insertAtCursor(L'\n');
@@ -585,16 +586,18 @@ inline void OnChar(WORD nChar)
 		insertAtCursor(nChar);
 	}
 
-	// update MemDC, text_width, text_height in this line
-	repaintLine(hdc, *caret.getSentence());
-	OnPaint(hdc);
-	ReleaseDC(hWnd, hdc);
-
 	bSaved = false;
-	calc_textView_height();
 
 	sel_begin = caret;
+
+	// update MemDC, text_width, text_height in this line
+	repaintLine(hdc, *caret.getSentence());
+
+	calc_textView_height();
 	seeCaret();
+
+	OnPaint(hdc);
+	ReleaseDC(hWnd, hdc);
 }
 
 inline void OnKeyUp(int nChar)
@@ -880,13 +883,15 @@ void loadFile(LPTSTR path) {
 	sel_begin.reset();
 	caret.reset();
 	bSaved = true;
-	calc_textView_height();
 	opened_file = path;
 	SetWindowTextW(hWnd, (opened_file + L" - MyNotePad").c_str());
 
 	HDC hdc = GetDC(hWnd);
 	for (auto& l : article)
 		repaintLine(hdc, l);
+
+	calc_textView_height();
+
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
 }
@@ -937,11 +942,13 @@ inline void OnMenuCut() {
 	if (sel_begin.removeSelectedChars(caret))
 	{
 		bSaved = false;
-		calc_textView_height();
 
 		// update MemDC, text_width, text_height in this line
 		HDC hdc = GetDC(hWnd);
 		repaintLine(hdc, *caret.getSentence());
+
+		calc_textView_height();
+
 		OnPaint(hdc);
 		ReleaseDC(hWnd, hdc);
 	}

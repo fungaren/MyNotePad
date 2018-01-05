@@ -165,8 +165,8 @@ struct Line
 		:background_color(MNP_BGCOLOR_EDIT),
 		text_width(0),
 		text_height(MNP_LINEHEIGHT),
-		padding_left(padding_left),
-		padding_top(padding_top),
+		padding_left(0),
+		padding_top(0),
 		mdc(nullptr)
 	{ }
 
@@ -275,35 +275,64 @@ public:
 	{
 		return c;
 	}
-	
-	void eraseChar() 
+
+	// return false if no char deleted
+	bool eraseChar()
 	{
-		Article::iterator next_line = l;
 		if (c == l->sentence.end())
 		{
+			if (l == --a.end())
+				return false;
+			
+			if (c != l->sentence.begin())
+				--c;
+
+			Article::iterator next_line = l;
 			l->sentence.splice(l->sentence.end(), (++next_line)->sentence);
+
+			if (c != l->sentence.end())
+				++c;
+			else
+				c = l->sentence.begin();
+
 			a.erase(next_line);
+			return true;
 		}
 		else
+		{
 			c = l->sentence.erase(c);
+			return true;
+		}
 	}
 
-	void backspace()
+	// return false if no char deleted
+	bool backspace()
 	{
 		if (c == l->sentence.begin())
 		{
 			if (l == a.begin())
-				return;
+				return false;
 			Article::iterator previous_line = l;
+
 			c = (--previous_line)->sentence.end();
+			if (c != previous_line->sentence.begin())
+				--c;
+
 			previous_line->sentence.splice(previous_line->sentence.end(), l->sentence);
+
+			if (c != previous_line->sentence.end())
+				++c;
+			else
+				c = previous_line->sentence.begin();
+
 			a.erase(l);
 			l = previous_line;
+			return true;
 		}
 		else
 		{
-			Sentence::iterator t = c;
-			l->sentence.erase(--t);
+			c = l->sentence.erase(--c);
+			return true;
 		}
 	}
 
@@ -336,33 +365,41 @@ public:
 		else if (dist_y < 0)	// forward selection
 		{
 			c = l->sentence.erase(c, l->sentence.end());
-			auto t_c = c;
+			Sentence::iterator t_c = c;
 			if (t_c != l->sentence.begin())
 				--t_c;
 
 			l->sentence.splice(c, to.l->sentence, to.c, to.l->sentence.end());
-			auto t_l = l;
+
+			if (t_c != l->sentence.end())
+				++t_c;
+			else
+				t_c = l->sentence.begin();
+
+			Article::iterator t_l = l;
 			a.erase(++t_l, ++to.l);
 
 			to.l = l;
-			if (t_c != l->sentence.end())
-				++t_c;
 			to.c = c = t_c;
 		}
 		else	// backward selection
 		{
 			to.c = to.l->sentence.erase(to.c, to.l->sentence.end());
-			auto t_c = to.c;
+			Sentence::iterator t_c = to.c;
 			if (t_c != to.l->sentence.begin())
 				--t_c;
 
 			to.l->sentence.splice(to.c, l->sentence, c, l->sentence.end());
-			auto t_l = to.l;
+
+			if (t_c != to.l->sentence.end())
+				++t_c;
+			else
+				t_c = to.l->sentence.begin();
+
+			Article::iterator t_l = to.l;
 			to.a.erase(++t_l, ++l);
 
 			l = to.l;
-			if (t_c != to.l->sentence.end())
-				++t_c;
 			c = to.c = t_c;
 		}
 		return true;
@@ -385,7 +422,7 @@ public:
 		{
 			std::wstring str(c, l->sentence.end());
 			str.push_back(L'\n');
-			auto i = l;
+			Article::iterator i = l;
 			for (++i; i != to.l; ++i)
 			{
 				str.append(i->sentence.begin(), i->sentence.end());
@@ -398,7 +435,7 @@ public:
 		{
 			std::wstring str(to.c, to.l->sentence.end());
 			str.push_back(L'\n');
-			auto& i = to.l;
+			Article::iterator i = to.l;
 			for (++i; i != l; ++i)
 			{
 				str.append(i->sentence.begin(), i->sentence.end());
