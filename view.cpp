@@ -5,10 +5,6 @@ HWND hWnd;
 HINSTANCE hInst;
 
 #include "view.h"
-//bool bWndSizeChgd = false;
-
-//---------------------------------
-
 #include "imm.h"
 #pragma comment(lib, "imm32.lib")
 #pragma comment(lib, "version.lib")
@@ -170,7 +166,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		OnKeyUp(wParam);
 		break;
 	case WM_SIZE:
-		//bWndSizeChgd = true;
+		OnSize(LOWORD(lParam), HIWORD(lParam));
 		break;
 	case WM_ERASEBKGND:
 		return TRUE;

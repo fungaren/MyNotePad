@@ -10,6 +10,7 @@ unsigned int textView_width = 0, textView_height = 0;
 unsigned int caret_x, caret_y;					// for IME (relative to EditArea)
 unsigned int xoffset = 0;		// offset-x of textView
 unsigned int yoffset = 0;		// offset-y of textView
+size_t ClientWidth, ClientHeight, EditAreaWidth, EditAreaHeight;
 
 //---------------------------------
 
@@ -138,15 +139,14 @@ void repaintLine(HDC clientDC, const Line& l,
 	f.unbind();
 }
 
+inline void OnSize(unsigned int width, unsigned int height) {
+	ClientWidth = width;
+	ClientHeight = height;
+	EditAreaWidth = ClientWidth - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
+	EditAreaHeight = ClientHeight - MNP_SCROLLBAR_WIDTH;
+}
+
 void OnPaint(HDC hdc) {
-
-	RECT rc;
-	GetClientRect(hWnd, &rc);
-	size_t ClientWidth = rc.right - rc.left;
-	size_t ClientHeight = rc.bottom - rc.top;
-	size_t EditAreaWidth = ClientWidth - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
-	size_t EditAreaHeight = ClientHeight - MNP_SCROLLBAR_WIDTH;
-
 	// create clientDC
 	MemDC clientDC(hdc, ClientWidth, ClientHeight);
 
@@ -289,11 +289,6 @@ void OnPaint(HDC hdc) {
 
 // if caret is out of client area, jump there
 void seeCaret() {
-	RECT rc;
-	GetClientRect(hWnd, &rc);
-	size_t EditAreaWidth = rc.right - rc.left - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
-	size_t EditAreaHeight = rc.bottom - rc.top - MNP_SCROLLBAR_WIDTH;
-
 	size_t x = 0, y = 0;
 
 	// count y
@@ -665,9 +660,6 @@ inline void OnMouseMove(DWORD wParam, int x, int y) {
 }
 
 void OnMouseHWheel(short zDeta, int x, int y) {
-	RECT rc;
-	GetClientRect(hWnd, &rc);
-	size_t EditAreaWidth = rc.right - rc.left - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
 
 	if (textView_width < EditAreaWidth)
 		return;
@@ -686,9 +678,6 @@ void OnMouseWheel(short zDeta, int x, int y) {
 		OnMouseHWheel(-zDeta, x, y);
 		return;
 	}
-	RECT rc;
-	GetClientRect(hWnd, &rc);
-	size_t EditAreaHeight = rc.bottom - rc.top - MNP_SCROLLBAR_WIDTH;
 
 	if (textView_height < EditAreaHeight)
 		return;
