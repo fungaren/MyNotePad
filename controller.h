@@ -11,6 +11,7 @@ unsigned int caret_x, caret_y;					// for IME (relative to EditArea)
 unsigned int xoffset = 0;		// offset-x of textView
 unsigned int yoffset = 0;		// offset-y of textView
 size_t ClientWidth, ClientHeight, EditAreaWidth, EditAreaHeight;
+bool word_wrap = true;			// set word wrap
 
 //---------------------------------
 
@@ -76,9 +77,6 @@ void repaintLine(HDC clientDC, const Line& l)
 		l.text_width += i->width;
 	if (l.text_width + l.padding_left > textView_width)
 		textView_width = l.text_width + l.padding_left;
-
-	// todo: calc height of each line
-	//...
 	
 	// discard present MemDC and recreate
 	l.mdc = std::make_unique<MemDC>(clientDC, l.text_width + l.padding_left, l.text_height + l.padding_top);
@@ -89,7 +87,7 @@ void repaintLine(HDC clientDC, const Line& l)
 	// draw text
 	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
 	f.bind(*l.mdc);
-	f.printLine(static_cast<std::wstring>(l).c_str(), l.sentence.size(), l.padding_left, l.padding_top);
+	f.printLine(l, l.padding_left, l.padding_top);
 	f.unbind();
 }
 
@@ -115,10 +113,7 @@ void repaintLine(HDC clientDC, const Line& l,
 		x_sel_from = l.text_width;
 	if (l.sentence.end() == sel_to)
 		x_sel_to = l.text_width;
-
-	// todo: calc height of each line
-	//...
-
+	
 	// discard present MemDC and recreate
 	l.mdc = std::make_unique<MemDC>(clientDC, l.text_width + l.padding_left, l.text_height + l.padding_top);
 
@@ -135,7 +130,7 @@ void repaintLine(HDC clientDC, const Line& l,
 	// draw text
 	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
 	f.bind(*l.mdc);
-	f.printLine(static_cast<std::wstring>(l).c_str(), l.sentence.size(), l.padding_left, l.padding_top);
+	f.printLine(l, l.padding_left, l.padding_top);
 	f.unbind();
 }
 
@@ -174,7 +169,7 @@ void OnPaint(HDC hdc) {
 			// caret is in this line
 			if (caret.getSentence() == l)
 			{
-				caret_x = 0;	// calc caret_x
+				caret_x = l->padding_left;	// calc caret_x
 				for (Sentence::const_iterator c = l->sentence.begin();
 					c != caret.getCharacter(); ++c)
 				{
@@ -187,10 +182,9 @@ void OnPaint(HDC hdc) {
 				if (caret_x >= xoffset && caret_x <= xoffset + EditAreaWidth)
 				{
 					caret_x -= xoffset;
-					caret_y = (y - l->text_height - l->padding_top) - yoffset;
+					caret_y = (y - l->text_height) - yoffset;
 					GDIUtil::line(clientDC, MNP_FONTCOLOR, caret_x + MNP_PADDING_CLIENT, caret_y,
-						caret_x + MNP_PADDING_CLIENT, caret_y + caret.getSentence()->text_height
-						+ caret.getSentence()->padding_top);
+						caret_x + MNP_PADDING_CLIENT, caret_y + caret.getSentence()->text_height);
 				}
 			}
 			++l;
@@ -226,7 +220,7 @@ void OnPaint(HDC hdc) {
 		// caret at this line
 		if (caret.getSentence() == l)
 		{
-			caret_x = 0;
+			caret_x = l->padding_left;
 			for (Sentence::const_iterator c = l->sentence.begin();
 				c != caret.getCharacter(); ++c)
 			{
@@ -239,10 +233,9 @@ void OnPaint(HDC hdc) {
 			if (caret_x >= xoffset && caret_x <= xoffset + EditAreaWidth)
 			{
 				caret_x -= xoffset;
-				caret_y = y;
+				caret_y = y + caret.getSentence()->padding_top;
 				GDIUtil::line(clientDC, MNP_FONTCOLOR, caret_x + MNP_PADDING_CLIENT, caret_y,
-					caret_x + MNP_PADDING_CLIENT, caret_y + caret.getSentence()->text_height
-					+ caret.getSentence()->padding_top);
+					caret_x + MNP_PADDING_CLIENT, caret_y + caret.getSentence()->text_height);
 			}
 		}
 		y += l->text_height + l->padding_top;
@@ -619,7 +612,7 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 	}
 
 	Sentence::iterator c;
-	int x = 0;
+	int x = l->padding_left;
 	for (c = l->sentence.begin(); c != l->sentence.end(); ++c)
 	{
 		if ((x += c->width) >= cursor_x + c->width/2)

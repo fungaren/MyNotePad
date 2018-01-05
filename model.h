@@ -65,7 +65,7 @@ class Font {
 	HFONT hf;
 	HGDIOBJ ho;
 	HDC hdc;
-	// UINT format = DT_NOPREFIX;
+	const unsigned int format = DT_NOPREFIX | DT_WORDBREAK | DT_EDITCONTROL | DT_NOCLIP | DT_HIDEPREFIX;
 
 public:
 	DWORD color;
@@ -88,35 +88,30 @@ public:
 	void unbind() {
 		SelectObject(hdc, ho);
 	}
-
-	//Font& setWordBreak() {
-	//	format |= DT_WORDBREAK | DT_EDITCONTROL;
-	//	return *this;
+	
+	//// calc expected height for specific text width
+	//int calcHeight(const std::wstring& str, int width)
+	//{
+	//	RECT rc = { 0,0,width,0 };
+	//	DrawTextW(hdc, str.c_str(), str.length(), &rc, format | DT_CALCRECT);
+	//	return rc.bottom - rc.top;
 	//}
 
-	//Font& calcPrintArea(LPCTSTR str, int length, int* width, int* height) {
-	//	RECT rc = { 0,0,0,0 };
-	//	DrawTextW(hdc, str, length, &rc, format | DT_CALCRECT);
-	//	*width = rc.right - rc.left;
-	//	*height = rc.bottom - rc.top;
-	//	return *this;
-	//}
-
-	//Font& print(LPCTSTR str, int length, int left, int top, int width, int height) {
+	//Font& drawText(const std::wstring& str, int left, int top, int width, int height) {
 	//	RECT rc = { left, top, left + width, top + height };
 
 	//	SetBkMode(hdc, TRANSPARENT);
 	//	SetTextColor(hdc, color);
 
-	//	DrawTextW(hdc, str, length, &rc, format);
+	//	DrawTextW(hdc, str.c_str(), str.length(), &rc, format);
 	//	return *this;
 	//}
 
-	Font& printLine(LPCTSTR str, size_t length, int left, int top) {
+	Font& printLine(const std::wstring& str, int left, int top) {
 		SetBkMode(hdc, TRANSPARENT);
 		SetTextColor(hdc, color);
 
-		TextOutW(hdc, left, top, str, length);
+		TextOutW(hdc, left, top, str.c_str(), str.length());
 		return *this;
 	}
 
@@ -154,7 +149,7 @@ typedef std::list<Character> Sentence;
 struct Line
 {
 	mutable size_t text_width;
-	size_t text_height;
+	mutable size_t text_height;
 	size_t padding_left;
 	size_t padding_top;
 	mutable std::shared_ptr<MemDC> mdc;
