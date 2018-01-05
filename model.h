@@ -156,12 +156,19 @@ struct Line
 	DWORD background_color;
 	Sentence sentence;
 
-	explicit Line(const std::wstring& s)
+	// A child line represent it's not a real line.
+	// that means there was a long text without return,
+	// and word-wrap was set, so we split it in serveral lines.
+	// The first line and an empty line can not be child line.
+	bool child_line;
+
+	explicit Line(bool child_line = false)
 		:background_color(MNP_BGCOLOR_EDIT),
 		text_width(0),
 		text_height(MNP_LINEHEIGHT),
 		padding_left(0),
 		padding_top(0),
+		child_line(child_line),
 		mdc(nullptr)
 	{ }
 
@@ -446,7 +453,7 @@ public:
 		if (ch.c == L'\n')
 		{
 			Article::iterator old_l = l;
-			a.insert(++l, Line(L""));
+			a.insert(++l, Line());
 			--l;// go to the new line
 			if (c != old_l->sentence.end()) {
 				// cursor at the middle of the line,

@@ -2,16 +2,16 @@
 #include "MarkdownParser.h"
 
 //---------------------------------
-Article article = { Line(L"") };				// article text
-Cursor caret(article);							// current position = end of selection
-Cursor sel_begin(article);						// beginning of selection 
-bool bSaved = true;								// set false when file is modified
+Article article = { Line() };		// article text
+Cursor caret(article);				// current position = end of selection
+Cursor sel_begin(article);			// beginning of selection 
+bool bSaved = true;					// set false when file is modified
 unsigned int textView_width = 0, textView_height = 0;
-unsigned int caret_x, caret_y;					// for IME (relative to EditArea)
-unsigned int xoffset = 0;		// offset-x of textView
-unsigned int yoffset = 0;		// offset-y of textView
+unsigned int caret_x, caret_y;		// for IME (relative to EditArea)
+unsigned int xoffset = 0;			// offset-x of textView
+unsigned int yoffset = 0;			// offset-y of textView
 size_t ClientWidth, ClientHeight, EditAreaWidth, EditAreaHeight;
-bool word_wrap = true;			// set word wrap
+bool word_wrap = true;				// set word wrap
 
 //---------------------------------
 
@@ -66,6 +66,12 @@ void insertAtCursor(const std::wstring& str)
 
 	f.unbind();
 	ReleaseDC(hWnd, hdc);
+}
+
+// rebond the relation around cursor
+void rebond()
+{
+	_ASSERT(word_wrap);
 }
 
 // update MemDC, text_width, text_height for the line and update
@@ -855,7 +861,7 @@ void loadFile(LPTSTR path) {
 	
 	// clean
 	article.clear();
-	article.push_back(Line(L""));
+	article.push_back(Line());
 	
 	// set text
 	caret.reset();
