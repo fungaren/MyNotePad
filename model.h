@@ -246,8 +246,11 @@ public:
 				toLastChar();
 			}
 		}
-		else
-			--c;
+		else if (--c == l->sentence.begin() && l->child_line)
+		{
+			--l;
+			toLastChar();
+		}
 	}
 
 	void move_right()
@@ -257,12 +260,10 @@ public:
 		{
 			if (l == --a.end())
 				return;	// end of all, nothing to do
+			else if ((++l)->child_line)
+				c = ++(l->sentence.begin());
 			else
-			{
-				// not the last line, to the first of next line
-				++l;
 				toFirstChar();
-			}
 		}
 		else
 			++c;
@@ -285,7 +286,7 @@ public:
 		{
 			if (l == --a.end())
 				return false;
-			
+
 			if (c != l->sentence.begin())
 				--c;
 
@@ -293,9 +294,13 @@ public:
 			l->sentence.splice(l->sentence.end(), (++next_line)->sentence);
 
 			if (c != l->sentence.end())
+			{
 				++c;
+				if (next_line->child_line)
+					c = l->sentence.erase(c);
+			}
 			else
-				c = l->sentence.begin();
+				c = l->sentence.begin();// an empty line can not be a child line
 
 			a.erase(next_line);
 			return true;
@@ -441,7 +446,7 @@ public:
 			Article::iterator i = to.l;
 			if (!(++i)->child_line)
 				str.push_back(L'\n');
-			while (i != to.l)
+			while (i != l)
 			{
 				str.append(i->sentence.begin(), i->sentence.end());
 				if (!(++i)->child_line)
@@ -460,7 +465,7 @@ public:
 			a.insert(++l, Line());
 			--l;// go to the new line
 			if (c != old_l->sentence.end()) {
-				// cursor at the middle of the line,
+				// cursor on the middle of the line,
 				// move the string after the cursor to new line
 				l->sentence.splice(l->sentence.end(), old_l->sentence, c, old_l->sentence.end());
 			}
@@ -472,8 +477,9 @@ public:
 		}
 	}
 	
-	// rebond child lines with their parents surrounding the cursor.
-	void rebond()
+	// count characters before cursor in the "real line"
+	// and set cursor to the beginning of parent line.
+	size_t count_char()
 	{
 		size_t count = std::distance(l->sentence.begin(), c);
 		while (l->child_line)
@@ -482,74 +488,174 @@ public:
 			--l;
 			count += l->sentence.size();
 		}
+		c = l->sentence.begin();
+		return count;
+	}
+
+	// rebond child lines with their parent surrounding the cursor,
+	// and set cursor to the corresponding position in parent line.
+	void rebond()
+	{
+		size_t count = count_char();
 		Article::iterator a_iter = l;
-		for (++a_iter; a_iter != article.end() && a_iter->child_line; ++a_iter)
+		for (++a_iter; a_iter != a.end() && a_iter->child_line; ++a_iter)
 			l->sentence.splice(l->sentence.end(), a_iter->sentence);
-		l = --article.erase(++l, a_iter);
-		c = l->sentence.begin;
+
+		l = --a.erase(++l, a_iter);
 		std::advance(c, count);
 	}
 
 	void rebond_all()
 	{
 		rebond();
-		Article::iterator i = article.begin();
-		while (i != article.end())
+		Article::iterator i = a.begin();
+		while (i != a.end())
 		{
 			Article::iterator a_iter = i;
-			for (++a_iter; a_iter != article.end() && a_iter->child_line; ++a_iter)
-				i->sentence.splice(l->sentence.end(), a_iter->sentence);
-			i = article.erase(++i, a_iter);
+			for (++a_iter; a_iter != a.end() && a_iter->child_line; ++a_iter)
+				i->sentence.splice(i->sentence.end(), a_iter->sentence);
+			i = a.erase(++i, a_iter);
 		}
 	}
 
 private:
-	Article::const_iterator& _split_long_text(size_t max_width, Article::iterator parent_line)
+	Article::iterator _split_long_text(size_t max_width, Article::iterator parent_line)
 	{
-		_ASSERT(!parent_line->child_line);
+		if (parent_line->child_line)
+			return ++parent_line; // another cursor called split_long_text() before
 		Article::iterator a_iter = parent_line;
-		const bool cursor_in_this_line = (parent_line == l);
-		bool cursor_was_found = false;
-
-		for (size_t width = 0; ; width = 0)
+		// cursor in this line
+		if (parent_line == l)
 		{
-			Sentence::iterator s_iter = a_iter->sentence.begin();
-			while (s_iter != a_iter->sentence.end() && (width += s_iter->width) < max_width)
+			if (l->sentence.end() == c)
 			{
-				if (cursor_in_this_line && s_iter == c)
-					cursor_was_found = true;
-				++s_iter;
-			}
-			if (s_iter != a_iter->sentence.end())
-			{
-				Article::iterator i = a_iter;
-				a_iter = a.insert(++a_iter, Line(true));
-				a_iter->sentence.splice(a_iter->sentence.end(), i->sentence, s_iter, i->sentence.end());
-				if (cursor_in_this_line && !cursor_was_found)
-					l = a_iter;
+				for (size_t width = 0; ; width = 0)
+				{
+					Sentence::iterator s_iter = a_iter->sentence.begin();
+					while (s_iter != a_iter->sentence.end() && (width += s_iter->width) < max_width)
+					{
+						++s_iter;
+					}
+					if (s_iter != a_iter->sentence.end())
+					{
+						Article::iterator i = a_iter;
+						a_iter = a.insert(++a_iter, Line(true));
+						a_iter->sentence.splice(a_iter->sentence.end(), i->sentence, s_iter, i->sentence.end());
+						l = a_iter;
+						c = a_iter->sentence.end();
+					}
+					else
+						return ++a_iter;
+				}
 			}
 			else
-				return a_iter;
+			{
+				bool cursor_was_found = false;
+
+				for (size_t width = 0; ; width = 0)
+				{
+					Sentence::iterator s_iter = a_iter->sentence.begin();
+					while (s_iter != a_iter->sentence.end() && (width += s_iter->width) < max_width)
+					{
+						if (!cursor_was_found && s_iter == c)
+						{
+							cursor_was_found = true;
+							// if cursor at the beginning of child line, move to the end of
+							// previous line (can be either child line or parent line)
+							if (a_iter->child_line && c == a_iter->sentence.begin())
+							{
+								l = a_iter;
+								c = (--l)->sentence.end();
+							}
+						}
+						++s_iter;
+					}
+					if (s_iter != a_iter->sentence.end())
+					{
+						Article::iterator i = a_iter;
+						a_iter = a.insert(++a_iter, Line(true));
+						a_iter->sentence.splice(a_iter->sentence.end(), i->sentence, s_iter, i->sentence.end());
+						if (!cursor_was_found)
+							l = a_iter;
+					}
+					else
+						return ++a_iter;
+				}
+			}
+		}
+		else // cursor is not in this line
+		{
+			for (size_t width = 0; ; width = 0)
+			{
+				Sentence::iterator s_iter = a_iter->sentence.begin();
+				while (s_iter != a_iter->sentence.end() && (width += s_iter->width) < max_width)
+				{
+					++s_iter;
+				}
+				if (s_iter != a_iter->sentence.end())
+				{
+					Article::iterator i = a_iter;
+					a_iter = a.insert(++a_iter, Line(true));
+					a_iter->sentence.splice(a_iter->sentence.end(), i->sentence, s_iter, i->sentence.end());
+				}
+				else
+					return ++a_iter;
+			}
 		}
 	}
 
 public:
-	// split a very long string surrounding the cursor without return
+	// Split a very long string surrounding the cursor without return
 	// into serveral lines. Must call rebond() before calling this.
-	// return an iterator pointing to a parent line below the last child line
-	Article::const_iterator& split_long_text(size_t max_width)
+	// Return an iterator pointing to a parent line below the last child line.
+	Article::const_iterator split_long_text(size_t max_width)
 	{
 		return _split_long_text(max_width, l);
 	}
 
-	// split all long string without return into serveral lines.
+	// Split all long string without return into serveral lines.
 	// Must call rebond_all() before calling this.
 	void split_all_long_text(size_t max_width)
 	{
-		for (Article::iterator a_iter = a.begin(); a_iter!=a.end(); ++a_iter)
+		for (Article::iterator a_iter = a.begin(); a_iter!=a.end();)
 		{
-			_split_long_text(max_width, a_iter);
+			a_iter = _split_long_text(max_width, a_iter);
 		}
+	}
+
+	// On warp-line mode, if something selected while the
+	// edit area size changed, we have to rebond_all()
+	// and split_all_long_text(), and make sure the
+	// two cursors in the correct states.
+	void reform(size_t max_width, Cursor& right)
+	{
+		size_t count = count_char();
+		Article::iterator parent_line = l;
+
+		right.rebond_all();
+		right.split_all_long_text(max_width);
+
+		l = parent_line;
+		c = parent_line->sentence.begin();
+
+		for (size_t i = 0; i < count; ++i)
+			move_right();
+	}
+
+	// if something selected while exiting warp-line mode,
+	// we have to rebond_all() and make sure the
+	// two cursors in the correct states.
+	void recover(Cursor& right)
+	{
+		size_t count = count_char();
+		Article::iterator parent_line = l;
+
+		right.rebond_all();
+
+		l = parent_line;
+		c = parent_line->sentence.begin();
+
+		std::advance(c, count);
 	}
 
 	//size_t getLineLength(Article& a) const

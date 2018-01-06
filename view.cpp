@@ -97,6 +97,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			case IDM_ABOUT:
 				DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
 				break;
+			case IDM_WORDWRAP:
+				OnMenuWordWrap();
+				break;
 			case IDM_NEW:
 				OnMenuNew();
 				break;
@@ -181,6 +184,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_MOUSEHWHEEL:
 		{
+		if (word_wrap)
+			break;
+
 			RECT rc;
 			GetClientRect(hWnd, &rc);
 			OnMouseHWheel(

@@ -11,8 +11,8 @@ unsigned int caret_x, caret_y;		// for IME (relative to EditArea)
 unsigned int xoffset = 0;			// offset-x of textView
 unsigned int yoffset = 0;			// offset-y of textView
 size_t ClientWidth, ClientHeight, EditAreaWidth, EditAreaHeight;
-bool word_wrap = true;				// break word
-
+bool word_wrap = false;				// break word
+bool resized = false;
 //---------------------------------
 
 void insertAtCursor(const TCHAR& c)
@@ -75,14 +75,21 @@ void repaintLine(HDC clientDC, const Line& l)
 	l.text_width = 0;
 	for (Sentence::const_iterator i = l.sentence.begin(); i != l.sentence.end(); ++i)
 		l.text_width += i->width;
-	if (l.text_width + l.padding_left > textView_width)
+	if (!word_wrap && l.text_width + l.padding_left > textView_width)
 		textView_width = l.text_width + l.padding_left;
 	
 	// discard present MemDC and recreate
-	l.mdc = std::make_unique<MemDC>(clientDC, l.text_width + l.padding_left, l.text_height + l.padding_top);
+	l.mdc = std::make_unique<MemDC>(clientDC,
+		l.text_width + l.padding_left,
+		l.text_height + l.padding_top);
 
 	// fill background
-	GDIUtil::fill(*l.mdc, l.background_color, 0, 0, l.text_width + l.padding_left, l.text_height + l.padding_top);
+	GDIUtil::fill(*l.mdc,
+		l.background_color,
+		0,
+		0,
+		l.text_width + l.padding_left,
+		l.text_height + l.padding_top);
 
 	// draw text
 	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
@@ -107,7 +114,7 @@ void repaintLine(HDC clientDC, const Line& l,
 			x_sel_to = l.text_width;	// x_sel_to will not be assigned a value
 		l.text_width += i->width;
 	}
-	if (l.text_width + l.padding_left > textView_width)
+	if (!word_wrap && l.text_width + l.padding_left > textView_width)
 		textView_width = l.text_width + l.padding_left;
 	if (l.sentence.end() == sel_from)
 		x_sel_from = l.text_width;
@@ -115,13 +122,21 @@ void repaintLine(HDC clientDC, const Line& l,
 		x_sel_to = l.text_width;
 	
 	// discard present MemDC and recreate
-	l.mdc = std::make_unique<MemDC>(clientDC, l.text_width + l.padding_left, l.text_height + l.padding_top);
+	l.mdc = std::make_unique<MemDC>(clientDC,
+		l.text_width + l.padding_left,
+		l.text_height + l.padding_top);
 
 	// fill background
-	GDIUtil::fill(*l.mdc, l.background_color, 0, 0, l.text_width + l.padding_left, l.text_height + l.padding_top);
+	GDIUtil::fill(*l.mdc,
+		l.background_color,
+		0,
+		0,
+		l.text_width + l.padding_left,
+		l.text_height + l.padding_top);
 
 	// fill selection background
-	GDIUtil::fill(*l.mdc, MNP_BGCOLOR_SEL,
+	GDIUtil::fill(*l.mdc,
+		MNP_BGCOLOR_SEL,
 		l.padding_left + x_sel_from,
 		l.padding_top,
 		x_sel_to - x_sel_from,
@@ -134,19 +149,97 @@ void repaintLine(HDC clientDC, const Line& l,
 	f.unbind();
 }
 
-inline void OnSize(unsigned int width, unsigned int height) {
-	ClientWidth = width;
-	ClientHeight = height;
-	EditAreaWidth = ClientWidth - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
-	EditAreaHeight = ClientHeight - MNP_SCROLLBAR_WIDTH;
-	if (word_wrap)
+// When text was modified, call this function to recalculate textView_height
+void calc_textView_height()
+{
+	textView_height = 0;
+	for (const Line& i : article)
+		textView_height += i.text_height + i.padding_top;
+
+	// textView_width will be updated when repaintLine() or OnSize() is called
+}
+
+// fill selection background
+void repaintSelectedLines()
+{
+	if (sel_begin.getSentence() != caret.getSentence())
 	{
-		caret.rebond_all();
-		caret.split_all_long_text(EditAreaWidth);
+		HDC hdc = GetDC(hWnd);
+		// repaint selected lines
+		int dist_y = sel_begin.distance_y(caret);
+		if (dist_y < 0)	// forward selection
+		{
+			// repaint first line
+			Article::const_iterator l = sel_begin.getSentence();
+			repaintLine(hdc, *l, sel_begin.getCharacter(), l->sentence.end());
+			// repaint each line
+			for (++l; l != caret.getSentence(); ++l)
+				repaintLine(hdc, *l, l->sentence.begin(), l->sentence.end());
+			// repaint last line
+			repaintLine(hdc, *l, l->sentence.begin(), caret.getCharacter());
+		}
+		else	// backwards selection
+		{
+			// repaint first line
+			Article::const_iterator l = caret.getSentence();
+			repaintLine(hdc, *l, caret.getCharacter(), l->sentence.end());
+			// repaint each line
+			for (++l; l != sel_begin.getSentence(); ++l)
+				repaintLine(hdc, *l, l->sentence.begin(), l->sentence.end());
+			// repaint last line
+			repaintLine(hdc, *l, l->sentence.begin(), sel_begin.getCharacter());
+		}
+		ReleaseDC(hWnd, hdc);
+	}
+	else if (sel_begin.getCharacter() != caret.getCharacter())
+	{
+		HDC hdc = GetDC(hWnd);
+		int dist_x = sel_begin.distance_x(caret);
+		if (dist_x < 0)
+			repaintLine(hdc, *caret.getSentence(), sel_begin.getCharacter(), caret.getCharacter());
+		else
+			repaintLine(hdc, *caret.getSentence(), caret.getCharacter(), sel_begin.getCharacter());
+		ReleaseDC(hWnd, hdc);
 	}
 }
 
 void OnPaint(HDC hdc) {
+	if (word_wrap && resized)
+	{
+		// for selection
+		if (sel_begin == caret)
+		{
+			caret.rebond_all();
+			caret.split_all_long_text(EditAreaWidth);
+
+			sel_begin = caret;
+			for (auto& l : article)
+				repaintLine(hdc, l);
+		}
+		else
+		{
+			int dist_y = sel_begin.distance_y(caret);
+			if (dist_y < 0)	// forward selection
+				sel_begin.reform(EditAreaWidth, caret);
+			else if (dist_y > 0)
+				caret.reform(EditAreaWidth, sel_begin);
+			else
+			{
+				int dist_x = sel_begin.distance_x(caret);
+				if (dist_x < 0)	// forward selection
+					sel_begin.reform(EditAreaWidth, caret);
+				else
+					caret.reform(EditAreaWidth, sel_begin);
+			}
+
+			for (auto& l : article)
+				repaintLine(hdc, l);
+			repaintSelectedLines();
+		}
+		calc_textView_height();
+	}
+	resized = false;
+
 	// create clientDC
 	MemDC clientDC(hdc, ClientWidth, ClientHeight);
 
@@ -264,7 +357,7 @@ void OnPaint(HDC hdc) {
 		);
 	}
 	// draw horizontal scrollbar
-	if (textView_width > ClientWidth - MNP_PADDING_CLIENT) {
+	if (!word_wrap && textView_width > ClientWidth - MNP_PADDING_CLIENT) {
 		GDIUtil::fill(clientDC,
 			MNP_SCROLLBAR_BGCOLOR,
 			0,
@@ -295,64 +388,25 @@ void seeCaret() {
 		++a_iter)
 		y += a_iter->text_height + a_iter->padding_top;
 
-	// count x
-	for (Sentence::const_iterator s_iter = caret.getSentence()->sentence.begin();
-		s_iter != caret.getCharacter();
-		++s_iter)
-		x += s_iter->width;
-
 	if (y < yoffset)	// over the client area
 		yoffset = y;
 	else if (y + MNP_LINEHEIGHT > yoffset + EditAreaHeight)	// below the client area
 		yoffset = y + MNP_LINEHEIGHT - EditAreaHeight;
 
-	if (x < xoffset)	// on the left of client area
-		xoffset = x;
-	else if (x > xoffset + EditAreaWidth)	// on the right of client area
-		xoffset = x - EditAreaWidth;
-}
+	if (word_wrap)
+		xoffset = 0;
+	else
+	{
+		// count x
+		for (Sentence::const_iterator s_iter = caret.getSentence()->sentence.begin();
+			s_iter != caret.getCharacter();
+			++s_iter)
+			x += s_iter->width;
 
-// fill selection background
-void repaintSelectedLines()
-{
-	if (sel_begin.getSentence() != caret.getSentence())
-	{
-		HDC hdc = GetDC(hWnd);
-		// repaint selected lines
-		int dist_y = sel_begin.distance_y(caret);
-		if (dist_y < 0)	// forward selection
-		{
-			// repaint first line
-			Article::const_iterator l = sel_begin.getSentence();
-			repaintLine(hdc, *l, sel_begin.getCharacter(), l->sentence.end());
-			// repaint each line
-			for (++l; l != caret.getSentence(); ++l)
-				repaintLine(hdc, *l, l->sentence.begin(), l->sentence.end());
-			// repaint last line
-			repaintLine(hdc, *l, l->sentence.begin(), caret.getCharacter());
-		}
-		else	// backwards selection
-		{
-			// repaint first line
-			Article::const_iterator l = caret.getSentence();
-			repaintLine(hdc, *l, caret.getCharacter(), l->sentence.end());
-			// repaint each line
-			for (++l; l != sel_begin.getSentence(); ++l)
-				repaintLine(hdc, *l, l->sentence.begin(), l->sentence.end());
-			// repaint last line
-			repaintLine(hdc, *l, l->sentence.begin(), sel_begin.getCharacter());
-		}
-		ReleaseDC(hWnd, hdc);
-	}
-	else if (sel_begin.getCharacter() != caret.getCharacter())
-	{
-		HDC hdc = GetDC(hWnd);
-		int dist_x = sel_begin.distance_x(caret);
-		if (dist_x < 0)
-			repaintLine(hdc, *caret.getSentence(), sel_begin.getCharacter(), caret.getCharacter());
-		else
-			repaintLine(hdc, *caret.getSentence(), caret.getCharacter(), sel_begin.getCharacter());
-		ReleaseDC(hWnd, hdc);
+		if (x < xoffset)	// on the left of client area
+			xoffset = x;
+		else if (x > xoffset + EditAreaWidth)	// on the right of client area
+			xoffset = x - EditAreaWidth;
 	}
 }
 
@@ -387,14 +441,14 @@ void repaintSelectionCanceledLines()
 	}
 }
 
-// When text was modified, call this function to recalculate textView_height
-void calc_textView_height()
-{
-	textView_height = 0;
-	for (const Line& i : article)
-		textView_height += i.text_height + i.padding_top;
-
-	// textView_width will be updated when repaintLine() is called
+inline void OnSize(unsigned int width, unsigned int height) {
+	ClientWidth = width;
+	ClientHeight = height;
+	EditAreaWidth = ClientWidth - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
+	EditAreaHeight = ClientHeight - MNP_SCROLLBAR_WIDTH;
+	resized = true;
+	if (word_wrap)
+		textView_width = EditAreaWidth;
 }
 
 inline void repaintModifiedLine(HDC& hdc)
@@ -404,6 +458,7 @@ inline void repaintModifiedLine(HDC& hdc)
 		caret.rebond();
 		Article::const_iterator a = caret.getSentence();
 		Article::const_iterator b = caret.split_long_text(EditAreaWidth);
+		sel_begin = caret;
 		for (auto i = a; i != b; ++i)
 			repaintLine(hdc, *i);
 	}
@@ -636,6 +691,12 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 			break;
 	}
 
+	if (word_wrap && c == l->sentence.begin() && l->child_line)
+	{
+		--l;
+		c = l->sentence.end();
+	}
+
 	return Cursor(article, l, c);
 }
 
@@ -684,7 +745,7 @@ void OnMouseHWheel(short zDeta, int x, int y) {
 }
 
 void OnMouseWheel(short zDeta, int x, int y) {
-	if (GetKeyState(VK_SHIFT) < 0) {
+	if (!word_wrap && GetKeyState(VK_SHIFT) < 0) {
 		OnMouseHWheel(-zDeta, x, y);
 		return;
 	}
@@ -764,7 +825,7 @@ inline void setOFN(OPENFILENAME& ofn, LPCTSTR lpstrFilter, LPCTSTR lpstrDefExt) 
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_EXPLORER;
 }
 
-inline std::wstring& all_to_string()
+inline std::wstring all_to_string()
 {
 	std::wstring str;
 	for (Article::const_iterator l = article.begin(); ;)
@@ -902,6 +963,7 @@ void loadFile(LPTSTR path) {
 	{
 		caret.rebond_all();
 		caret.split_all_long_text(EditAreaWidth);
+		sel_begin = caret;
 	}
 
 	HDC hdc = GetDC(hWnd);
@@ -909,6 +971,8 @@ void loadFile(LPTSTR path) {
 		repaintLine(hdc, l);
 
 	calc_textView_height();
+
+	seeCaret();
 
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
@@ -992,6 +1056,7 @@ inline void OnMenuPaste() {
 	{
 		caret.rebond_all();
 		caret.split_all_long_text(EditAreaWidth);
+		sel_begin = caret;
 	}
 
 	GlobalUnlock(h);
@@ -1013,4 +1078,52 @@ inline void OnMenuAll() {
 	repaintSelectedLines();
 
 	force_OnPaint();
+}
+
+inline void OnMenuWordWrap()
+{
+	HDC hdc = GetDC(hWnd);
+	if (word_wrap)
+	{
+		// exit word wrap mode
+		if (sel_begin == caret)
+		{
+			caret.rebond_all();
+			sel_begin = caret;
+			for (auto& l : article)
+				repaintLine(hdc, l);
+		}
+		else
+		{
+			int dist_y = sel_begin.distance_y(caret);
+			if (dist_y < 0)	// forward selection
+				sel_begin.recover(caret);
+			else if (dist_y > 0)
+				caret.recover(sel_begin);
+			else
+			{
+				int dist_x = sel_begin.distance_x(caret);
+				if (dist_x < 0)	// forward selection
+					sel_begin.recover(caret);
+				else
+					caret.recover(sel_begin);
+			}
+			for (auto& l : article)
+				repaintLine(hdc, l);
+			repaintSelectedLines();
+		}
+	}
+	else
+	{
+		// enter word wrap mode
+		xoffset = 0;
+		resized = true;	// rebond() and split() in OnPaint()
+	}
+	word_wrap = !word_wrap;
+	HMENU hMenu = GetMenu(hWnd);
+	CheckMenuItem(hMenu, IDM_WORDWRAP, word_wrap ? MF_CHECKED : MF_UNCHECKED);
+
+	calc_textView_height();
+	OnPaint(hdc);
+	ReleaseDC(hWnd, hdc);
 }
