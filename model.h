@@ -158,7 +158,7 @@ struct Line
 
 	// A child line represent it's not a real line.
 	// that means there was a long text without return,
-	// and word-wrap was set, so we split it in serveral lines.
+	// and word-wrap was set, so we split it into serveral lines.
 	// The first line and an empty line can not be child line.
 	bool child_line;
 
@@ -423,12 +423,14 @@ public:
 		else if (dist_y < 0)	// forward selection
 		{
 			std::wstring str(c, l->sentence.end());
-			str.push_back(L'\n');
 			Article::iterator i = l;
-			for (++i; i != to.l; ++i)
+			if (!(++i)->child_line)
+				str.push_back(L'\n');
+			while (i != to.l)
 			{
 				str.append(i->sentence.begin(), i->sentence.end());
-				str.push_back(L'\n');
+				if (!(++i)->child_line)
+					str.push_back(L'\n');
 			}
 			str += std::wstring(to.l->sentence.begin(), to.c);
 			return str;
@@ -436,12 +438,14 @@ public:
 		else	// backward selection
 		{
 			std::wstring str(to.c, to.l->sentence.end());
-			str.push_back(L'\n');
 			Article::iterator i = to.l;
-			for (++i; i != l; ++i)
+			if (!(++i)->child_line)
+				str.push_back(L'\n');
+			while (i != to.l)
 			{
 				str.append(i->sentence.begin(), i->sentence.end());
-				str.push_back(L'\n');
+				if (!(++i)->child_line)
+					str.push_back(L'\n');
 			}
 			str += std::wstring(l->sentence.begin(), c);
 			return str;
@@ -468,6 +472,86 @@ public:
 		}
 	}
 	
+	// rebond child lines with their parents surrounding the cursor.
+	void rebond()
+	{
+		size_t count = std::distance(l->sentence.begin(), c);
+		while (l->child_line)
+		{
+			_ASSERT(l != a.begin());
+			--l;
+			count += l->sentence.size();
+		}
+		Article::iterator a_iter = l;
+		for (++a_iter; a_iter != article.end() && a_iter->child_line; ++a_iter)
+			l->sentence.splice(l->sentence.end(), a_iter->sentence);
+		l = --article.erase(++l, a_iter);
+		c = l->sentence.begin;
+		std::advance(c, count);
+	}
+
+	void rebond_all()
+	{
+		rebond();
+		Article::iterator i = article.begin();
+		while (i != article.end())
+		{
+			Article::iterator a_iter = i;
+			for (++a_iter; a_iter != article.end() && a_iter->child_line; ++a_iter)
+				i->sentence.splice(l->sentence.end(), a_iter->sentence);
+			i = article.erase(++i, a_iter);
+		}
+	}
+
+private:
+	Article::const_iterator& _split_long_text(size_t max_width, Article::iterator parent_line)
+	{
+		_ASSERT(!parent_line->child_line);
+		Article::iterator a_iter = parent_line;
+		const bool cursor_in_this_line = (parent_line == l);
+		bool cursor_was_found = false;
+
+		for (size_t width = 0; ; width = 0)
+		{
+			Sentence::iterator s_iter = a_iter->sentence.begin();
+			while (s_iter != a_iter->sentence.end() && (width += s_iter->width) < max_width)
+			{
+				if (cursor_in_this_line && s_iter == c)
+					cursor_was_found = true;
+				++s_iter;
+			}
+			if (s_iter != a_iter->sentence.end())
+			{
+				Article::iterator i = a_iter;
+				a_iter = a.insert(++a_iter, Line(true));
+				a_iter->sentence.splice(a_iter->sentence.end(), i->sentence, s_iter, i->sentence.end());
+				if (cursor_in_this_line && !cursor_was_found)
+					l = a_iter;
+			}
+			else
+				return a_iter;
+		}
+	}
+
+public:
+	// split a very long string surrounding the cursor without return
+	// into serveral lines. Must call rebond() before calling this.
+	// return an iterator pointing to a parent line below the last child line
+	Article::const_iterator& split_long_text(size_t max_width)
+	{
+		return _split_long_text(max_width, l);
+	}
+
+	// split all long string without return into serveral lines.
+	// Must call rebond_all() before calling this.
+	void split_all_long_text(size_t max_width)
+	{
+		for (Article::iterator a_iter = a.begin(); a_iter!=a.end(); ++a_iter)
+		{
+			_split_long_text(max_width, a_iter);
+		}
+	}
+
 	//size_t getLineLength(Article& a) const
 	//{
 	//	if (!l->sentence.empty() && l->sentence.back().c == L'\n')

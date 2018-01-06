@@ -11,7 +11,7 @@ unsigned int caret_x, caret_y;		// for IME (relative to EditArea)
 unsigned int xoffset = 0;			// offset-x of textView
 unsigned int yoffset = 0;			// offset-y of textView
 size_t ClientWidth, ClientHeight, EditAreaWidth, EditAreaHeight;
-bool word_wrap = true;				// set word wrap
+bool word_wrap = true;				// break word
 
 //---------------------------------
 
@@ -66,12 +66,6 @@ void insertAtCursor(const std::wstring& str)
 
 	f.unbind();
 	ReleaseDC(hWnd, hdc);
-}
-
-// rebond the relation around cursor
-void rebond()
-{
-	_ASSERT(word_wrap);
 }
 
 // update MemDC, text_width, text_height for the line and update
@@ -145,6 +139,11 @@ inline void OnSize(unsigned int width, unsigned int height) {
 	ClientHeight = height;
 	EditAreaWidth = ClientWidth - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
 	EditAreaHeight = ClientHeight - MNP_SCROLLBAR_WIDTH;
+	if (word_wrap)
+	{
+		caret.rebond_all();
+		caret.split_all_long_text(EditAreaWidth);
+	}
 }
 
 void OnPaint(HDC hdc) {
@@ -398,6 +397,20 @@ void calc_textView_height()
 	// textView_width will be updated when repaintLine() is called
 }
 
+inline void repaintModifiedLine(HDC& hdc)
+{
+	if (word_wrap)
+	{
+		caret.rebond();
+		Article::const_iterator a = caret.getSentence();
+		Article::const_iterator b = caret.split_long_text(EditAreaWidth);
+		for (auto i = a; i != b; ++i)
+			repaintLine(hdc, *i);
+	}
+	else
+		repaintLine(hdc, *caret.getSentence());
+}
+
 inline void force_OnPaint()
 {
 	HDC hdc = GetDC(hWnd);
@@ -415,9 +428,9 @@ void OnKeyDown(int nChar) {
 		{
 			bSaved = false;
 
-			// update MemDC, text_width, text_height in this line
 			HDC hdc = GetDC(hWnd);
-			repaintLine(hdc, *caret.getSentence());
+
+			repaintModifiedLine(hdc);
 
 			calc_textView_height();
 			seeCaret();
@@ -432,11 +445,11 @@ void OnKeyDown(int nChar) {
 			if (!caret.eraseChar())
 				return;
 			bSaved = false;
-			sel_begin = caret;
-
-			// update MemDC, text_width, text_height in this line
+			
 			HDC hdc = GetDC(hWnd);
-			repaintLine(hdc, *caret.getSentence());
+
+			sel_begin = caret;
+			repaintModifiedLine(hdc);
 
 			calc_textView_height();
 			seeCaret();
@@ -583,9 +596,7 @@ void OnChar(WORD nChar)
 	bSaved = false;
 
 	sel_begin = caret;
-
-	// update MemDC, text_width, text_height in this line
-	repaintLine(hdc, *caret.getSentence());
+	repaintModifiedLine(hdc);
 
 	calc_textView_height();
 	seeCaret();
@@ -753,6 +764,23 @@ inline void setOFN(OPENFILENAME& ofn, LPCTSTR lpstrFilter, LPCTSTR lpstrDefExt) 
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_EXPLORER;
 }
 
+inline std::wstring& all_to_string()
+{
+	std::wstring str;
+	for (Article::const_iterator l = article.begin(); ;)
+	{
+		str += *l;
+		if (++l != article.end())
+		{
+			if (!l->child_line)
+				str.push_back(L'\n');
+		}
+		else
+			break;
+	}
+	return str;
+}
+
 inline void OnMenuExport() {
 	TCHAR file[MAX_PATH];		*file = '\0';
 
@@ -765,9 +793,7 @@ inline void OnMenuExport() {
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
 		f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><head><body>";
-		std::wstring str = L"\n";
-		for (const Line& l : article)
-			str += static_cast<std::wstring>(l) + L"\n";
+		std::wstring str = all_to_string();
 		str += L'\n';
 		parse_markdown(str);
 		f << cvt.to_bytes(str);
@@ -784,10 +810,8 @@ void OnMenuSaveAs() {
 	setOFN(ofn, L"MarkDown (*.md)\0*.md\0All Files (*.*)\0*.*\0\0", L"md");
 
 	if (GetSaveFileNameW(&ofn) > 0) {
-		std::wstring str;
-		for (const Line& l : article)
-			str += l;
-
+		std::wstring str = all_to_string();
+		
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
 		f << cvt.to_bytes(str);
@@ -874,6 +898,12 @@ void loadFile(LPTSTR path) {
 	opened_file = path;
 	SetWindowTextW(hWnd, (opened_file + L" - MyNotePad").c_str());
 
+	if (word_wrap)
+	{
+		caret.rebond_all();
+		caret.split_all_long_text(EditAreaWidth);
+	}
+
 	HDC hdc = GetDC(hWnd);
 	for (auto& l : article)
 		repaintLine(hdc, l);
@@ -930,10 +960,9 @@ inline void OnMenuCut() {
 	if (sel_begin.removeSelectedChars(caret))
 	{
 		bSaved = false;
-
-		// update MemDC, text_width, text_height in this line
 		HDC hdc = GetDC(hWnd);
-		repaintLine(hdc, *caret.getSentence());
+
+		repaintModifiedLine(hdc);
 
 		calc_textView_height();
 
@@ -957,9 +986,13 @@ inline void OnMenuPaste() {
 
 	insertAtCursor(str);
 	bSaved = false;
-	calc_textView_height();
 
 	sel_begin = caret;
+	if (word_wrap) 
+	{
+		caret.rebond_all();
+		caret.split_all_long_text(EditAreaWidth);
+	}
 
 	GlobalUnlock(h);
 	CloseClipboard();
@@ -967,6 +1000,9 @@ inline void OnMenuPaste() {
 	HDC hdc = GetDC(hWnd);
 	for (auto& l : article)
 		repaintLine(hdc, l);
+
+	calc_textView_height();
+	
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
 }
