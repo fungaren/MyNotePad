@@ -36,12 +36,27 @@
     <ClInclude Include="controller.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="lex_parse.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="mdsymbols.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="parser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="view.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="lex_parse.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="parser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

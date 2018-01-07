@@ -1,11 +1,10 @@
 #pragma once
 
-#include <string>
-#include <regex>
-
+#include "parser.h"
+#include <sstream>
 // make sure str begin with '\n'
 void parse_markdown(std::wstring& str) {
-	_ASSERT(str[0] == '\n');
+	/*_ASSERT(str[0] == '\n');
 	str = std::regex_replace(str, std::wregex(L"<"), L"&lt;");
 	str = std::regex_replace(str, std::wregex(L">"), L"&gt;");
 	str = std::regex_replace(str, std::wregex(L"\\n&gt;(.+)"), L"\n<blockquote>$1</blockquote>");
@@ -31,5 +30,10 @@ void parse_markdown(std::wstring& str) {
 	str = std::regex_replace(str, std::wregex(L"`(.*)`"), L"<code>$1</code>");
 
 	str = std::regex_replace(str, std::wregex(L"</ol>\\n<ol>"), L"");
-	str = std::regex_replace(str, std::wregex(L"</ul>\\n<ul>"), L"");
+	str = std::regex_replace(str, std::wregex(L"</ul>\\n<ul>"), L"");*/
+	std::wostringstream wos;
+	auto scanned = scanner(str);
+	parse_fromlex(wos, std::begin(scanned), std::end(scanned));
+	str.clear();
+	str.append(wos.str());
 }
