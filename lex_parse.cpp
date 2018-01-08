@@ -1,28 +1,39 @@
 #include "stdafx.h"
 #include "lex_parse.h"
 #include <iostream>
-#include <string>
 #include <sstream>
-#include "mdsymbols.h"
 #include <vector>
 #include <utility>
 #include <regex>
-#include <list>
 #include <algorithm>
-Item::Item(const std::wstring &data, MD_TOKEN token, MD_ITEM itemtype) :m_data(data), m_token(token), m_mditemtype(itemtype)
-{
 
-}
-Item::Item(const Item &rhs) : m_data(rhs.m_data), m_token(rhs.m_token), m_mditemtype(rhs.m_mditemtype)
-{
-}
+Item::Item(const std::wstring &data, MD_TOKEN token, MD_ITEM itemtype)
+	:m_data(data),
+	m_token(token),
+	m_mditemtype(itemtype)
+{ }
+
+Item::Item(const Item &rhs)
+	: m_data(rhs.m_data),
+	m_token(rhs.m_token),
+	m_mditemtype(rhs.m_mditemtype)
+{ }
+
 std::wostream &Item::operator<<(std::wostream &os) const
 {
 	os << "<" << m_token << "," << m_data << "," << m_mditemtype << ">";
 	return os;
 }
-void Item::setData(const std::wstring &str) { m_data = str; }
-std::wstring Item::getData() const { return m_data; }
+
+void Item::setData(const std::wstring &str)
+{
+	m_data = str; 
+}
+
+std::wstring Item::getData() const
+{ 
+	return m_data;
+}
 
 void Item::setToken(MD_TOKEN token)
 {
@@ -44,7 +55,8 @@ MD_ITEM Item::getItemType() const
 	return m_mditemtype;
 }
 
-int determineData(MD_TOKEN tokenType, const std::wstring &str, int start = 0) {
+int determineData(MD_TOKEN tokenType, const std::wstring &str, int start = 0)
+{
 	int beg;
 	switch (tokenType)
 	{
@@ -58,13 +70,13 @@ int determineData(MD_TOKEN tokenType, const std::wstring &str, int start = 0) {
 				break;
 		return beg + 1;
 	case MD_TOKEN::TABLE_ITEM:
-		//¿ÉÄÜĞèÒªÆÁ±Î×ªÒå×Ö·û£¬Õâ¸öÓÃÀ´È·¶¨±ß½ç
+		//å¯èƒ½éœ€è¦å±è”½è½¬ä¹‰å­—ç¬¦ï¼Œè¿™ä¸ªç”¨æ¥ç¡®å®šè¾¹ç•Œ
 		beg = start;
 		for (; beg < str.length();)
 		{
 			if (str[beg] == '\\')
 			{
-				beg = beg + 2;//ÕâÊÇÒ»¸ö×ªÒå×Ö·û
+				beg = beg + 2;//è¿™æ˜¯ä¸€ä¸ªè½¬ä¹‰å­—ç¬¦
 				continue;
 			}
 			if (str[beg] == '|')
@@ -76,6 +88,7 @@ int determineData(MD_TOKEN tokenType, const std::wstring &str, int start = 0) {
 		break;
 	}
 }
+
 std::wstring trim(const std::wstring &str, int start, int count)
 {
 	if (count == 0)
@@ -93,6 +106,7 @@ std::wstring trim(const std::wstring &str, int start, int count)
 	}
 	return str.substr(f, count + 1);
 }
+
 std::list<Item> scanner(const std::wstring &str)
 {
 	std::list<Item> items;
@@ -110,31 +124,31 @@ std::list<Item> scanner(const std::wstring &str)
 		while (index < line.length())
 		{
 
-			//½âÎöÃ¿Ò»¸ö×Ö·û
+			//è§£ææ¯ä¸€ä¸ªå­—ç¬¦
 			wchar_t ch = line[index];
 			if (ch == '`')
 			{
 				if (multilines == false)
 				{
 					data = L"";
-					//ÓÅÏÈ´¦Àí´úÂëÏîÄ¿£¬Ò²°üÀ¨ÆÕÍ¨µÄ´úÂëĞĞÒıÓÃ
+					//ä¼˜å…ˆå¤„ç†ä»£ç é¡¹ç›®ï¼Œä¹ŸåŒ…æ‹¬æ™®é€šçš„ä»£ç è¡Œå¼•ç”¨
 					int dl = line.find_first_not_of('`');
 					if (dl == std::wstring::npos || dl == 3)
 					{
 						index = line.length();
-						//´úÂë¿é
+						//ä»£ç å—
 						multilines = true;
 						token = MD_TOKEN::CODE;
-						continue;//²»ĞèÒª½«±êÖ¾Ğ´Èë
+						continue;//ä¸éœ€è¦å°†æ ‡å¿—å†™å…¥
 					}
 				}
 				else
 				{
 					index = line.length();
-					//ÊÇÖÕÖ¹
+					//æ˜¯ç»ˆæ­¢
 					multilines = false;
 					items.emplace_back(data, token, MD_ITEM::LINE);
-					data = L"";//Çå¿Õ
+					data = L"";//æ¸…ç©º
 					continue;
 				}
 			}
@@ -153,10 +167,10 @@ std::list<Item> scanner(const std::wstring &str)
 			}
 			else if (ch == '-')
 			{
-				//·Ö¸ô·û»òÕßÁĞ±íµÄÄ³Ò»Ïî
+				//åˆ†éš”ç¬¦æˆ–è€…åˆ—è¡¨çš„æŸä¸€é¡¹
 				if (line.find_last_not_of('-') == std::wstring::npos)
 				{
-					//·Ö¸ô·û
+					//åˆ†éš”ç¬¦
 					items.emplace_back(L"", MD_TOKEN::DELIMITER, MD_ITEM::LINE);
 					index = line.length();
 				}
@@ -168,70 +182,77 @@ std::list<Item> scanner(const std::wstring &str)
 			}
 			else if (ch >= '0' && ch <= '9')
 			{
-				//ÒÔÊı×Ö¿ªÍ·£¬ÓĞ¿ÉÄÜÊÇĞòÁĞ±í
+				//ä»¥æ•°å­—å¼€å¤´ï¼Œæœ‰å¯èƒ½æ˜¯åºåˆ—è¡¨
 				int beg = determineData(MD_TOKEN::ORDERED_LIST, line);
 				items.emplace_back(line.substr(beg), MD_TOKEN::ORDERED_LIST, MD_ITEM::LINE);
 				index = line.length();
 			}
 			else if (ch == '[')
 			{
-				//ÄÚÒıÓÃ¸ñÊ½µÄ±êÌâĞÅÏ¢£¬¿ÉÒÔÊ¹ÓÃÕıÔò±í´ïÊ½Æ¥Åä
+				//å†…å¼•ç”¨æ ¼å¼çš„æ ‡é¢˜ä¿¡æ¯ï¼Œå¯ä»¥ä½¿ç”¨æ­£åˆ™è¡¨è¾¾å¼åŒ¹é…
 				auto regex = std::wregex(L"\\[(.*)\\]\\((.*)\\)");
 				std::wostringstream os;
-				std::regex_replace(std::ostreambuf_iterator<wchar_t>(os), line.begin() + index, line.end(), regex, L"<a href='$2' target='_blank'>$1</a>");
+				std::regex_replace(std::ostreambuf_iterator<wchar_t>(os),
+					line.begin() + index, line.end(),
+					regex, L"<a href='$2' target='_blank'>$1</a>");
 				std::wstring htmlcode(os.str());
 				items.emplace_back(htmlcode, MD_TOKEN::HTML, MD_ITEM::LINE);
 				index = line.length();
 			}
 			else if (ch == '!')
 			{
-				//Í¼Æ¬µÄÒıÓÃ¸ñÊ½£¬¿ÉÒÔÊ¹ÓÃÕıÔò±í´ïÊ½Æ¥Åä
+				//å›¾ç‰‡çš„å¼•ç”¨æ ¼å¼ï¼Œå¯ä»¥ä½¿ç”¨æ­£åˆ™è¡¨è¾¾å¼åŒ¹é…
 				auto regex = std::wregex(L"!\\[(.*)\\]\\((.*)\\)");
 				std::wostringstream os;
-				std::regex_replace(std::ostreambuf_iterator<wchar_t>(os), line.begin() + index, line.end(), regex, L"<img src='$2' alt='$1' align='middle'>");
+				std::regex_replace(std::ostreambuf_iterator<wchar_t>(os),
+					line.begin() + index, line.end(),
+					regex,
+					L"<img src='$2' alt='$1' align='middle'>");
 				std::wstring htmlcode(os.str());
 				items.emplace_back(htmlcode, MD_TOKEN::HTML, MD_ITEM::LINE);
 				index = line.length();
 			}
 			else if (ch == '>')
 			{
-				//ÒıÓÃ
+				//å¼•ç”¨
 				int beg = determineData(MD_TOKEN::QUTOE, line);
 				items.emplace_back(line.substr(beg), MD_TOKEN::QUTOE, MD_ITEM::LINE);
 				index = line.length();
 			}
 			else if (ch == '|')
 			{
-				//±í¸ñ£¬¿ÉÄÜÊÇ±íÍ·Ò²¿ÉÄÜÊÇÊı¾İÏî¡¢¶ÔÆäÑ¡Ïî
+				//è¡¨æ ¼ï¼Œå¯èƒ½æ˜¯è¡¨å¤´ä¹Ÿå¯èƒ½æ˜¯æ•°æ®é¡¹ã€å¯¹å…¶é€‰é¡¹
 				if (items.back().getToken() == MD_TOKEN::TABLE_COLUMN_LEFT ||
 					items.back().getToken() == MD_TOKEN::TABLE_COLUMN_CENTER ||
 					items.back().getToken() == MD_TOKEN::TABLE_COLUMN_RIGHT)
 				{
-					//¶ÔÆë¿ØÖÆ
+					//å¯¹é½æ§åˆ¶
 					int sp;
 					int start = index;
-					//Ê¹ÓÃ·´Ïòµü´úÆ÷
+					//ä½¿ç”¨åå‘è¿­ä»£å™¨
 					auto checked_header = items.rbegin();
 					for (; checked_header != items.rend(); ++checked_header)
 					{
 						MD_TOKEN token = checked_header->getToken();
-						if (token == MD_TOKEN::TABLE_COLUMN_CENTER || token == MD_TOKEN::TABLE_COLUMN_LEFT || token == MD_TOKEN::TABLE_COLUMN_RIGHT)
+						if (token == MD_TOKEN::TABLE_COLUMN_CENTER ||
+							token == MD_TOKEN::TABLE_COLUMN_LEFT ||
+							token == MD_TOKEN::TABLE_COLUMN_RIGHT)
 							continue;
 						break;
 					}
 					std::list<Item>::iterator head_iter = items.end();
-					//È·¶¨ÁËµÚÒ»¸ö±íÍ·µÄÎ»ÖÃ»òÕßÊÇÍ·Ç°Î»ÖÃ
+					//ç¡®å®šäº†ç¬¬ä¸€ä¸ªè¡¨å¤´çš„ä½ç½®æˆ–è€…æ˜¯å¤´å‰ä½ç½®
 					if (checked_header != items.rend())
-						head_iter = checked_header.base();//Ç°ÏòµÄµü´úÆ÷
+						head_iter = checked_header.base();//å‰å‘çš„è¿­ä»£å™¨
 					do {
 						sp = determineData(MD_TOKEN::TABLE_ITEM, line, start + 1);
-						//start¡¢sp°ü¹üÒ»¶Ô | |
+						//startã€spåŒ…è£¹ä¸€å¯¹ | |
 						if (line[start + 1] == ':' && line[sp - 1] == ':')
 							head_iter->setToken(MD_TOKEN::TABLE_COLUMN_CENTER);
 						else if (line[sp - 1] == ':')
 							head_iter->setToken(MD_TOKEN::TABLE_COLUMN_RIGHT);
 						else if (line[start + 1] == ':')
-							;//Ä¬ÈÏ×ó¶ÔÆë
+							;//é»˜è®¤å·¦å¯¹é½
 						else
 						{
 							auto content = trim(line, start + 1, sp - start - 1);
@@ -245,12 +266,12 @@ std::list<Item> scanner(const std::wstring &str)
 				}
 				else
 				{
-					//±íÍ·
+					//è¡¨å¤´
 					int sp;
 					int start = index;
 					do {
 						sp = determineData(MD_TOKEN::TABLE_ITEM, line, start + 1);
-						//½âÎöÄÚÈİ
+						//è§£æå†…å®¹
 						auto content = trim(line, start + 1, sp - start - 1);
 
 						items.emplace_back(content, MD_TOKEN::TABLE_COLUMN_LEFT, MD_ITEM::LINE);
@@ -261,33 +282,33 @@ std::list<Item> scanner(const std::wstring &str)
 			}
 			else
 			{
-				//Ò»¸öÆäËûµÄÎÄ±¾
+				//ä¸€ä¸ªå…¶ä»–çš„æ–‡æœ¬
 				std::wregex regex = std::wregex(L"([`\\*`]){1,3}([\\w\\s]*)([`\\*]){1,3}");
-				//ÊÇ·ñÄÜ¹»Æ¥Åä
+				//æ˜¯å¦èƒ½å¤ŸåŒ¹é…
 				bool res = std::regex_search(line.begin() + index, line.end(), regex);
 				if (!res)
 				{
-					//²»ÄÜÆ¥ÅäµÄ»°×÷ÎªÒ»ĞĞ
+					//ä¸èƒ½åŒ¹é…çš„è¯ä½œä¸ºä¸€è¡Œ
 					items.emplace_back(line.substr(index), MD_TOKEN::DATA, MD_ITEM::LINE);
 					itemtype = MD_ITEM::NESTED;
 				}
 				else
 				{
-					//ÕâÊÇÒ»ĞĞµÄÄÚÈİ
+					//è¿™æ˜¯ä¸€è¡Œçš„å†…å®¹
 					MD_ITEM itemtype = MD_ITEM::LINE;
-					//Ñ°ÕÒËùÓĞÆ¥Åä
+					//å¯»æ‰¾æ‰€æœ‰åŒ¹é…
 					std::wstring suffix;
 					std::wsregex_iterator end;
 					std::wsregex_iterator iter(line.begin() + index, line.end(), regex);
 					for (; iter != end; ++iter) {
-						//Ã¿Ò»¸öÏîÄ¿
+						//æ¯ä¸€ä¸ªé¡¹ç›®
 						if (iter->operator[](1).matched)
 						{
-							//´¦ÀíÆäËûµÄÄÚÈİ
+							//å¤„ç†å…¶ä»–çš„å†…å®¹
 							auto prefix = iter->prefix();
 							if (prefix.length() > 0)
 							{
-								//±íÊ¾ÓĞÇ°×º²»Îª¿Õ
+								//è¡¨ç¤ºæœ‰å‰ç¼€ä¸ä¸ºç©º
 								items.emplace_back(prefix.str(), MD_TOKEN::DATA, itemtype);
 								itemtype = MD_ITEM::NESTED;
 							}
@@ -296,18 +317,20 @@ std::list<Item> scanner(const std::wstring &str)
 							{
 							case 1:
 								//
-								//¿ÉÄÜÊÇ´úÂë»òÕßĞ±Ìå
+								//å¯èƒ½æ˜¯ä»£ç æˆ–è€…æ–œä½“
 								if (*(*iter)[1].first == '`')
 									items.emplace_back(iter->operator[](2).str(), MD_TOKEN::CODE, itemtype);
 								else
 									items.emplace_back(iter->operator[](2).str(), MD_TOKEN::ITALIC, itemtype);
 								break;
 							case 2:
-								items.emplace_back(iter->operator[](2).str(), MD_TOKEN::BOLD, itemtype); break;
+								items.emplace_back(iter->operator[](2).str(), MD_TOKEN::BOLD, itemtype);
+								break;
 							case 3:
-								items.emplace_back(iter->operator[](2).str(), MD_TOKEN::ITALIC_BOLD, itemtype); break;
+								items.emplace_back(iter->operator[](2).str(), MD_TOKEN::ITALIC_BOLD, itemtype);
+								break;
 							}
-							//ÉèÖÃ×îºóÒ»¸öºó×º
+							//è®¾ç½®æœ€åä¸€ä¸ªåç¼€
 							if (iter->suffix().length() > 0)
 								suffix = iter->suffix().str();
 							else

@@ -1,5 +1,6 @@
 #include "stdafx.h"
-#include "parser.h"
+#include "lex_parse.h"
+
 std::wostream &writeAlignTableItem(std::wostream &os, MD_TOKEN table_token)
 {
 	switch (table_token)
@@ -13,6 +14,7 @@ std::wostream &writeAlignTableItem(std::wostream &os, MD_TOKEN table_token)
 	}
 	return os;
 }
+
 std::wostream &writeInner(std::wostream &os, const std::wstring &data)
 {
 	auto items = scanner(data);
@@ -21,11 +23,17 @@ std::wostream &writeInner(std::wostream &os, const std::wstring &data)
 	parse_fromlex(os, std::begin(items), std::end(items));
 	return os;
 }
-std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, std::list<Item>::iterator end) {
+
+std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, std::list<Item>::iterator end) 
+{
 	for (auto citer = beg; citer != end;)
 	{
 		MD_TOKEN token = citer->getToken();
-		if (token == MD_TOKEN::BOLD || token == MD_TOKEN::ITALIC || token == MD_TOKEN::ITALIC_BOLD || token == MD_TOKEN::DATA || token == MD_TOKEN::CODE)
+		if (token == MD_TOKEN::BOLD ||
+			token == MD_TOKEN::ITALIC ||
+			token == MD_TOKEN::ITALIC_BOLD ||
+			token == MD_TOKEN::DATA ||
+			token == MD_TOKEN::CODE)
 		{
 			if (citer->getItemType() == MD_ITEM::LINE)
 			{
@@ -36,6 +44,7 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 				{
 					nofurther = false;
 				}
+
 				if (token == MD_TOKEN::CODE)
 				{
 					if (nofurther == true)
@@ -43,9 +52,11 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 				}
 				else
 					os << L"<p>";
+
 				citer->setItemType(MD_ITEM::NESTED);
 				parse_fromlex(os, citer, nested_iter);
 				citer->setItemType(MD_ITEM::LINE);
+
 				if (token == MD_TOKEN::CODE)
 				{
 					if (nofurther == true)
@@ -53,11 +64,12 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 				}
 				else
 					os << L"</p>";
-				citer = nested_iter;//∑µªÿ«∞“ª∏ˆ
+
+				citer = nested_iter;//ËøîÂõûÂâç‰∏Ä‰∏™
 			}
 			else
 			{
-				//∆’Õ®µƒ∏Ò Ω
+				//ÊôÆÈÄöÁöÑÊ†ºÂºè
 				switch (token)
 				{
 				case MD_TOKEN::BOLD:os << L"<strong>" << citer->getData() << L"</strong>"; break;
@@ -74,8 +86,12 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 			os << "<hr />";
 			++citer;
 		}
-		else if (token == MD_TOKEN::HEADER1 || token == MD_TOKEN::HEADER2 ||
-			token == MD_TOKEN::HEADER3 || token == MD_TOKEN::HEADER4 || token == MD_TOKEN::HEADER5 || token == MD_TOKEN::HEADER6)
+		else if (token == MD_TOKEN::HEADER1 ||
+			token == MD_TOKEN::HEADER2 ||
+			token == MD_TOKEN::HEADER3 ||
+			token == MD_TOKEN::HEADER4 ||
+			token == MD_TOKEN::HEADER5 || 
+			token == MD_TOKEN::HEADER6)
 		{
 			int id = static_cast<int>(token) + 1;
 			os << L"<h" << id << L">"; writeInner(os, citer->getData());
@@ -88,7 +104,7 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 		}
 		else if (token == MD_TOKEN::ORDERED_LIST)
 		{
-			//”––Ú¡–±Ì
+			//ÊúâÂ∫èÂàóË°®
 			std::list<Item>::iterator nested_iter = citer;
 			os << L"<ol start=\"1\">\n";
 			for (; nested_iter != end && nested_iter->getToken() == MD_TOKEN::ORDERED_LIST; ++nested_iter)
@@ -101,7 +117,7 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 		}
 		else if (token == MD_TOKEN::UNORDERED_LIST)
 		{
-			//Œﬁ–Ú¡–±Ì
+			//Êó†Â∫èÂàóË°®
 			std::list<Item>::iterator nested_iter = citer;
 			os << L"<ul>\n";
 			for (; nested_iter != end && nested_iter->getToken() == MD_TOKEN::UNORDERED_LIST; ++nested_iter)
@@ -118,7 +134,9 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 			os << L"</q>" << std::endl;
 			++citer;
 		}
-		else if (token == MD_TOKEN::TABLE_COLUMN_CENTER || token == MD_TOKEN::TABLE_COLUMN_LEFT || token == MD_TOKEN::TABLE_COLUMN_RIGHT)
+		else if (token == MD_TOKEN::TABLE_COLUMN_CENTER ||
+			token == MD_TOKEN::TABLE_COLUMN_LEFT ||
+			token == MD_TOKEN::TABLE_COLUMN_RIGHT)
 		{
 			os << "<table>\n<tr>\n";
 			auto headers_iter = citer;
@@ -130,11 +148,13 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 				++columns;
 			}
 			int count = 0;
-			//ªÊ÷∆±Ì∏Ò∆‰À˚µƒƒ⁄»›
+			//ÁªòÂà∂Ë°®Ê†ºÂÖ∂‰ªñÁöÑÂÜÖÂÆπ
 			for (; headers_iter != end; ++headers_iter)
 			{
 				auto td_token = headers_iter->getToken();
-				if (td_token == MD_TOKEN::TABLE_COLUMN_CENTER || td_token == MD_TOKEN::TABLE_COLUMN_LEFT || td_token == MD_TOKEN::TABLE_COLUMN_RIGHT)
+				if (td_token == MD_TOKEN::TABLE_COLUMN_CENTER ||
+					td_token == MD_TOKEN::TABLE_COLUMN_LEFT ||
+					td_token == MD_TOKEN::TABLE_COLUMN_RIGHT)
 				{
 					if (count == 0)
 					{

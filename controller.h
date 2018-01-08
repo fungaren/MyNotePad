@@ -788,7 +788,7 @@ inline void OnMenuCopyHtml() {
 	std::wstring str = L"\n";
 	for (const Line& l : article)
 		str += static_cast<std::wstring>(l) + L"\n";
-	str += L'\n';
+
 	parse_markdown(str);
 
 	HGLOBAL h = GlobalAlloc(GMEM_MOVEABLE, str.size() * 2 + 2);
@@ -855,7 +855,6 @@ inline void OnMenuExport() {
 		std::ofstream f(file);
 		f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><head><body>";
 		std::wstring str = all_to_string();
-		str += L'\n';
 		parse_markdown(str);
 		f << cvt.to_bytes(str);
 		f << "</body>";

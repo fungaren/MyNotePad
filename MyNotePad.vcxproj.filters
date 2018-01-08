@@ -39,12 +39,6 @@
     <ClInclude Include="lex_parse.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="mdsymbols.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="parser.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
