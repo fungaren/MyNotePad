@@ -40,7 +40,9 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 				std::list<Item>::iterator nested_iter = citer;
 				++nested_iter;
 				bool nofurther = true;
-				for (; nested_iter != end && nested_iter->getItemType() == MD_ITEM::NESTED; ++nested_iter)
+				for (; nested_iter != end && 
+					nested_iter->getItemType() == MD_ITEM::NESTED; 
+					++nested_iter)
 				{
 					nofurther = false;
 				}
@@ -48,11 +50,15 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 				if (token == MD_TOKEN::CODE)
 				{
 					if (nofurther == true)
-						os << L"<pre>";
+					{
+						os << L"<pre";
+						if (citer->getTag().length() > 0)
+							os << L" "<<citer->getTag();
+						os << L">";
+					}
 				}
 				else
 					os << L"<p>";
-
 				citer->setItemType(MD_ITEM::NESTED);
 				parse_fromlex(os, citer, nested_iter);
 				citer->setItemType(MD_ITEM::LINE);
@@ -130,8 +136,8 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 		}
 		else if (token == MD_TOKEN::QUTOE)
 		{
-			os << L"<q>"; writeInner(os, citer->getData());
-			os << L"</q>" << std::endl;
+			os << L"<blockquote>"; writeInner(os, citer->getData());
+			os << L"</blockquote>" << std::endl;
 			++citer;
 		}
 		else if (token == MD_TOKEN::TABLE_COLUMN_CENTER ||

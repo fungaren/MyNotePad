@@ -1,6 +1,9 @@
 #pragma once
 #include <string>
 #include <list>
+#include <regex>
+static const std::wregex REGEX_LT(std::wregex(L"<"));
+static const std::wregex REGEX_GT = std::wregex(L">");
 
 enum MD_TOKEN {
 	HEADER1 = 0, HEADER2, HEADER3, HEADER4, HEADER5, HEADER6,
@@ -29,17 +32,20 @@ enum MD_ITEM {
 class Item {
 	MD_TOKEN m_token;
 	std::wstring m_data;
+	std::wstring m_tag;//自定义的HTML标签属性
 	MD_ITEM m_mditemtype;
 public:
-	Item(const std::wstring &data, MD_TOKEN token, MD_ITEM itemtype);
+	Item(const std::wstring &data, MD_TOKEN token, MD_ITEM itemtype, const std::wstring &tag=L"");
 	Item(const Item&);
 	std::wostream &operator<<(std::wostream &os) const;
 	void setData(const std::wstring &str);
-	std::wstring getData() const;
+	const std::wstring &getData() const;
 	void setToken(MD_TOKEN);
-	MD_TOKEN getToken() const;
+	const MD_TOKEN &getToken() const;
 	void setItemType(MD_ITEM);
-	MD_ITEM getItemType() const;
+	const MD_ITEM &getItemType() const;
+	void setTag(const std::wstring &tag);
+	const std::wstring &getTag() const;
 };
 std::list<Item> scanner(const std::wstring &str);
 std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, std::list<Item>::iterator end);

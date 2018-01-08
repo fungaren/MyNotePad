@@ -7,16 +7,24 @@
 #include <regex>
 #include <algorithm>
 
-Item::Item(const std::wstring &data, MD_TOKEN token, MD_ITEM itemtype)
-	:m_data(data),
-	m_token(token),
-	m_mditemtype(itemtype)
-{ }
+Item::Item(const std::wstring &data, MD_TOKEN token, MD_ITEM itemtype, const std::wstring &tag)
+	:m_token(token),
+	m_mditemtype(itemtype),
+	m_tag(tag)
+{ 
+//转义数据
+	if (token != MD_TOKEN::HTML)//不处理HTML，因为他们已经被转义了
+	{
+		m_data = std::regex_replace(data, REGEX_LT, L"&lt;");
+		m_data = std::regex_replace(m_data, REGEX_GT, L"&gt;");
+	}
+}
 
 Item::Item(const Item &rhs)
 	: m_data(rhs.m_data),
 	m_token(rhs.m_token),
-	m_mditemtype(rhs.m_mditemtype)
+	m_mditemtype(rhs.m_mditemtype),
+	m_tag(rhs.m_tag)
 { }
 
 std::wostream &Item::operator<<(std::wostream &os) const
@@ -30,7 +38,7 @@ void Item::setData(const std::wstring &str)
 	m_data = str; 
 }
 
-std::wstring Item::getData() const
+const std::wstring &Item::getData() const
 { 
 	return m_data;
 }
@@ -40,7 +48,7 @@ void Item::setToken(MD_TOKEN token)
 	m_token = token;
 }
 
-MD_TOKEN Item::getToken() const
+const MD_TOKEN &Item::getToken() const
 {
 	return m_token;
 }
@@ -50,14 +58,24 @@ void Item::setItemType(MD_ITEM itemtype)
 	m_mditemtype = itemtype;
 }
 
-MD_ITEM Item::getItemType() const
+const MD_ITEM &Item::getItemType() const
 {
 	return m_mditemtype;
 }
 
+void Item::setTag(const std::wstring & tag)
+{
+	m_tag = tag;
+}
+
+const std::wstring & Item::getTag() const
+{
+	return m_tag;
+}
+
 int determineData(MD_TOKEN tokenType, const std::wstring &str, int start = 0)
 {
-	int beg;
+	int beg=start;
 	switch (tokenType)
 	{
 	case MD_TOKEN::HEADER1:
@@ -87,6 +105,7 @@ int determineData(MD_TOKEN tokenType, const std::wstring &str, int start = 0)
 	default:
 		break;
 	}
+	return beg;//如果错误的话
 }
 
 std::wstring trim(const std::wstring &str, int start, int count)
@@ -114,9 +133,11 @@ std::list<Item> scanner(const std::wstring &str)
 	std::wstring line;
 	bool multilines;
 
+	//跨行使用的上下文信息
 	MD_TOKEN token;
 	std::wstring data;
-	MD_ITEM itemtype = MD_ITEM::LINE;
+	std::wstring html_tag;
+
 	multilines = false;
 	while (std::getline(istringStream, line))
 	{
@@ -135,6 +156,11 @@ std::list<Item> scanner(const std::wstring &str)
 					int dl = line.find_first_not_of('`');
 					if (dl == std::wstring::npos || dl == 3)
 					{
+						if (dl == 3)
+						{
+							//可能指定了代码的语言
+							html_tag = L"class=" + line.substr(3);
+						}
 						index = line.length();
 						//代码块
 						multilines = true;
@@ -147,8 +173,9 @@ std::list<Item> scanner(const std::wstring &str)
 					index = line.length();
 					//是终止
 					multilines = false;
-					items.emplace_back(data, token, MD_ITEM::LINE);
+					items.emplace_back(data, token, MD_ITEM::LINE, html_tag);
 					data = L"";//清空
+					html_tag = L"";
 					continue;
 				}
 			}
@@ -283,19 +310,19 @@ std::list<Item> scanner(const std::wstring &str)
 			else
 			{
 				//一个其他的文本
-				std::wregex regex = std::wregex(L"([`\\*`]){1,3}([\\w\\s]*)([`\\*]){1,3}");
+				std::wregex regex = std::wregex(L"([`\\*`]){1,3}([^\\`*]*)([`\\*]){1,3}");
 				//是否能够匹配
 				bool res = std::regex_search(line.begin() + index, line.end(), regex);
 				if (!res)
 				{
 					//不能匹配的话作为一行
 					items.emplace_back(line.substr(index), MD_TOKEN::DATA, MD_ITEM::LINE);
-					itemtype = MD_ITEM::NESTED;
+					//itemtype = MD_ITEM::NESTED;
 				}
 				else
 				{
 					//这是一行的内容
-					MD_ITEM itemtype = MD_ITEM::LINE;
+					MD_ITEM itemtype = MD_ITEM::LINE;//只有文本的第一个字段视为整个一行，其余行视为嵌套的
 					//寻找所有匹配
 					std::wstring suffix;
 					std::wsregex_iterator end;
