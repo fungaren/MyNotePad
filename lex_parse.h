@@ -47,6 +47,7 @@ public:
 	void setTag(const std::wstring &tag);
 	const std::wstring &getTag() const;
 };
+std::wstring trim(const std::wstring &str, size_t start, size_t count);
 std::list<Item> scanner(const std::wstring &str);
 std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, std::list<Item>::iterator end);
 std::wostream &writeInner(std::wostream &os, const std::wstring &data);

@@ -18,6 +18,8 @@ Item::Item(const std::wstring &data, MD_TOKEN token, MD_ITEM itemtype, const std
 		m_data = std::regex_replace(data, REGEX_LT, L"&lt;");
 		m_data = std::regex_replace(m_data, REGEX_GT, L"&gt;");
 	}
+	else
+		m_data = data;
 }
 
 Item::Item(const Item &rhs)
@@ -73,9 +75,9 @@ const std::wstring & Item::getTag() const
 	return m_tag;
 }
 
-int determineData(MD_TOKEN tokenType, const std::wstring &str, int start = 0)
+size_t determineData(MD_TOKEN tokenType, const std::wstring &str, size_t start = 0)
 {
-	int beg=start;
+	size_t beg=start;
 	switch (tokenType)
 	{
 	case MD_TOKEN::HEADER1:
@@ -108,7 +110,7 @@ int determineData(MD_TOKEN tokenType, const std::wstring &str, int start = 0)
 	return beg;//如果错误的话
 }
 
-std::wstring trim(const std::wstring &str, int start, int count)
+std::wstring trim(const std::wstring &str, size_t start, size_t count)
 {
 	if (count == 0)
 		return str;
@@ -141,7 +143,7 @@ std::list<Item> scanner(const std::wstring &str)
 	multilines = false;
 	while (std::getline(istringStream, line))
 	{
-		int index = 0;
+		size_t index = 0;
 		while (index < line.length())
 		{
 
@@ -153,13 +155,13 @@ std::list<Item> scanner(const std::wstring &str)
 				{
 					data = L"";
 					//优先处理代码项目，也包括普通的代码行引用
-					int dl = line.find_first_not_of('`');
-					if (dl == std::wstring::npos || dl == 3)
+					size_t dl = line.find_first_not_of('`');
+					if (dl == std::wstring::npos || dl == 3u)
 					{
-						if (dl == 3)
+						if (dl == 3u)
 						{
 							//可能指定了代码的语言
-							html_tag = L"class=" + line.substr(3);
+							html_tag = L"class=" + line.substr(3u);
 						}
 						index = line.length();
 						//代码块
@@ -187,8 +189,8 @@ std::list<Item> scanner(const std::wstring &str)
 			}
 			if (ch == '#')
 			{
-				int beg = determineData(MD_TOKEN::HEADER1, line);
-				int syms = line.find_first_not_of('#');
+				size_t beg = determineData(MD_TOKEN::HEADER1, line);
+				size_t syms = line.find_first_not_of('#');
 				items.emplace_back(line.substr(beg), static_cast<MD_TOKEN>(syms - 1), MD_ITEM::LINE);
 				index = line.length();
 			}
@@ -254,8 +256,8 @@ std::list<Item> scanner(const std::wstring &str)
 					items.back().getToken() == MD_TOKEN::TABLE_COLUMN_RIGHT)
 				{
 					//对齐控制
-					int sp;
-					int start = index;
+					size_t sp;
+					size_t start = index;
 					//使用反向迭代器
 					auto checked_header = items.rbegin();
 					for (; checked_header != items.rend(); ++checked_header)
@@ -294,8 +296,8 @@ std::list<Item> scanner(const std::wstring &str)
 				else
 				{
 					//表头
-					int sp;
-					int start = index;
+					size_t sp;
+					size_t start = index;
 					do {
 						sp = determineData(MD_TOKEN::TABLE_ITEM, line, start + 1);
 						//解析内容
@@ -329,37 +331,38 @@ std::list<Item> scanner(const std::wstring &str)
 					std::wsregex_iterator iter(line.begin() + index, line.end(), regex);
 					for (; iter != end; ++iter) {
 						//每一个项目
-						if (iter->operator[](1).matched)
+						auto &&smatch = *iter;
+						if (smatch[1].matched)
 						{
 							//处理其他的内容
-							auto prefix = iter->prefix();
+							auto &&prefix = smatch.prefix();
 							if (prefix.length() > 0)
 							{
 								//表示有前缀不为空
 								items.emplace_back(prefix.str(), MD_TOKEN::DATA, itemtype);
 								itemtype = MD_ITEM::NESTED;
 							}
-							int symsize = ((*iter)[0].length() - (*iter)[2].length()) / 2;
+							size_t symsize = (smatch[0].length() - smatch[2].length()) / 2;
 							switch (symsize)
 							{
-							case 1:
+							case 1u:
 								//
 								//可能是代码或者斜体
-								if (*(*iter)[1].first == '`')
-									items.emplace_back(iter->operator[](2).str(), MD_TOKEN::CODE, itemtype);
+								if (*smatch[1].first == '`')
+									items.emplace_back(smatch[2].str(), MD_TOKEN::CODE, itemtype);
 								else
-									items.emplace_back(iter->operator[](2).str(), MD_TOKEN::ITALIC, itemtype);
+									items.emplace_back(smatch[2].str(), MD_TOKEN::ITALIC, itemtype);
 								break;
-							case 2:
-								items.emplace_back(iter->operator[](2).str(), MD_TOKEN::BOLD, itemtype);
+							case 2u:
+								items.emplace_back(smatch[2].str(), MD_TOKEN::BOLD, itemtype);
 								break;
-							case 3:
-								items.emplace_back(iter->operator[](2).str(), MD_TOKEN::ITALIC_BOLD, itemtype);
+							case 3u:
+								items.emplace_back(smatch[2].str(), MD_TOKEN::ITALIC_BOLD, itemtype);
 								break;
 							}
 							//设置最后一个后缀
-							if (iter->suffix().length() > 0)
-								suffix = iter->suffix().str();
+							if (smatch.suffix().length() > 0)
+								suffix = smatch.suffix().str();
 							else
 								suffix = L"";
 							itemtype = MD_ITEM::NESTED;

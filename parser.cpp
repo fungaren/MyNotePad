@@ -24,7 +24,9 @@ std::wostream &writeInner(std::wostream &os, const std::wstring &data)
 	return os;
 }
 
-std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, std::list<Item>::iterator end) 
+std::wostream &parse_fromlex(std::wostream &os, 
+	std::list<Item>::iterator beg, 
+	std::list<Item>::iterator end) 
 {
 	for (auto citer = beg; citer != end;)
 	{
@@ -79,8 +81,8 @@ std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, s
 				switch (token)
 				{
 				case MD_TOKEN::BOLD:os << L"<strong>" << citer->getData() << L"</strong>"; break;
-				case MD_TOKEN::ITALIC:os << L"<I>" << citer->getData() << L"</I>"; break;
-				case MD_TOKEN::ITALIC_BOLD:os << L"<I><strong>" << citer->getData() << L"</strong></I>"; break;
+				case MD_TOKEN::ITALIC:os << L"<i>" << citer->getData() << L"</i>"; break;
+				case MD_TOKEN::ITALIC_BOLD:os << L"<i><strong>" << citer->getData() << L"</strong></i>"; break;
 				case MD_TOKEN::DATA:os << citer->getData(); break;
 				case MD_TOKEN::CODE:os << L"<code>" << citer->getData() << L"</code>"; break;
 				}
