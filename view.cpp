@@ -176,6 +176,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_LBUTTONDOWN:
 		OnLButtonDown(wParam, LOWORD(lParam), HIWORD(lParam));
 		break;
+	case WM_LBUTTONUP:
+		OnLButtonUp(wParam, LOWORD(lParam), HIWORD(lParam));
+		break;
 	case WM_RBUTTONDOWN:
 		OnRButtonDown(wParam, LOWORD(lParam), HIWORD(lParam));
 		break;

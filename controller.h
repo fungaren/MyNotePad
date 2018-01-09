@@ -700,11 +700,17 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 	return Cursor(article, l, c);
 }
 
+bool mouse_down;
 inline void OnLButtonDown(DWORD wParam, int x, int y) {
+	mouse_down = true;
 	repaintSelectionCanceledLines();
 
 	sel_begin = caret = PosToCaret(x, y);
 	force_OnPaint();
+}
+
+inline void OnLButtonUp(DWORD wParam, int x, int y) {
+	mouse_down = false;
 }
 
 inline void OnRButtonDown(DWORD wParam, int x, int y) {
@@ -717,7 +723,7 @@ inline void OnRButtonDown(DWORD wParam, int x, int y) {
 }
 
 inline void OnMouseMove(DWORD wParam, int x, int y) {
-	if (wParam & MK_LBUTTON)
+	if (mouse_down) // wParam & MK_LBUTTON
 	{
 		Cursor new_caret = PosToCaret(x, y);
 		if (caret != new_caret)
@@ -888,10 +894,7 @@ inline void OnMenuSave() {
 		OnMenuSaveAs();
 	else
 	{
-		std::wstring str;
-		for (const Line& l : article)
-			str += l;
-
+		std::wstring str = all_to_string();
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(opened_file);
 		f << cvt.to_bytes(str);
@@ -986,6 +989,7 @@ inline void OnMenuOpen() {
 
 	if (GetOpenFileNameW(&ofn) > 0)
 		loadFile(file);
+
 }
 
 inline void OnMenuUndo() {
