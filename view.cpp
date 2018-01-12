@@ -139,6 +139,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			case IDM_COPYHTML:
 				OnMenuCopyHtml();
 				break;
+			case IDM_SHOWINBROWSER:
+				OnMenuShowInBrowser();
+				break;
 			case IDM_EXIT:
 				if (sureToQuit())
 					DestroyWindow(hWnd);

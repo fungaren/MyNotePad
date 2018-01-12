@@ -848,23 +848,45 @@ inline std::wstring all_to_string()
 	return str;
 }
 
+inline std::string loadStyle()
+{
+	std::ifstream style("style.css");
+	if (!style) return "";
+
+	std::istreambuf_iterator<char> begin(style), end;
+	std::string result(begin, end);
+	style.close();
+
+	return result;
+}
+
+template <typename T>
+inline void saveHTML(T pathname)
+{
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
+	std::ofstream f(pathname);
+	
+	f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><style>";
+	f << loadStyle() << "</style><head><body><main>";
+	std::wstring str = all_to_string();
+	parse_markdown(str);
+	f << cvt.to_bytes(str);
+	f << "</main><center><small>Created by <a href=\"https:/" \
+	"/github.com/mooction/MyNotePad\">MyNotePad</a>.</small></center></body>";
+	f.close();
+}
+
 inline void OnMenuExport() {
-	TCHAR file[MAX_PATH];		*file = '\0';
+	TCHAR pathname[MAX_PATH];
+	*pathname = '\0';
 
 	OPENFILENAME ofn;
-	ofn.lpstrFile = file;
+	ofn.lpstrFile = pathname;
 	setOFN(ofn, L"HTML (*.html)\0*.html\0All Files (*.*)\0*.*\0\0", L"html");
 
 	if (GetSaveFileNameW(&ofn) > 0) {
 		// write to file
-		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
-		std::ofstream f(file);
-		f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><head><body>";
-		std::wstring str = all_to_string();
-		parse_markdown(str);
-		f << cvt.to_bytes(str);
-		f << "</body>";
-		f.close();
+		saveHTML(pathname);
 	}
 }
 
@@ -1129,4 +1151,27 @@ inline void OnMenuWordWrap()
 	calc_textView_height();
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
+}
+
+void OnMenuShowInBrowser()
+{
+	//wchar_t buffer[L_tmpnam_s];
+	//errno_t err = _wtmpnam_s(buffer);
+	//if (err) return;
+
+	wchar_t *temp;
+	size_t len;
+	errno_t err = _wgetenv_s(&len, NULL, 0, L"tmp");
+	if (err) return;
+	temp = new wchar_t[len];
+	err = _wgetenv_s(&len, temp, len, L"tmp");
+	std::wstring pathname = temp;
+	free(temp);
+
+	pathname += L"/mynotepad_preview.html";
+	saveHTML(pathname);
+
+	ShellExecute(hWnd, L"open", pathname.c_str(), NULL, NULL, SW_SHOWNORMAL);
+	//Sleep(3000);
+	//_wremove(pathname.c_str());
 }

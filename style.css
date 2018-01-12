@@ -1,0 +1,58 @@
+body {
+	font-family: Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
+	font-size: 24px;
+	color: #444;
+	font-weight: 100;
+	background-color: #fbfbfb;
+	word-wrap: break-word;
+	text-shadow: 0px 0px 1px 0px #ccc;
+}
+
+body, div, dl, dt, dd, ul, ol, li, code, h1, h2, h3, h4, h5, h6, form,
+fieldset, legend, input, textarea, th, td {margin: 0;padding: 0;}
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
+	font-weight: 400;
+}
+h1 {font-size: 36px;}
+h2 {font-size: 32px;}
+h3 {font-size: 30px;}
+h4 {font-size: 26px;}
+h5 {font-size: 22px;}
+h6 {font-size: 18px;}
+input, textarea, select, button {
+	font-family: Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
+	font-size: 24px;
+	border: #ddd solid 1px;
+	padding: 5px;
+	outline-color: #ddd;
+}
+p {line-height: 42px;margin:18px 0;}
+a {color: #0099ff;text-decoration: none;outline: none;}
+a:hover {color: #44bbff;}
+pre {
+	font-size: 22px;
+	border: 1px dashed #ddd;
+	font-family: serif;
+	padding: 7px;
+	line-height: 36px;
+}
+code{
+	margin-right: 4px;
+	padding: 1px 6px;
+	word-break: break-all;
+	background: #eee;
+	color: #000;
+	font-family: Lucida Console;
+}
+blockquote {
+	padding-left: 28px;
+	border-left: solid 2px #ddd;
+	margin: 0 28px;
+}
+::selection {background:rgba(0,144,255,0.15)}
+::-moz-selection {background:rgba(0,144,255,0.15)}
+main {
+	margin: 60px 400px;
+}
