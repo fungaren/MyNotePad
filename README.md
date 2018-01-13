@@ -6,4 +6,4 @@
 
 [微软的例子](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx)
 
-## [test.md](MyNotePad/blob/master/test.md)
+## [test.md](test.md)
