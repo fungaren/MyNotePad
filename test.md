@@ -207,7 +207,8 @@ int ```main```(){
 
 ```cpp
 #include <iostream>
-int main(){// hello,world}```
+int main(){// hello,world}
+```
 
 ## 表格
 
@@ -226,6 +227,8 @@ Item|Value
 
 | **Tables**  | *Are*         | Cool  |
 | :---------- | :-----------: | ----: |
+
+
 
 ## 非法表格
 
@@ -285,3 +288,6 @@ Computer | $1600
 
 <<>>
 
+123|45677777
+-|-:
+**789**|456

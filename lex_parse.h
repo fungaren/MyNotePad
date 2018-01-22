@@ -2,6 +2,7 @@
 #include <string>
 #include <list>
 #include <regex>
+#include <vector>
 static const std::wregex REGEX_LT(std::wregex(L"<"));
 static const std::wregex REGEX_GT = std::wregex(L">");
 
@@ -48,6 +49,11 @@ public:
 	const std::wstring &getTag() const;
 };
 std::wstring trim(const std::wstring &str, size_t start, size_t count);
-std::list<Item> scanner(const std::wstring &str);
+std::vector<std::wstring> split(const std::wstring &str, const wchar_t delimiter);
+std::list<Item> scanner(const std::wstring &str, bool onlynested=false);
 std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, std::list<Item>::iterator end);
 std::wostream &writeInner(std::wostream &os, const std::wstring &data);
+size_t determineData(MD_TOKEN tokenType, const std::wstring &str, size_t start = 0u);
+std::wstring parse_inner(const std::wstring &str, size_t begin);
+std::wstring mdToHTMLDoc(const std::wstring &str);
+size_t getClosedRegion(const std::wstring &str, wchar_t start_ch, wchar_t end_ch,size_t start);

@@ -17,9 +17,7 @@ std::wostream &writeAlignTableItem(std::wostream &os, MD_TOKEN table_token)
 
 std::wostream &writeInner(std::wostream &os, const std::wstring &data)
 {
-	auto items = scanner(data);
-	for (auto &&item : items)
-		item.setItemType(MD_ITEM::NESTED);
+	auto items = scanner(data, true);
 	parse_fromlex(os, std::begin(items), std::end(items));
 	return os;
 }
@@ -31,63 +29,35 @@ std::wostream &parse_fromlex(std::wostream &os,
 	for (auto citer = beg; citer != end;)
 	{
 		MD_TOKEN token = citer->getToken();
-		if (token == MD_TOKEN::BOLD ||
-			token == MD_TOKEN::ITALIC ||
-			token == MD_TOKEN::ITALIC_BOLD ||
-			token == MD_TOKEN::DATA ||
-			token == MD_TOKEN::CODE)
+		if (token == MD_TOKEN::DATA || token == MD_TOKEN::HTML)
 		{
-			if (citer->getItemType() == MD_ITEM::LINE)
+			if(token == MD_TOKEN::DATA && citer->getItemType() != MD_ITEM::NESTED)
+				os << L"<p>";
+			os << citer->getData();
+			//允许存在多个行组成的内容
+			//是否有嵌套的内容
+			auto iter = citer;
+			auto next = citer;
+			while (++iter != end && iter->getItemType() == MD_ITEM::NESTED)
 			{
-				std::list<Item>::iterator nested_iter = citer;
-				++nested_iter;
-				bool nofurther = true;
-				for (; nested_iter != end && 
-					nested_iter->getItemType() == MD_ITEM::NESTED; 
-					++nested_iter)
-				{
-					nofurther = false;
-				}
-
-				if (token == MD_TOKEN::CODE)
-				{
-					if (nofurther == true)
-					{
-						os << L"<pre";
-						if (citer->getTag().length() > 0)
-							os << L" "<<citer->getTag();
-						os << L">";
-					}
-				}
-				else
-					os << L"<p>";
-				citer->setItemType(MD_ITEM::NESTED);
-				parse_fromlex(os, citer, nested_iter);
-				citer->setItemType(MD_ITEM::LINE);
-
-				if (token == MD_TOKEN::CODE)
-				{
-					if (nofurther == true)
-						os << L"</pre>";
-				}
-				else
-					os << L"</p>";
-
-				citer = nested_iter;//返回前一个
+				;
 			}
-			else
-			{
-				//普通的格式
-				switch (token)
-				{
-				case MD_TOKEN::BOLD:os << L"<strong>" << citer->getData() << L"</strong>"; break;
-				case MD_TOKEN::ITALIC:os << L"<i>" << citer->getData() << L"</i>"; break;
-				case MD_TOKEN::ITALIC_BOLD:os << L"<i><strong>" << citer->getData() << L"</strong></i>"; break;
-				case MD_TOKEN::DATA:os << citer->getData(); break;
-				case MD_TOKEN::CODE:os << L"<code>" << citer->getData() << L"</code>"; break;
-				}
-				++citer;
-			}
+			//确定了范围
+			if (iter != citer)
+				parse_fromlex(os, ++next, iter);
+			if (token == MD_TOKEN::DATA && citer->getItemType() != MD_ITEM::NESTED)
+				os << L"</p>";
+			//更新迭代器
+			citer = iter;
+		}
+		else if (token == MD_TOKEN::CODE)
+		{
+			os << L"<pre";
+			if (citer->getTag().compare(L"") != 0)
+				os << L" " << citer->getTag();
+			os << L">";
+			os << citer->getData() << L"</pre>\n";
+			++citer;
 		}
 		else if (token == MD_TOKEN::DELIMITER)
 		{
@@ -101,24 +71,31 @@ std::wostream &parse_fromlex(std::wostream &os,
 			token == MD_TOKEN::HEADER5 || 
 			token == MD_TOKEN::HEADER6)
 		{
+			//不持支多行的内容
 			int id = static_cast<int>(token) + 1;
 			os << L"<h" << id << L">"; writeInner(os, citer->getData());
 			os << L"</h" << id << L">";
 			++citer;
-		}
-		else if (token == MD_TOKEN::HTML)
-		{
-			os << citer->getData(); ++citer;
 		}
 		else if (token == MD_TOKEN::ORDERED_LIST)
 		{
 			//有序列表
 			std::list<Item>::iterator nested_iter = citer;
 			os << L"<ol start=\"1\">\n";
-			for (; nested_iter != end && nested_iter->getToken() == MD_TOKEN::ORDERED_LIST; ++nested_iter)
+			for (; nested_iter != end && nested_iter->getToken() == MD_TOKEN::ORDERED_LIST;)
 			{
 				os << L"<li>"; writeInner(os, nested_iter->getData());
+				//写入内部可能有的其他数据，需要递增到下一个ORDERED_LIST
+				auto iter = nested_iter;
+				auto next = nested_iter;
+				while (++iter != end && iter->getToken() != MD_TOKEN::ORDERED_LIST && iter->getItemType() == MD_ITEM::NESTED)
+					continue;
+				++next;//递增为下一个
+				if (iter != next && iter != end)
+					parse_fromlex(os, next, iter);
 				os << L"</li>" << std::endl;
+				//更改为下一个
+				nested_iter = iter;
 			}
 			os << L"</ol>";
 			citer = nested_iter;
@@ -128,19 +105,40 @@ std::wostream &parse_fromlex(std::wostream &os,
 			//无序列表
 			std::list<Item>::iterator nested_iter = citer;
 			os << L"<ul>\n";
-			for (; nested_iter != end && nested_iter->getToken() == MD_TOKEN::UNORDERED_LIST; ++nested_iter)
+			for (; nested_iter != end && nested_iter->getToken() == MD_TOKEN::UNORDERED_LIST;)
 			{
 				os << L"<li>"; writeInner(os, nested_iter->getData());
+				//写入内部可能有的其他数据，需要递增到下一个ORDERED_LIST
+				auto iter = nested_iter;
+				auto next = nested_iter;
+				while (++iter != end && iter->getToken() != MD_TOKEN::UNORDERED_LIST && iter->getItemType() == MD_ITEM::NESTED)
+					continue;
+				++next;//递增为下一个
+				if (iter != next && iter != end)
+					parse_fromlex(os, next, iter);
 				os << L"</li>" << std::endl;
+				//更改为下一个
+				nested_iter = iter;
 			}
 			os << L"</ul>";
 			citer = nested_iter;
 		}
 		else if (token == MD_TOKEN::QUTOE)
 		{
-			os << L"<blockquote>"; writeInner(os, citer->getData());
-			os << L"</blockquote>" << std::endl;
-			++citer;
+			//引用的内容
+			//写入内部可能有的其他数据，一直写入知道不为NESTED
+			os << citer->getData();
+			auto iter = citer;
+			auto next = citer;
+			++next;
+			while (++iter != end && iter->getItemType() == MD_ITEM::NESTED)
+				continue;
+			//设置了范围
+			if(next != iter)
+				parse_fromlex(os, next, iter);
+			//添加结束
+			os << citer->getTag();
+			citer = iter;
 		}
 		else if (token == MD_TOKEN::TABLE_COLUMN_CENTER ||
 			token == MD_TOKEN::TABLE_COLUMN_LEFT ||
