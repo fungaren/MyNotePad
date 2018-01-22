@@ -205,9 +205,15 @@ int ```main```(){
 }
 ```
 
+## Github 中代码块的结束必须另起一行
+
 ```cpp
 #include <iostream>
+<<<<<<< HEAD
 int main(){// hello,world}
+=======
+int main(){// hello,world}```
+>>>>>>> ad69c082caf903bc11dbad1048a0a7c50dfcd26b
 ```
 
 ## 表格
