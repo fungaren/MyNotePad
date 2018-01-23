@@ -52,6 +52,30 @@ blockquote {
 	border-left: solid 2px #ddd;
 	margin: 0 28px;
 }
+table {width: 100%;border-spacing:0;} 
+th {
+	color: #4f6b72;
+	border-right: 1px solid #C1DAD7;
+	border-bottom: 1px solid #C1DAD7;
+	border-top: 1px solid #C1DAD7;
+	letter-spacing: 2px;
+	text-transform: uppercase; 
+	text-align: left;
+	font-size: 20px;
+	padding: 6px 6px 6px 12px;
+	background: #CAE8EA no-repeat;
+} 
+td {
+	border-right: 1px solid #C1DAD7;
+	border-bottom: 1px solid #C1DAD7;
+	padding: 6px 6px 6px 12px;
+	color: #4f6b72;
+	font-size: 17px;
+}
+td.alt {background: #F5FAFA;color: #797268;}
+th.spec,td.spec {border-left: 1px solid #C1DAD7;}
+tr:nth-child(odd) {background: #fff;}  
+tr:nth-child(even) {background: #F5FAFA;}
 ::selection {background:rgba(0,144,255,0.15)}
 ::-moz-selection {background:rgba(0,144,255,0.15)}
 main {
