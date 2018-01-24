@@ -11,21 +11,10 @@
 Item::Item(const std::wstring &data, MD_TOKEN token, MD_ITEM itemtype, const std::wstring &tag)
 	:m_token(token),
 	m_mditemtype(itemtype),
-	m_tag(tag)
+	m_tag(tag),m_data(data)
 { 
-//转义数据
-	if (token != MD_TOKEN::HTML && token !=MD_TOKEN::DATA &&
-		token != MD_TOKEN::QUTOE/*引用标签使用了HTML直接显示*/)//不处理HTML，因为他们已经被转义了
-	{
-		
-		m_data = std::regex_replace(data, REGEX_LT, L"&lt;");
-		m_data = std::regex_replace(m_data, REGEX_GT, L"&gt;");
-	}
-	else
-	{
-		m_data = data;
-	}
 }
+
 
 Item::Item(const Item &rhs)
 	: m_data(rhs.m_data),
@@ -138,10 +127,45 @@ size_t getClosedRegion(const std::wstring & str, wchar_t start_ch, wchar_t end_c
 }
 std::wstring mdToHTMLDoc(const std::wstring &str)
 {
-	std::wstring ws;
-	ws = std::regex_replace(str, REGEX_LT, L"&lt;");
-	ws = std::regex_replace(ws, REGEX_GT, L"&gt;");
-	return ws;
+	
+	//主要是解决文本中混个HTML语句的问题
+	/*
+	可能的标签类型<xxx>yyy</xxx>, <xxx />, <xxx>
+	*/
+	std::wregex regex_htmltag(L"</?[A-Za-z0-9].*>");
+	auto tag_begin = std::wsregex_iterator(str.begin(), str.end(), regex_htmltag);
+	auto tag_end = std::wsregex_iterator();
+	if (tag_begin == tag_end)
+	{
+		std::wstring temp;
+		temp = std::regex_replace(str, REGEX_LT, L"&lt;");
+		return std::regex_replace(temp, REGEX_GT, L"&gt;");
+	}
+	std::wostringstream result;//存在标签需要替换
+	ptrdiff_t distan = std::distance(tag_begin, tag_end);
+	size_t count = 0;
+	std::wstring temp;
+	for (; tag_begin != tag_end; ++tag_begin)
+	{
+		++count;
+		temp = std::regex_replace(tag_begin->prefix().str(), REGEX_LT, L"&lt;");
+		result << std::regex_replace(temp, REGEX_GT, L"&gt;");
+		//标签写入
+		auto tag = tag_begin->str();
+		if (tag.size() > 8u && tag.substr(0u, 8u).compare(L"<script>") == 0)
+		{
+			result << L"&lt;script&gt;" << tag.substr(8u, tag.length() - 17) << L"&lt;/script&gt;";
+		}
+		else
+			result << tag;
+		if (count == distan)
+		{
+			//最后一个需要处理suffix
+			temp = std::regex_replace(tag_begin->suffix().str(), REGEX_LT, L"&lt;");
+			result << std::regex_replace(temp, REGEX_GT, L"&gt;");
+		}
+	}
+	return result.str();
 }
 std::wstring parse_inner(const std::wstring &str, size_t begin)
 {
@@ -387,7 +411,8 @@ std::vector<std::wstring> split(const std::wstring &str, const wchar_t delimiter
 std::list<Item> scanner(const std::wstring &str, bool onlynested)
 {
 	std::wregex regex_orderedlist(L"[0-9]+\\.\\s(.*)");
-	std::wregex regex_table_align(L"^([:]?-+[:]?\\|[:]?-+[:]?)");
+	std::wregex regex_table_align(L"^(:?-+:?\\|?)+$");
+
 	std::list<Item> items;
 	std::wistringstream istringStream(str);
 	std::wstring line;
@@ -454,39 +479,59 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				lastToken = tk;
 				break;
 			}
+			else if (!onlynested && 
+				line.find_last_not_of('-') != std::wstring::npos && 
+				std::regex_match(line, regex_table_align))
+			{
+				//判断是否需要分解上一行的内容
+				if (items.size() > 0 && items.back().getItemType() == MD_ITEM::LINE &&
+					items.back().getToken() == MD_TOKEN::DATA)
+				{
+					//必须是一个独立行的数据TOKEN
+					//分解表头
+					auto hitems = split(items.back().getData(), '|');
+					auto delitems = split(line, '|');
+					if (hitems.size() > 0 && hitems.size() == delitems.size())
+					{
+						items.pop_back();
+						for (size_t s = 0u; s < hitems.size(); ++s)
+						{
+							MD_TOKEN htoken = MD_TOKEN::TABLE_COLUMN_LEFT;//默认左对齐
+							size_t sz = delitems[s].length();
+							if (delitems[s][sz - 1] == ':' && delitems[s][0] == ':')
+								htoken = MD_TOKEN::TABLE_COLUMN_CENTER;
+							else if (delitems[s][sz - 1] == ':')
+								htoken = MD_TOKEN::TABLE_COLUMN_RIGHT;
+							if (s == 0u)
+								items.emplace_back(trim(hitems[s], 0u, hitems[s].length()), htoken, MD_ITEM::LINE, L"head");
+							else
+								items.emplace_back(trim(hitems[s], 0u, hitems[s].length()), htoken, MD_ITEM::LINE);
+						}
+						lastToken = MD_TOKEN::TABLE_ITEM;
+						break;
+					}
+					//归为其他情况
+				}
+				items.emplace_back(line, MD_TOKEN::DATA, MD_ITEM::LINE);
+				lastToken = MD_TOKEN::DATA;
+				break;
+			}
 			else if (ch == '-' && !onlynested)
 			{
-				//是否是表格？
-				if (std::regex_match(line, regex_table_align))
-				{
-					//判断是否需要分解上一行的内容
-					if (items.size() > 0 && items.back().getItemType() == MD_ITEM::LINE &&
-						items.back().getToken() == MD_TOKEN::DATA)
-					{
-						//必须是一个独立行的数据TOKEN
-						//分解表头
-						auto hitems = split(items.back().getData(), '|');
-						if (hitems.size() > 0)
-						{
-							items.pop_back();
-							for (auto &&item : hitems)
-							{
-								MD_TOKEN htoken = MD_TOKEN::TABLE_COLUMN_LEFT;//默认左对齐
-								size_t sz = item.length();
-								if (item[sz - 1] == ':' && item[0] == ':')
-									htoken = MD_TOKEN::TABLE_COLUMN_CENTER;
-								else if (item[sz - 1] == ':')
-									htoken = MD_TOKEN::TABLE_COLUMN_RIGHT;
-								items.emplace_back(trim(item, 0u, item.length()), htoken, MD_ITEM::LINE, L"head");
-							}
-							lastToken = MD_TOKEN::TABLE_ITEM;
-							break;
-						}
-					}
-				}
 				//分隔符或者列表的某一项
 				if (line.find_last_not_of('-') == std::wstring::npos)
 				{
+					if (items.size() > 0u)//也可能是标题的分隔
+					{
+						auto &&t = items.back();
+						if (t.getToken() == MD_TOKEN::DATA)
+						{
+							//标题格式
+							t.setToken(MD_TOKEN::HEADER2);
+							lastToken = MD_TOKEN::HEADER2;
+							break;
+						}
+					}
 					//分隔符
 					items.emplace_back(L"", MD_TOKEN::DELIMITER, MD_ITEM::LINE);
 					lastToken = MD_TOKEN::DELIMITER;
@@ -522,6 +567,17 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 			}
 			else if (ch == '=' && line.find_last_not_of('=') == std::wstring::npos && !onlynested)
 			{
+				if (items.size() > 0u)
+				{
+					auto &&t = items.back();
+					if (t.getToken() == MD_TOKEN::DATA)
+					{
+						//标题格式
+						t.setToken(MD_TOKEN::HEADER1);
+						lastToken = MD_TOKEN::HEADER1;
+						break;
+					}
+				}
 				//分隔符
 				items.emplace_back(L"", MD_TOKEN::DELIMITER, MD_ITEM::LINE);
 				lastToken = MD_TOKEN::DELIMITER;
@@ -620,11 +676,10 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 					//对齐控制
 					//使用反向迭代器
 					auto checked_header = items.rbegin();
-					bool isHead = false;
-					for (; checked_header != items.rend(); ++checked_header)
+					/*bool isHead = false;*/
+					for (; checked_header != items.rend() && 
+						checked_header->getTag().compare(L"head") != 0; ++checked_header)//确定表头
 					{
-						if (checked_header->getTag().compare(L"head") == 0)
-							isHead = true;//这些都是表头
 						MD_TOKEN token = checked_header->getToken();
 						if (token == MD_TOKEN::TABLE_COLUMN_CENTER ||
 							token == MD_TOKEN::TABLE_COLUMN_LEFT ||
@@ -632,21 +687,25 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 							continue;
 						break;
 					}
-					std::list<Item>::iterator head_iter = items.end();
+					std::list<Item>::iterator head_iter = checked_header.base();
+					if (checked_header != items.rend())
+					{
+						//如果不是没有找到
+						--head_iter;//退回其实表头
+					}
 					//确定了第一个表头的位置或者是头前位置
-					head_iter = checked_header.base();
 					auto hitems = split(line, '|');
 					for (size_t i =0;i <hitems.size() && head_iter != items.end();++i) 
 					{
 						//每一个单元格的内容
 						auto &&subline = trim(hitems[i], 0u, hitems[i].length());
 						size_t sz = subline.length();
-						if (isHead && sz > 0 && subline[0] == ':' && subline[sz - 1] == ':')
-							head_iter->setToken(MD_TOKEN::TABLE_COLUMN_CENTER),head_iter->setTag(L"");
-						else if (isHead && sz > 0 && subline[sz - 1] == ':')
-							head_iter->setToken(MD_TOKEN::TABLE_COLUMN_RIGHT), head_iter->setTag(L"");
-						else if (isHead && sz > 0 && (subline[0] == ':' || subline[0] == '-'))
-							head_iter->setTag(L"");//左对齐
+						if (sz > 0 && subline[0] == ':' && subline[sz - 1] == ':')
+							head_iter->setToken(MD_TOKEN::TABLE_COLUMN_CENTER);
+						else if (sz > 0 && subline[sz - 1] == ':')
+							head_iter->setToken(MD_TOKEN::TABLE_COLUMN_RIGHT);
+						else if (sz > 0 && (subline[0] == ':' || subline[0] == '-'))//其他的控制格式（左对齐）
+							;
 						else
 						{
 							items.emplace_back(subline, head_iter->getToken(), MD_ITEM::NESTED);
@@ -658,9 +717,13 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				{
 					//表头
 					auto hitems = split(line, '|');
-					for (auto &&item : hitems)
+					for (size_t s =0u;s<hitems.size();++s)
 					{
-						items.emplace_back(trim(item, 0u, item.length()), MD_TOKEN::TABLE_COLUMN_LEFT, MD_ITEM::LINE, L"head");
+						auto &&item = hitems[s];
+						if(s==0u)
+							items.emplace_back(trim(item, 0u, item.length()), MD_TOKEN::TABLE_COLUMN_LEFT, MD_ITEM::LINE, L"head");
+						else
+							items.emplace_back(trim(item, 0u, item.length()), MD_TOKEN::TABLE_COLUMN_LEFT, MD_ITEM::LINE);
 					}
 					
 				}
@@ -669,20 +732,25 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 			}
 			else
 			{
-				std::wstring content;
-				if(ch == '<')
-					content = parse_inner(line, 0u);//HTML标签开头
-				else
-					content = parse_inner(mdToHTMLDoc(line), 0u);
-				if (lastToken == MD_TOKEN::NEWLINE && !onlynested)//如果有强制换行
+				std::wstring content(parse_inner(mdToHTMLDoc(line), 0u));
+				if (content.size() > 0u && content[0] == '<')
 				{
-					items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::LINE);
+					//是一个HTML标签开头。HTML标签是独占一行
+					items.emplace_back(content, MD_TOKEN::HTML, MD_ITEM::LINE);
+					lastToken = MD_TOKEN::HTML;
 				}
 				else
 				{
-					items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::NESTED);
+					if (lastToken == MD_TOKEN::NEWLINE && !onlynested)//如果有强制换行
+					{
+						items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::LINE);
+					}
+					else
+					{
+						items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::NESTED);
+					}
+					lastToken = MD_TOKEN::DATA;
 				}
-				lastToken = MD_TOKEN::DATA;
 				break;
 			}
 			

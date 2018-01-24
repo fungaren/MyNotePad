@@ -140,22 +140,25 @@ std::wostream &parse_fromlex(std::wostream &os,
 			os << citer->getTag();
 			citer = iter;
 		}
-		else if (token == MD_TOKEN::TABLE_COLUMN_CENTER ||
+		else if ((token == MD_TOKEN::TABLE_COLUMN_CENTER ||
 			token == MD_TOKEN::TABLE_COLUMN_LEFT ||
-			token == MD_TOKEN::TABLE_COLUMN_RIGHT)
+			token == MD_TOKEN::TABLE_COLUMN_RIGHT) && citer->getTag().compare(L"head") == 0)
 		{
 			os << "<table>\n<tr>\n";
 			auto headers_iter = citer;
 			int columns = 0;
-			for (; headers_iter != end && headers_iter->getItemType() == MD_ITEM::LINE; ++headers_iter)
+			do
 			{
 				os << L"<th "; writeAlignTableItem(os, headers_iter->getToken()) << L">";
 				writeInner(os, headers_iter->getData()) << L"</th>";
 				++columns;
-			}
+				++headers_iter;
+			} while (headers_iter != end && headers_iter->getItemType() == MD_ITEM::LINE &&
+				headers_iter->getTag().compare(L"head") != 0);
 			int count = 0;
 			//绘制表格其他的内容
-			for (; headers_iter != end; ++headers_iter)
+			for (; headers_iter != end && 
+				headers_iter->getItemType() == MD_ITEM::NESTED; ++headers_iter)
 			{
 				auto td_token = headers_iter->getToken();
 				if (td_token == MD_TOKEN::TABLE_COLUMN_CENTER ||
