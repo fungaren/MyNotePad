@@ -558,7 +558,8 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 
 				}
 			}
-			else if (ch == '*' && !onlynested && line.find_last_not_of('*') == std::wstring::npos)
+			else if (ch == '*' && !onlynested && line.find_last_not_of('*') == std::wstring::npos && 
+				line.size() == 3)//大小恰好为3，分隔符***
 			{
 				//分隔符
 				items.emplace_back(L"", MD_TOKEN::DELIMITER, MD_ITEM::LINE);
@@ -583,7 +584,8 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				lastToken = MD_TOKEN::DELIMITER;
 				break;
 			}
-			else if ((ch == '+' || ch == '*') && !onlynested)
+			else if ((ch == '+' || ch == '*') && (line.size() > 2u && iswspace(line[1])) && !onlynested)
+			//必须是+|*空字符 的形式
 			{
 				//这个也是列表
 				size_t beg = determineData(MD_TOKEN::UNORDERED_LIST, line);

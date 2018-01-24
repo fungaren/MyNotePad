@@ -6,11 +6,11 @@ std::wostream &writeAlignTableItem(std::wostream &os, MD_TOKEN table_token)
 	switch (table_token)
 	{
 	case MD_TOKEN::TABLE_COLUMN_CENTER:
-		os << "align=\"center\""; break;
+		os << "style=\"text-align:center\""; break;
 	case MD_TOKEN::TABLE_COLUMN_RIGHT:
-		os << "align=\"right\""; break;
+		os << "style=\"text-align:right\""; break;
 	default:
-		os << "align=\"left\""; break;
+		os << "style=\"text-align:left\""; break;
 	}
 	return os;
 }
@@ -31,7 +31,7 @@ std::wostream &parse_fromlex(std::wostream &os,
 		MD_TOKEN token = citer->getToken();
 		if (token == MD_TOKEN::DATA || token == MD_TOKEN::HTML)
 		{
-			if(token == MD_TOKEN::DATA && citer->getItemType() != MD_ITEM::NESTED)
+			if(citer->getItemType() != MD_ITEM::NESTED)
 				os << L"<p>";
 			os << citer->getData();
 			//允许存在多个行组成的内容
@@ -45,7 +45,7 @@ std::wostream &parse_fromlex(std::wostream &os,
 			//确定了范围
 			if (iter != citer)
 				parse_fromlex(os, ++next, iter);
-			if (token == MD_TOKEN::DATA && citer->getItemType() != MD_ITEM::NESTED)
+			if (citer->getItemType() != MD_ITEM::NESTED)
 				os << L"</p>";
 			//更新迭代器
 			citer = iter;
@@ -154,6 +154,9 @@ std::wostream &parse_fromlex(std::wostream &os,
 				++columns;
 				++headers_iter;
 			} while (headers_iter != end && headers_iter->getItemType() == MD_ITEM::LINE &&
+				(headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_LEFT ||
+				headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_RIGHT ||
+				headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_CENTER )&&//必须是一个表格的单元项
 				headers_iter->getTag().compare(L"head") != 0);
 			int count = 0;
 			//绘制表格其他的内容
