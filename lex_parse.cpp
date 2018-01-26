@@ -334,6 +334,11 @@ std::wstring parse_inner(const std::wstring &str, size_t begin)
 					++index;
 				}
 			}
+			else
+			{
+				result << ch;
+				++index;
+			}
 		}
 		else
 		{
@@ -462,6 +467,9 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 			}
 			if (multilines == true)
 			{
+				//需要处理原始数据，使之兼容html
+				line = std::regex_replace(line, REGEX_LT, L"&lt;");
+				line = std::regex_replace(line, REGEX_GT, L"&gt;");
 				data.append(line + L"\n");
 				break;
 			}
@@ -668,7 +676,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				}
 				break;
 			}
-			else if ((ch == '|' || (lastToken == MD_TOKEN::TABLE_ITEM && line.find('|') != std::wstring::npos)) && !onlynested)
+			else if (!onlynested && (ch == '|' || (lastToken == MD_TOKEN::TABLE_ITEM && line.find('|') != std::wstring::npos)))
 			{
 
 				bool hasHead = false || lastToken == MD_TOKEN::TABLE_ITEM;
@@ -735,24 +743,15 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 			else
 			{
 				std::wstring content(parse_inner(mdToHTMLDoc(line), 0u));
-				if (content.size() > 0u && content[0] == '<')
+				if (lastToken == MD_TOKEN::NEWLINE && !onlynested)//如果有强制换行
 				{
-					//是一个HTML标签开头。HTML标签是独占一行
-					items.emplace_back(content, MD_TOKEN::HTML, MD_ITEM::LINE);
-					lastToken = MD_TOKEN::HTML;
+					items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::LINE);
 				}
 				else
 				{
-					if (lastToken == MD_TOKEN::NEWLINE && !onlynested)//如果有强制换行
-					{
-						items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::LINE);
-					}
-					else
-					{
-						items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::NESTED);
-					}
-					lastToken = MD_TOKEN::DATA;
+					items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::NESTED);
 				}
+				lastToken = MD_TOKEN::DATA;
 				break;
 			}
 			
