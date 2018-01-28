@@ -10,7 +10,7 @@
 
 ## 下载
 
-[Release](releases)
+[Release](../../releases)
 
 ## 测试
 
