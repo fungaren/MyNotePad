@@ -524,94 +524,75 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				lastToken = MD_TOKEN::DATA;
 				break;
 			}
-			else if (ch == '-' && !onlynested)
+			else if (!onlynested && (ch == '-' || ch=='*' || ch=='+') && (line.size() > 2u && iswspace(line[1])))
 			{
 				//分隔符或者列表的某一项
-				if (line.find_last_not_of('-') == std::wstring::npos)
-				{
-					if (items.size() > 0u)//也可能是标题的分隔
-					{
-						auto &&t = items.back();
-						if (t.getToken() == MD_TOKEN::DATA)
-						{
-							//标题格式
-							t.setToken(MD_TOKEN::HEADER2);
-							lastToken = MD_TOKEN::HEADER2;
-							break;
-						}
-					}
-					//分隔符
-					items.emplace_back(L"", MD_TOKEN::DELIMITER, MD_ITEM::LINE);
-					lastToken = MD_TOKEN::DELIMITER;
-					break;
-				}
-				else {
-					size_t beg = determineData(MD_TOKEN::UNORDERED_LIST, line);
-					if (beg >= line.length())
-					{
-						//非法的标记类似于 -fff
-						beg = line.find_first_not_of(L"-");
-					}
-					if (beg == std::wstring::npos)
-					{
-						items.emplace_back(line, MD_TOKEN::DATA, MD_ITEM::LINE);
-						lastToken = MD_TOKEN::DATA;
-					}
-					else
-					{
-						items.emplace_back(line.substr(beg), MD_TOKEN::UNORDERED_LIST, MD_ITEM::LINE);
-						lastToken = MD_TOKEN::UNORDERED_LIST;
-					}
-					break;
+				//if (line.find_last_not_of('-') == std::wstring::npos)
+				//{
+				//	if (items.size() > 0u)//也可能是标题的分隔
+				//	{
+				//		auto &&t = items.back();
+				//		if (t.getToken() == MD_TOKEN::DATA)
+				//		{
+				//			//标题格式
+				//			t.setToken(MD_TOKEN::HEADER2);
+				//			lastToken = MD_TOKEN::HEADER2;
+				//			break;
+				//		}
+				//	}
+				//	//分隔符
+				//	items.emplace_back(L"", MD_TOKEN::DELIMITER, MD_ITEM::LINE);
+				//	lastToken = MD_TOKEN::DELIMITER;
+				//	break;
+				//}
+				//else {
+				//	size_t beg = determineData(MD_TOKEN::UNORDERED_LIST, line);
+				//	if (beg >= line.length())
+				//	{
+				//		//非法的标记类似于 -fff
+				//		beg = line.find_first_not_of(L"-");
+				//	}
+				//	if (beg == std::wstring::npos)
+				//	{
+				//		items.emplace_back(line, MD_TOKEN::DATA, MD_ITEM::LINE);
+				//		lastToken = MD_TOKEN::DATA;
+				//	}
+				//	else
+				//	{
+				//		items.emplace_back(line.substr(beg), MD_TOKEN::UNORDERED_LIST, MD_ITEM::LINE);
+				//		lastToken = MD_TOKEN::UNORDERED_LIST;
+				//	}
+				//	break;
+				//}
 
-				}
-			}
-			else if (ch == '*' && !onlynested && line.find_last_not_of('*') == std::wstring::npos && 
-				line.size() == 3)//大小恰好为3，分隔符***
-			{
-				//分隔符
-				items.emplace_back(L"", MD_TOKEN::DELIMITER, MD_ITEM::LINE);
-				lastToken = MD_TOKEN::DELIMITER;
+				//一定是一个无序列表
+				items.emplace_back(line.substr(2), MD_TOKEN::UNORDERED_LIST, MD_ITEM::LINE);
+				lastToken = MD_TOKEN::UNORDERED_LIST;
 				break;
 			}
-			else if (ch == '=' && line.find_last_not_of('=') == std::wstring::npos && !onlynested)
+			else if (!onlynested && (ch == '-' || ch == '*' || ch == '=') && line.size() == 3 && line.find_first_not_of(L"-*=") == std::wstring::npos)
 			{
-				if (items.size() > 0u)
+				//一定是一个分隔符
+				if (items.size() > 0u && (ch == '=' || ch == '-'))
 				{
 					auto &&t = items.back();
 					if (t.getToken() == MD_TOKEN::DATA)
 					{
 						//标题格式
-						t.setToken(MD_TOKEN::HEADER1);
-						lastToken = MD_TOKEN::HEADER1;
+						if (ch == '=')
+						{
+							t.setToken(MD_TOKEN::HEADER1);
+							lastToken = MD_TOKEN::HEADER1;
+						}
+						else {
+							t.setToken(MD_TOKEN::HEADER2);
+							lastToken = MD_TOKEN::HEADER2;
+						}
 						break;
 					}
 				}
-				//分隔符
 				items.emplace_back(L"", MD_TOKEN::DELIMITER, MD_ITEM::LINE);
 				lastToken = MD_TOKEN::DELIMITER;
-				break;
-			}
-			else if ((ch == '+' || ch == '*') && (line.size() > 2u && iswspace(line[1])) && !onlynested)
-			//必须是+|*空字符 的形式
-			{
-				//这个也是列表
-				size_t beg = determineData(MD_TOKEN::UNORDERED_LIST, line);
-				if (beg >= line.length())
-				{
-					//非法的标记类似于 -fff
-					beg = line.find_first_not_of(L"+*");
-				}
-				if (beg == std::wstring::npos)
-				{
-					items.emplace_back(line, MD_TOKEN::DATA, MD_ITEM::LINE);
-					lastToken = MD_TOKEN::DATA;
-				}
-				else
-				{
-					items.emplace_back(line.substr(beg), MD_TOKEN::UNORDERED_LIST, MD_ITEM::LINE);
-					lastToken = MD_TOKEN::UNORDERED_LIST;
-				}
 				break;
 			}
 			else if (ch >= '0' && ch <= '9' && !onlynested && std::regex_match(line, regex_orderedlist))

@@ -15,21 +15,12 @@ void parse_markdown(std::wstring& str)
 	//clock_t begin = clock();
 
 	std::wostringstream wos;
-<<<<<<< HEAD
 	//clock_t begin = clock();
 	auto scanned = scanner(str);
 	parse_fromlex(wos, std::begin(scanned), std::end(scanned));
-	//clock_t end = clock();
-	//int t = double(end - begin) * 1000 / CLOCKS_PER_SEC;
-	//wos << t;
-=======
-	auto scanned = scanner(str);
-	parse_fromlex(wos, std::begin(scanned), std::end(scanned));
 
 	//clock_t end = clock();
 	//int t = double(end - begin) * 1000 / CLOCKS_PER_SEC;
 	//wos << t;
-
->>>>>>> cad13ffd9d48233080796024e9c821b5b125c6a0
 	str = wos.str();
 }
