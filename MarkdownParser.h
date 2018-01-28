@@ -11,13 +11,16 @@ void parse_markdown(std::wstring& str)
 	//转义一下字符串
 	//str = std::regex_replace(str, std::wregex(L"<"), L"&lt;");
 	//str = std::regex_replace(str, std::wregex(L">"), L"&gt;");
+	
+	//clock_t begin = clock();
+
 	std::wostringstream wos;
-	clock_t begin = clock();
 	auto scanned = scanner(str);
 	parse_fromlex(wos, std::begin(scanned), std::end(scanned));
-	clock_t end = clock();
-	int t = double(end - begin) * 1000 / CLOCKS_PER_SEC;
-	wos << t;
+
+	//clock_t end = clock();
+	//int t = double(end - begin) * 1000 / CLOCKS_PER_SEC;
+	//wos << t;
+
 	str = wos.str();
-	
 }
