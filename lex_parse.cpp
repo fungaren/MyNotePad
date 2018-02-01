@@ -424,7 +424,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 	bool multilines;
 
 	//跨行使用的上下文信息
-	MD_TOKEN lastToken = MD_TOKEN::NEWLINE;
+	MD_TOKEN lastToken = MD_TOKEN::EMPTY;
 	std::wstring data;
 	std::wstring html_tag;
 
@@ -595,7 +595,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				lastToken = MD_TOKEN::DELIMITER;
 				break;
 			}
-			else if (ch >= '0' && ch <= '9' && !onlynested && std::regex_match(line, regex_orderedlist))
+			else if (!onlynested && ch >= '0' && ch <= '9' && std::regex_match(line, regex_orderedlist))
 			{
 				//以数字开头，有可能是序列表
 				size_t beg = determineData(MD_TOKEN::ORDERED_LIST, line);
@@ -628,7 +628,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 			//	items.emplace_back(htmlcode, MD_TOKEN::HTML, MD_ITEM::LINE);
 			//	break;
 			//}
-			else if (ch == '>' && !onlynested)
+			else if (!onlynested && ch == '>')
 			{
 				//引用
 				size_t beg = determineData(MD_TOKEN::QUTOE, line);
@@ -724,14 +724,12 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 			else
 			{
 				std::wstring content(parse_inner(mdToHTMLDoc(line), 0u));
-				if (lastToken == MD_TOKEN::NEWLINE && !onlynested)//如果有强制换行
-				{
-					items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::LINE);
-				}
-				else
-				{
-					items.emplace_back(content, MD_TOKEN::DATA, MD_ITEM::NESTED);
-				}
+				MD_ITEM itemtype = MD_ITEM::NESTED;
+				if (lastToken == MD_TOKEN::NEWLINE)
+					itemtype = MD_ITEM::LINE;//强制换行
+				else if (!onlynested)
+					itemtype = MD_ITEM::LINE;//非嵌套指定
+				items.emplace_back(content, MD_TOKEN::DATA, itemtype);
 				lastToken = MD_TOKEN::DATA;
 				break;
 			}

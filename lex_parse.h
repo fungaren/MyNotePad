@@ -23,7 +23,8 @@ enum MD_TOKEN {
 	DATA,//各种数据
 	BEGIN,//Markdown的开头标记
 	HTML,//HTML标记
-	NEWLINE//换行
+	NEWLINE,//换行
+	EMPTY//一开始的循环
 };
 enum MD_ITEM {
 	LINE,
