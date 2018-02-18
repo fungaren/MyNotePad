@@ -156,8 +156,8 @@ std::wostream &parse_fromlex(std::wostream &os,
 			} while (headers_iter != end && headers_iter->getItemType() == MD_ITEM::LINE &&
 				(headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_LEFT ||
 				headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_RIGHT ||
-				headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_CENTER )&&//必须是一个表格的单元项
-				headers_iter->getTag().compare(L"head") != 0);
+				headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_CENTER));
+			os << L"</tr>";//注意要结尾
 			int count = 0;
 			//绘制表格其他的内容
 			for (; headers_iter != end && 

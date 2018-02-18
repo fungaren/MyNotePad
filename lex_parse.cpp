@@ -413,11 +413,12 @@ std::vector<std::wstring> split(const std::wstring &str, const wchar_t delimiter
 	}
 	return result;
 }
+
 std::list<Item> scanner(const std::wstring &str, bool onlynested)
 {
 	std::wregex regex_orderedlist(L"[0-9]+\\.\\s(.*)");
 	std::wregex regex_table_align(L"^(:?-+:?\\|?)+$");
-
+	std::wregex regex_delimiter(L"^[=*-]{1,3}$");
 	std::list<Item> items;
 	std::wistringstream istringStream(str);
 	std::wstring line;
@@ -487,43 +488,6 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				lastToken = tk;
 				break;
 			}
-			else if (!onlynested && 
-				line.find_last_not_of('-') != std::wstring::npos && 
-				std::regex_match(line, regex_table_align))
-			{
-				//判断是否需要分解上一行的内容
-				if (items.size() > 0 && items.back().getItemType() == MD_ITEM::LINE &&
-					items.back().getToken() == MD_TOKEN::DATA)
-				{
-					//必须是一个独立行的数据TOKEN
-					//分解表头
-					auto hitems = split(items.back().getData(), '|');
-					auto delitems = split(line, '|');
-					if (hitems.size() > 0 && hitems.size() == delitems.size())
-					{
-						items.pop_back();
-						for (size_t s = 0u; s < hitems.size(); ++s)
-						{
-							MD_TOKEN htoken = MD_TOKEN::TABLE_COLUMN_LEFT;//默认左对齐
-							size_t sz = delitems[s].length();
-							if (delitems[s][sz - 1] == ':' && delitems[s][0] == ':')
-								htoken = MD_TOKEN::TABLE_COLUMN_CENTER;
-							else if (delitems[s][sz - 1] == ':')
-								htoken = MD_TOKEN::TABLE_COLUMN_RIGHT;
-							if (s == 0u)
-								items.emplace_back(trim(hitems[s], 0u, hitems[s].length()), htoken, MD_ITEM::LINE, L"head");
-							else
-								items.emplace_back(trim(hitems[s], 0u, hitems[s].length()), htoken, MD_ITEM::LINE);
-						}
-						lastToken = MD_TOKEN::TABLE_ITEM;
-						break;
-					}
-					//归为其他情况
-				}
-				items.emplace_back(line, MD_TOKEN::DATA, MD_ITEM::LINE);
-				lastToken = MD_TOKEN::DATA;
-				break;
-			}
 			else if (!onlynested && (ch == '-' || ch=='*' || ch=='+') && (line.size() > 2u && iswspace(line[1])))
 			{
 				//分隔符或者列表的某一项
@@ -570,7 +534,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				lastToken = MD_TOKEN::UNORDERED_LIST;
 				break;
 			}
-			else if (!onlynested && (ch == '-' || ch == '*' || ch == '=') && line.size() == 3 && line.find_first_not_of(L"-*=") == std::wstring::npos)
+			else if (!onlynested && (ch == '-' || ch == '*' || ch == '=') && std::regex_match(line, regex_delimiter))
 			{
 				//一定是一个分隔符
 				if (items.size() > 0u && (ch == '=' || ch == '-'))
@@ -657,7 +621,8 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				}
 				break;
 			}
-			else if (!onlynested && (ch == '|' || (lastToken == MD_TOKEN::TABLE_ITEM && line.find('|') != std::wstring::npos)))
+
+			else if (!onlynested && ((line.find('|') != std::wstring::npos)))
 			{
 
 				bool hasHead = false || lastToken == MD_TOKEN::TABLE_ITEM;
@@ -727,8 +692,25 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				MD_ITEM itemtype = MD_ITEM::NESTED;
 				if (lastToken == MD_TOKEN::NEWLINE)
 					itemtype = MD_ITEM::LINE;//强制换行
-				else if (!onlynested)
-					itemtype = MD_ITEM::LINE;//非嵌套指定
+				else
+				{
+					if (!onlynested) {
+						//非嵌套指定
+						switch (lastToken)
+						{
+						case MD_TOKEN::HEADER1:
+						case MD_TOKEN::HEADER2:
+						case MD_TOKEN::HEADER3:
+						case MD_TOKEN::HEADER4:
+						case MD_TOKEN::HEADER5:
+						case MD_TOKEN::HEADER6:
+						case MD_TOKEN::DATA:
+						case MD_TOKEN::CODE:
+							itemtype = MD_ITEM::LINE;
+							break;
+						}
+					}
+				}
 				items.emplace_back(content, MD_TOKEN::DATA, itemtype);
 				lastToken = MD_TOKEN::DATA;
 				break;

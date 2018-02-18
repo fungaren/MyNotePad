@@ -51,6 +51,7 @@ public:
 };
 std::wstring trim(const std::wstring &str, size_t start, size_t count);
 std::vector<std::wstring> split(const std::wstring &str, const wchar_t delimiter);
+
 std::list<Item> scanner(const std::wstring &str, bool onlynested=false);
 std::wostream &parse_fromlex(std::wostream &os, std::list<Item>::iterator beg, std::list<Item>::iterator end);
 std::wostream &writeInner(std::wostream &os, const std::wstring &data);
