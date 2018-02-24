@@ -417,7 +417,7 @@ std::vector<std::wstring> split(const std::wstring &str, const wchar_t delimiter
 std::list<Item> scanner(const std::wstring &str, bool onlynested)
 {
 	std::wregex regex_orderedlist(L"[0-9]+\\.\\s(.*)");
-	std::wregex regex_table_align(L"^(:?-+:?\\|?)+$");
+	std::wregex regex_table_align(L"^([:\\s]?-+[:\\s]?\\|?)+$");
 	std::wregex regex_delimiter(L"^[=*-]{1,3}$");
 	std::list<Item> items;
 	std::wistringstream istringStream(str);

@@ -6,12 +6,9 @@
 #include <iostream>
 void parse_markdown(std::wstring& str)
 {
-	/*std::wstring d(L" `55`  ");
-	auto i = trim(d, 0, d.size());*/
-	//转义一下字符串
-	//str = std::regex_replace(str, std::wregex(L"<"), L"&lt;");
-	//str = std::regex_replace(str, std::wregex(L">"), L"&gt;");
-	
+	//std::wregex regex_table_align(L"^([:\\s]?-+[:\\s]?\\|?)+$");
+	//bool re = std::regex_match(str, regex_table_align);
+	//int j = 5;
 	//clock_t begin = clock();
 
 	std::wostringstream wos;
