@@ -240,9 +240,9 @@ std::wstring parse_inner(const std::wstring &str, size_t begin)
 				++index;
 				continue;
 			}
-			size_t left_url = right_kuohao + 1;
-			size_t right_url = getClosedRegion(str, '(', ')', left_url);
-			if (right_kuohao == std::wstring::npos)
+			size_t left_url = right_kuohao + 1; // 标记左括号之后
+			size_t right_url = getClosedRegion(str, '(', ')', left_url); // 左括号的内容
+			if (right_url == std::wstring::npos)
 			{
 				result << ch;
 				++index;
@@ -449,8 +449,8 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 			{
 				if (multilines == false)
 				{
-					if(line.length() > 3)
-						html_tag = L"class=" + line.substr(3u);
+					if (line.length() > 3)
+						html_tag = L"class=\"" + line.substr(3u) + L"\"";
 					//代码块
 					multilines = true;
 					break;//不需要将标志写入
