@@ -125,6 +125,7 @@ size_t getClosedRegion(const std::wstring & str, wchar_t start_ch, wchar_t end_c
 	}
 	return std::wstring::npos;
 }
+
 std::wstring mdToHTMLDoc(const std::wstring &str)
 {
 	
@@ -383,7 +384,7 @@ std::wstring trim(const std::wstring &str, size_t start, size_t count)
 	}
 	return temp;
 }
-std::vector<std::wstring> split(const std::wstring &str, const wchar_t delimiter)
+std::vector<std::wstring> split(const std::wstring &str, const wchar_t delimiter, bool allowSpace)
 {
 	std::vector<std::wstring> result;
 	size_t curr = 0u;
@@ -401,10 +402,17 @@ std::vector<std::wstring> split(const std::wstring &str, const wchar_t delimiter
 			else
 			{
 				//是一个空字符串，设置last
+				if(allowSpace)
+					result.emplace_back(L"");
 				last = curr;
 			}
 		}
 		++curr;
+	}
+	if (last == -1 && curr >= str.size())
+	{
+		result.emplace_back(str);
+		return result;
 	}
 	//还有最后一个
 	if (last != -1 && last + 1 != curr)
@@ -417,25 +425,25 @@ std::vector<std::wstring> split(const std::wstring &str, const wchar_t delimiter
 std::list<Item> scanner(const std::wstring &str, bool onlynested)
 {
 	std::wregex regex_orderedlist(L"[0-9]+\\.\\s(.*)");
-	std::wregex regex_table_align(L"^([:\\s]?-+[:\\s]?\\|?)+$");
+	std::wregex regex_table_align(L"^(\\|?\\s*:?-+:?\\s*\\|?)+$");
 	std::wregex regex_delimiter(L"^[=*-]{1,3}$");
 	std::list<Item> items;
-	std::wistringstream istringStream(str);
 	std::wstring line;
-	bool multilines;
 
 	//跨行使用的上下文信息
 	MD_TOKEN lastToken = MD_TOKEN::EMPTY;
-	std::wstring data;
-	std::wstring html_tag;
 
-	multilines = false;
-	istringStream >> std::noskipws;//不要忽略空白
-	while (std::getline(istringStream, line))
+	//分解为每一行
+	auto &&allLines = split(str, '\n', true);
+	// 表示当前文档的指针的范围
+	int currentIndex = 0;
+	while (currentIndex < allLines.size())
 	{
+		line = allLines[currentIndex];
 		if (line.compare(L"") == 0)
 		{
 			lastToken = MD_TOKEN::NEWLINE;//上一个是新的换行
+			++currentIndex;
 			continue;
 		}
 
@@ -447,31 +455,24 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 			wchar_t ch = line[index];
 			if (ch == '`' && line.find(L"```") == 0u && !onlynested)//多行代码
 			{
-				if (multilines == false)
+				//添加所有的原始代码
+				std::wstring tag_html;
+				if(line.size() > 3)
+					tag_html = L"class=\"" + line.substr(3u) + L"\"";
+				std::wostringstream strstream;
+				int j;
+				for(j = currentIndex + 1; j < allLines.size(); ++j)
 				{
-					if (line.length() > 3)
-						html_tag = L"class=\"" + line.substr(3u) + L"\"";
-					//代码块
-					multilines = true;
-					break;//不需要将标志写入
+					if (allLines[j][0] == '`' && line.find(L"```") == 0u)
+					{
+						break;
+					}
+					std::wstring temp_line = std::regex_replace(allLines[j], REGEX_LT, L"&lt;");
+					temp_line = std::regex_replace(temp_line, REGEX_GT, L"&gt;");
+					strstream << temp_line << L"\n";
 				}
-				else
-				{
-					//是终止
-					multilines = false;
-					items.emplace_back(data, MD_TOKEN::CODE, MD_ITEM::LINE, html_tag);
-					data = L"";//清空
-					html_tag = L"";
-					lastToken = MD_TOKEN::CODE;
-					break;
-				}
-			}
-			if (multilines == true)
-			{
-				//需要处理原始数据，使之兼容html
-				line = std::regex_replace(line, REGEX_LT, L"&lt;");
-				line = std::regex_replace(line, REGEX_GT, L"&gt;");
-				data.append(line + L"\n");
+				items.emplace_back(strstream.str(), MD_TOKEN::CODE, MD_ITEM::LINE, tag_html);
+				currentIndex = j + 1;//不需要考虑 大于大小的问题，因为已经大于了
 				break;
 			}
 			if (ch == '#' && !onlynested)
@@ -486,6 +487,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				auto tk = static_cast<MD_TOKEN>(syms - 1);
 				items.emplace_back(line.substr(beg), tk, MD_ITEM::LINE);
 				lastToken = tk;
+				++currentIndex;
 				break;
 			}
 			else if (!onlynested && (ch == '-' || ch=='*' || ch=='+') && (line.size() > 2u && iswspace(line[1])))
@@ -532,6 +534,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				//一定是一个无序列表
 				items.emplace_back(line.substr(2), MD_TOKEN::UNORDERED_LIST, MD_ITEM::LINE);
 				lastToken = MD_TOKEN::UNORDERED_LIST;
+				++currentIndex;
 				break;
 			}
 			else if (!onlynested && (ch == '-' || ch == '*' || ch == '=') && std::regex_match(line, regex_delimiter))
@@ -557,6 +560,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				}
 				items.emplace_back(L"", MD_TOKEN::DELIMITER, MD_ITEM::LINE);
 				lastToken = MD_TOKEN::DELIMITER;
+				++currentIndex;
 				break;
 			}
 			else if (!onlynested && ch >= '0' && ch <= '9' && std::regex_match(line, regex_orderedlist))
@@ -565,6 +569,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				size_t beg = determineData(MD_TOKEN::ORDERED_LIST, line);
 				items.emplace_back(line.substr(beg), MD_TOKEN::ORDERED_LIST, MD_ITEM::LINE);
 				lastToken = MD_TOKEN::ORDERED_LIST;
+				++currentIndex;
 				break;
 			}
 			//else if (ch == '[')
@@ -619,71 +624,108 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 					items.emplace_back(res.str(), MD_TOKEN::QUTOE, MD_ITEM::LINE, quoteends.str());
 					lastToken = MD_TOKEN::QUTOE;
 				}
+				++currentIndex;
 				break;
 			}
 
-			else if (!onlynested && ((line.find('|') != std::wstring::npos)))
+			else if (!onlynested && ((line.find('|') != std::wstring::npos))
+				&& (currentIndex < allLines.size() - 1 && std::regex_match(allLines[currentIndex + 1], regex_table_align))/*检查是否存在下一个是否是表格对齐控制*/)
 			{
 
-				bool hasHead = false || lastToken == MD_TOKEN::TABLE_ITEM;
-				//表格，可能是表头也可能是数据项、对其选项
-				if (hasHead)
+				//表头
+				auto hitems = split(line, '|');
+				size_t headsSize = hitems.size();
+				for (size_t s = 0u; s<headsSize; ++s)
 				{
-					//对齐控制
-					//使用反向迭代器
-					auto checked_header = items.rbegin();
-					/*bool isHead = false;*/
-					for (; checked_header != items.rend() && 
-						checked_header->getTag().compare(L"head") != 0; ++checked_header)//确定表头
+					auto &&item = hitems[s];
+					if (s == 0u)
+						items.emplace_back(trim(item, 0u, item.length()), MD_TOKEN::TABLE_COLUMN_LEFT, MD_ITEM::LINE, L"head");
+					else
+						items.emplace_back(trim(item, 0u, item.length()), MD_TOKEN::TABLE_COLUMN_LEFT, MD_ITEM::LINE);
+				}
+				//对齐控制
+				std::vector<MD_TOKEN> align_tags(hitems.size());//对其控制列表
+				//使用反向迭代器
+				auto checked_header = items.rbegin();
+				/*bool isHead = false;*/
+				for (; checked_header != items.rend() &&
+					checked_header->getTag().compare(L"head") != 0; ++checked_header)//确定表头
+				{
+					MD_TOKEN token = checked_header->getToken();
+					if (token == MD_TOKEN::TABLE_COLUMN_CENTER ||
+						token == MD_TOKEN::TABLE_COLUMN_LEFT ||
+						token == MD_TOKEN::TABLE_COLUMN_RIGHT)
+						continue;
+					break;
+				}
+				std::list<Item>::iterator head_iter = checked_header.base();
+				if (checked_header != items.rend())
+				{
+					//如果不是没有找到
+					--head_iter;//退回其实表头
+				}
+				//确定了第一个表头的位置或者是头前位置
+				// 计算对齐的字符串
+				auto hitems1 = split(allLines[++currentIndex], '|');
+				if (hitems1.size() != headsSize)
+				{
+					//错误
+					currentIndex += 2;//直接跳过
+					break;
+				}
+				for (size_t i = 0; i < hitems1.size() && head_iter != items.end(); ++i)
+				{
+					//每一个单元格的内容
+					auto &&subline = trim(hitems1[i], 0u, hitems1[i].length());
+					size_t sz = subline.length();
+					if (sz > 0 && subline[0] == ':' && subline[sz - 1] == ':')
 					{
-						MD_TOKEN token = checked_header->getToken();
-						if (token == MD_TOKEN::TABLE_COLUMN_CENTER ||
-							token == MD_TOKEN::TABLE_COLUMN_LEFT ||
-							token == MD_TOKEN::TABLE_COLUMN_RIGHT)
-							continue;
+						head_iter->setToken(MD_TOKEN::TABLE_COLUMN_CENTER);
+						align_tags[i] = MD_TOKEN::TABLE_COLUMN_CENTER;
+					}
+					else if (sz > 0 && subline[sz - 1] == ':')
+					{
+						head_iter->setToken(MD_TOKEN::TABLE_COLUMN_RIGHT);
+						align_tags[i] = MD_TOKEN::TABLE_COLUMN_RIGHT;
+					}
+					else if (sz > 0 && (subline[0] == ':' || subline[0] == '-'))//其他的控制格式（左对齐）
+						align_tags[i] = MD_TOKEN::TABLE_COLUMN_LEFT;
+					else
+					{
+						items.emplace_back(subline, head_iter->getToken(), MD_ITEM::NESTED);
+					}
+					++head_iter;
+				}
+				// 检查其他的项目
+				int j;
+				for (j = currentIndex + 1; j < allLines.size(); ++j)
+				{
+					//扫描接下来的行
+					std::wstring &nextLine = allLines[j];
+					if (nextLine.compare(L"") == 0)
+					{
+						items.emplace_back(L"", MD_TOKEN::NEWLINE, MD_ITEM::LINE);
 						break;
 					}
-					std::list<Item>::iterator head_iter = checked_header.base();
-					if (checked_header != items.rend())
+					std::vector<std::wstring> lineItems = split(nextLine, '|');
+					if (lineItems.size() != headsSize)
 					{
-						//如果不是没有找到
-						--head_iter;//退回其实表头
+						--j;//只需要重新解析即可
+						break;
 					}
-					//确定了第一个表头的位置或者是头前位置
-					auto hitems = split(line, '|');
-					for (size_t i =0;i <hitems.size() && head_iter != items.end();++i) 
+					for (auto i = 0; i < lineItems.size(); ++i)
 					{
-						//每一个单元格的内容
-						auto &&subline = trim(hitems[i], 0u, hitems[i].length());
-						size_t sz = subline.length();
-						if (sz > 0 && subline[0] == ':' && subline[sz - 1] == ':')
-							head_iter->setToken(MD_TOKEN::TABLE_COLUMN_CENTER);
-						else if (sz > 0 && subline[sz - 1] == ':')
-							head_iter->setToken(MD_TOKEN::TABLE_COLUMN_RIGHT);
-						else if (sz > 0 && (subline[0] == ':' || subline[0] == '-'))//其他的控制格式（左对齐）
-							;
-						else
+						if (i == 0)
 						{
-							items.emplace_back(subline, head_iter->getToken(), MD_ITEM::NESTED);
+							//标记每一个元组的头
+							items.emplace_back(trim(lineItems[i], 0u, lineItems[i].length()), align_tags[i], MD_ITEM::LINE, L"head");
 						}
-						++head_iter;
-					}
-				}
-				else
-				{
-					//表头
-					auto hitems = split(line, '|');
-					for (size_t s =0u;s<hitems.size();++s)
-					{
-						auto &&item = hitems[s];
-						if(s==0u)
-							items.emplace_back(trim(item, 0u, item.length()), MD_TOKEN::TABLE_COLUMN_LEFT, MD_ITEM::LINE, L"head");
 						else
-							items.emplace_back(trim(item, 0u, item.length()), MD_TOKEN::TABLE_COLUMN_LEFT, MD_ITEM::LINE);
+							items.emplace_back(trim(lineItems[i], 0u, lineItems[i].length()), align_tags[i], MD_ITEM::LINE);
 					}
-					
 				}
-				lastToken = MD_TOKEN::TABLE_ITEM;//添加了列表项
+				currentIndex = j + 1;
+				lastToken = MD_TOKEN::TABLE_ITEM;
 				break;
 			}
 			else
@@ -713,6 +755,7 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				}
 				items.emplace_back(content, MD_TOKEN::DATA, itemtype);
 				lastToken = MD_TOKEN::DATA;
+				++currentIndex;
 				break;
 			}
 			

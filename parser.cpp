@@ -1,6 +1,11 @@
 #include "stdafx.h"
 #include "lex_parse.h"
-
+bool isTableItem(const MD_TOKEN token)
+{
+	return token == MD_TOKEN::TABLE_COLUMN_LEFT ||
+		token == MD_TOKEN::TABLE_COLUMN_RIGHT ||
+		token == MD_TOKEN::TABLE_COLUMN_CENTER;
+}
 std::wostream &writeAlignTableItem(std::wostream &os, MD_TOKEN table_token)
 {
 	switch (table_token)
@@ -144,46 +149,30 @@ std::wostream &parse_fromlex(std::wostream &os,
 			token == MD_TOKEN::TABLE_COLUMN_LEFT ||
 			token == MD_TOKEN::TABLE_COLUMN_RIGHT) && citer->getTag().compare(L"head") == 0)
 		{
-			os << "<table>\n<tr>\n";
+			os << "<table>\n";
 			auto headers_iter = citer;
-			int columns = 0;
+			//是合法的表格就可以
+			//直接绘制表头
+			os << L"<tr>\n";
 			do
 			{
 				os << L"<th "; writeAlignTableItem(os, headers_iter->getToken()) << L">";
 				writeInner(os, headers_iter->getData()) << L"</th>";
-				++columns;
 				++headers_iter;
-			} while (headers_iter != end && headers_iter->getItemType() == MD_ITEM::LINE &&
-				(headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_LEFT ||
-				headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_RIGHT ||
-				headers_iter->getToken() == MD_TOKEN::TABLE_COLUMN_CENTER));
-			os << L"</tr>";//注意要结尾
-			int count = 0;
-			//绘制表格其他的内容
-			for (; headers_iter != end && 
-				headers_iter->getItemType() == MD_ITEM::NESTED; ++headers_iter)
+			} while (headers_iter != end && isTableItem(headers_iter->getToken()) && headers_iter->getTag().compare(L"head") != 0);
+			//接下来的全部是只要是表格
+			while (headers_iter != end && isTableItem(headers_iter->getToken()))
 			{
-				auto td_token = headers_iter->getToken();
-				if (td_token == MD_TOKEN::TABLE_COLUMN_CENTER ||
-					td_token == MD_TOKEN::TABLE_COLUMN_LEFT ||
-					td_token == MD_TOKEN::TABLE_COLUMN_RIGHT)
+				if (headers_iter->getTag().compare(L"head") == 0)
 				{
-					if (count == 0)
-					{
-						os << L"<tr>\n";
-					}
-					os << L"<td "; writeAlignTableItem(os, td_token) << L">";
-					writeInner(os, headers_iter->getData()) << L"</td>\n";
-					count = (count + 1) % columns;
-					if (count == 0)
-						os << L"</tr>\n";
+					os << L"</tr>\n<tr>\n";
+
 				}
-				else
-				{
-					break;
-				}
+				os << L"<td "; writeAlignTableItem(os, headers_iter->getToken()) << L">";
+				writeInner(os, headers_iter->getData()) << L"</td>\n";
+				++headers_iter;
 			}
-			os << L"</table>\n";
+			os << L"</tr></table>\n";
 			citer = headers_iter;
 		}
 		else
