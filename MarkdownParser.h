@@ -2,7 +2,7 @@
 #include "lex_parse.h"
 #include <sstream>
 #include <regex>
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 void parse_markdown(std::wstring& str)
 {

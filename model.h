@@ -3,157 +3,57 @@
 #include <tuple>
 #include <memory>
 
-class GDIUtil
-{
-public:
-	static void fill(HDC hdc, DWORD color, int left, int top, int width, int height) {
-		if (width == 0 || height == 0)
-			return;
-		RECT rc = { left, top, left + width, top + height };
-		SetBkColor(hdc, color);
-		ExtTextOut(hdc, 0, 0, ETO_OPAQUE, &rc, NULL, 0, NULL);
-	}
-
-	static void line(HDC hdc, DWORD color, int x1, int y1, int x2, int y2)
-	{
-		_ASSERT(x1 != x2 || y1 != y2);
-		HPEN hp = CreatePen(BS_SOLID, 1, color);
-		HGDIOBJ ho = SelectObject(hdc, hp);
-		MoveToEx(hdc, x1, y1, NULL);
-		LineTo(hdc, x2, y2);
-		SelectObject(hdc, ho);
-		DeleteObject(hp);
-	}
-};
-
-class MemDC {
-	HDC hdc;
-	HDC compatibleDC;
-	HBITMAP bmp;
-	HBITMAP oldBmp;
-
-public:
-
-	MemDC(HDC hdc, int width, int height) :hdc(hdc) {
-		compatibleDC = CreateCompatibleDC(NULL);
-
-		bmp = CreateCompatibleBitmap(hdc, width, height);
-		oldBmp = (HBITMAP)SelectObject(compatibleDC, bmp);
-	}
-
-	operator HDC() const { return compatibleDC; }
-
-	~MemDC() {
-		SelectObject(compatibleDC, oldBmp);
-		DeleteObject(oldBmp);
-		DeleteObject(bmp);
-		DeleteDC(compatibleDC);
-	}
-};
-
-struct CharStyle
-{
-	uint8_t bold : 1;
-	uint8_t itatic : 1;
-	uint8_t underline : 1;
-	uint8_t reserved : 5;
-};
-
-const CharStyle default_style = { 0 };
-
-class Font {
-	HFONT hf;
-	HGDIOBJ ho;
-	HDC hdc;
-	const unsigned int format = DT_NOPREFIX | DT_WORDBREAK | DT_EDITCONTROL | DT_NOCLIP | DT_HIDEPREFIX;
-
-public:
-	DWORD color;
-	CharStyle style;	// unuse now
-
-	Font(int size, LPCTSTR fontname, int weight = 100, DWORD color = 0x00000000, CharStyle style = default_style)
-		:color(color),
-		style(style)
-	{
-		hf = CreateFont(size, 0, 0, 0, weight, FALSE, FALSE, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
-			CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_SWISS, fontname);
-	}
-
-	Font& bind(HDC hdc) {
-		this->hdc = hdc;
-		ho = SelectObject(hdc, hf);
-		return *this;
-	}
-
-	void unbind() {
-		SelectObject(hdc, ho);
-	}
-	
-	//// calc expected height for specific text width
-	//int calcHeight(const std::wstring& str, int width)
-	//{
-	//	RECT rc = { 0,0,width,0 };
-	//	DrawTextW(hdc, str.c_str(), str.length(), &rc, format | DT_CALCRECT);
-	//	return rc.bottom - rc.top;
-	//}
-
-	//Font& drawText(const std::wstring& str, int left, int top, int width, int height) {
-	//	RECT rc = { left, top, left + width, top + height };
-
-	//	SetBkMode(hdc, TRANSPARENT);
-	//	SetTextColor(hdc, color);
-
-	//	DrawTextW(hdc, str.c_str(), str.length(), &rc, format);
-	//	return *this;
-	//}
-
-	Font& printLine(const std::wstring& str, int left, int top) {
-		SetBkMode(hdc, TRANSPARENT);
-		SetTextColor(hdc, color);
-
-		TextOutW(hdc, left, top, str.c_str(), str.length());
-		return *this;
-	}
-
-	~Font() {
-		DeleteObject(hf);
-	}
-};
-
 struct Character
 {
-	TCHAR c;
+	char32_t c;
 	int width;
-	DWORD color;
+	COLOR color;
 	CharStyle style;
 
-	Character(TCHAR c, DWORD color, CharStyle style)
+	Character(char32_t c, COLOR color, CharStyle style)
 		:c(c),
 		color(color),
 		style(style),
 		width(0)
 	{ }
 
-	Character(TCHAR c)
+	Character(char32_t c)
 		:c(c),
 		color(MNP_FONTCOLOR),
 		style(default_style),
 		width(0)
 	{ }
 
-	operator TCHAR() const { return c; }
+	operator char32_t() const { return c; }
+
+
+	typedef std::list<Character> Sentence;
+
+	static inline std::wstring to_wstring(Sentence::const_iterator from, Sentence::const_iterator to)
+	{
+		std::wstring s;
+		for (Sentence::const_iterator c = from; c != to; ++c)
+			if (c->c > 0xFFFF)
+			{
+				s += (wchar_t)(c->c >> 16);
+				s += (wchar_t)c->c;
+			}
+			else
+				s += (wchar_t)c->c;
+		return s;
+	}
 };
 
 typedef std::list<Character> Sentence;
 
 struct Line
 {
-	mutable size_t text_width;
+	mutable size_t text_width;	// the width of this line, will be recalculated after modified
 	mutable size_t text_height;
 	size_t padding_left;
 	size_t padding_top;
 	mutable std::shared_ptr<MemDC> mdc;
-	DWORD background_color;
+	COLOR background_color;
 	Sentence sentence;
 
 	// A child line represent it's not a real line.
@@ -174,7 +74,7 @@ struct Line
 
 	operator std::wstring() const 
 	{
-		return std::wstring(sentence.begin(), sentence.end());
+		return Character::to_wstring(sentence.begin(),sentence.end());
 	}
 };
 
@@ -419,15 +319,15 @@ public:
 		{
 			int dist_x = distance_x(to);
 			if (dist_x > 0)
-				return std::wstring(to.c, c);
+				return Character::to_wstring(to.c, c);
 			else if (dist_x < 0)
-				return std::wstring(c, to.c);
+				return Character::to_wstring(c, to.c);
 			else
 				return L"";
 		}
 		else if (dist_y < 0)	// forward selection
 		{
-			std::wstring str(c, l->sentence.end());
+			std::wstring str = Character::to_wstring(c, l->sentence.end());
 			Article::iterator i = l;
 			if (!(++i)->child_line)
 				str.push_back(L'\n');
@@ -437,12 +337,12 @@ public:
 				if (!(++i)->child_line)
 					str.push_back(L'\n');
 			}
-			str += std::wstring(to.l->sentence.begin(), to.c);
+			str += Character::to_wstring(to.l->sentence.begin(), to.c);
 			return str;
 		}
 		else	// backward selection
 		{
-			std::wstring str(to.c, to.l->sentence.end());
+			std::wstring str = Character::to_wstring(to.c, to.l->sentence.end());
 			Article::iterator i = to.l;
 			if (!(++i)->child_line)
 				str.push_back(L'\n');
@@ -452,7 +352,7 @@ public:
 				if (!(++i)->child_line)
 					str.push_back(L'\n');
 			}
-			str += std::wstring(l->sentence.begin(), c);
+			str += Character::to_wstring(l->sentence.begin(), c);
 			return str;
 		}
 	}

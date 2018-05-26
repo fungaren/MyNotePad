@@ -12,22 +12,72 @@ unsigned int xoffset = 0;			// offset-x of textView
 unsigned int yoffset = 0;			// offset-y of textView
 size_t ClientWidth, ClientHeight, EditAreaWidth, EditAreaHeight;
 bool word_wrap = false;				// break word
+bool show_line_number = false;		// display line number
 bool resized = false;
+TCHAR two_utf16_encoded_chars = 0;	// if a unicode between U+10000 and U+10FFFF (eg. emoji)
+									// input by user, it will be encoded with UTF-16.
+									// System send WM_CHAR message twice,
+									// the first TCHAR will be in the range 0xD800..0xDBFF,
+									// the second TCHAR will be in the range 0xDC00..0xDFFF.
 //---------------------------------
 
 void insertAtCursor(const TCHAR& c)
 {
-	Character ch(c);
-	if (c != '\n')
+	if (c == L'\n')
 	{
+		caret.insertCharacter(Character(L'\n'));
+	}
+	else if (c == L'\t')
+	{
+		Character tab(L' ');
+
+		// set tab to 4 spaces' width
 		HDC hdc = GetDC(hWnd);
 		Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
 		f.bind(hdc);
-		GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
+		GetCharWidth32W(hdc, tab.c, tab.c, &tab.width);
 		f.unbind();
 		ReleaseDC(hWnd, hdc);
+
+		tab.c = L'\t';
+		tab.width *= 4;
+		caret.insertCharacter(tab);
 	}
-	caret.insertCharacter(ch);
+	else
+	{
+		// emoji
+		if (c > 0xD800 && c < 0xDBFF)
+		{
+			two_utf16_encoded_chars = c;
+			return;
+		}
+		if (two_utf16_encoded_chars != 0)
+		{
+			if (c > 0xDC00 && c < 0xDFFF)
+			{
+				Character ch((two_utf16_encoded_chars << 16) | c);
+				two_utf16_encoded_chars = 0;
+				ch.width = 20;	// emoji char width
+				caret.insertCharacter(ch);
+			}
+			else
+			{
+				two_utf16_encoded_chars = 0;
+				MessageBoxW(hWnd, L"Invalid encoding!", MNP_APPNAME, MB_OK);
+			}
+		}
+		else
+		{
+			Character ch(c);
+			HDC hdc = GetDC(hWnd);
+			Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
+			f.bind(hdc);
+			GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
+			f.unbind();
+			ReleaseDC(hWnd, hdc);
+			caret.insertCharacter(ch);
+		}
+	}
 }
 
 void insertAtCursor(const std::wstring& str)
@@ -44,12 +94,11 @@ void insertAtCursor(const std::wstring& str)
 		}
 		else if (*i == L'\t')
 		{
+			// convert tab to 4 spaces' width
 			Character ch(L' ');
 			GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
-			// convert tab to space
-			caret.insertCharacter(ch);
-			caret.insertCharacter(ch);
-			caret.insertCharacter(ch);
+			ch.c = L'\t';
+			ch.width *= 4;
 			caret.insertCharacter(ch);
 		}
 		else if (*i == L'\n')
@@ -58,9 +107,35 @@ void insertAtCursor(const std::wstring& str)
 		}
 		else
 		{
-			Character ch(*i);
-			GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
-			caret.insertCharacter(ch);
+			TCHAR c = *i;
+
+			// emoji
+			if (c > 0xD800 && c < 0xDBFF)
+			{
+				two_utf16_encoded_chars = c;
+				continue;
+			}
+			if (two_utf16_encoded_chars != 0)
+			{
+				if (c > 0xDC00 && c < 0xDFFF)
+				{
+					Character ch((two_utf16_encoded_chars << 16) | c);
+					two_utf16_encoded_chars = 0;
+					ch.width = 20;	// emoji char width
+					caret.insertCharacter(ch);
+				}
+				else
+				{
+					two_utf16_encoded_chars = 0;
+					MessageBoxW(hWnd, L"Invalid encoding!", MNP_APPNAME, MB_OK);
+				}
+			}
+			else
+			{
+				Character ch(c);
+				GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
+				caret.insertCharacter(ch);
+			}
 		}
 	}
 
@@ -68,8 +143,9 @@ void insertAtCursor(const std::wstring& str)
 	ReleaseDC(hWnd, hdc);
 }
 
-// update MemDC, text_width, text_height for the line and update
-void repaintLine(HDC clientDC, const Line& l)
+// update MemDC, text_width, text_height for the line
+// and increase textView_width (only if text_width is greater)
+void repaintLine(HDC clientDC, const Line& l, bool whole_line_selected = false)
 {
 	// calc width of each line
 	l.text_width = 0;
@@ -84,13 +160,21 @@ void repaintLine(HDC clientDC, const Line& l)
 		l.text_height + l.padding_top);
 
 	// fill background
-	GDIUtil::fill(*l.mdc,
-		l.background_color,
-		0,
-		0,
-		l.text_width + l.padding_left,
-		l.text_height + l.padding_top);
-
+	if (whole_line_selected)
+		GDIUtil::fill(*l.mdc,
+			MNP_BGCOLOR_SEL,
+			0,
+			0,
+			l.text_width + l.padding_left,
+			l.text_height + l.padding_top);
+	else
+		GDIUtil::fill(*l.mdc,
+			l.background_color,
+			0,
+			0,
+			l.text_width + l.padding_left,
+			l.text_height + l.padding_top);
+	
 	// draw text
 	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
 	f.bind(*l.mdc);
@@ -98,10 +182,13 @@ void repaintLine(HDC clientDC, const Line& l)
 	f.unbind();
 }
 
+// update MemDC, text_width, text_height for the line
+// (only if some text selected in this line)
 void repaintLine(HDC clientDC, const Line& l,
 	const Sentence::const_iterator sel_from,
 	const Sentence::const_iterator sel_to)
 {
+	// make sure sel_from and sel_to are in the same line
 	size_t x_sel_from = 0, x_sel_to = 0;
 
 	// calc width of each line
@@ -174,7 +261,7 @@ void repaintSelectedLines()
 			repaintLine(hdc, *l, sel_begin.getCharacter(), l->sentence.end());
 			// repaint each line
 			for (++l; l != caret.getSentence(); ++l)
-				repaintLine(hdc, *l, l->sentence.begin(), l->sentence.end());
+				repaintLine(hdc, *l, true);
 			// repaint last line
 			repaintLine(hdc, *l, l->sentence.begin(), caret.getCharacter());
 		}
@@ -185,7 +272,7 @@ void repaintSelectedLines()
 			repaintLine(hdc, *l, caret.getCharacter(), l->sentence.end());
 			// repaint each line
 			for (++l; l != sel_begin.getSentence(); ++l)
-				repaintLine(hdc, *l, l->sentence.begin(), l->sentence.end());
+				repaintLine(hdc, *l, true);
 			// repaint last line
 			repaintLine(hdc, *l, l->sentence.begin(), sel_begin.getCharacter());
 		}
@@ -634,15 +721,6 @@ void OnChar(WORD nChar)
 	case VK_RETURN:
 		insertAtCursor(L'\n');
 		repaintLine(hdc, *(--caret.getSentence()));
-		break;
-	case VK_TAB:
-	{
-		Character c(L' ');
-		insertAtCursor(c);		// convert tab to space
-		insertAtCursor(c);
-		insertAtCursor(c);
-		insertAtCursor(c);
-	}
 		break;
 	default:
 		insertAtCursor(nChar);
@@ -1149,6 +1227,47 @@ inline void OnMenuWordWrap()
 	CheckMenuItem(hMenu, IDM_WORDWRAP, word_wrap ? MF_CHECKED : MF_UNCHECKED);
 
 	calc_textView_height();
+	OnPaint(hdc);
+	ReleaseDC(hWnd, hdc);
+}
+
+void OnMenuTheme(UINT IDM_THEME)
+{
+	if (IDM_THEME == IDM_THEMEWHITE)
+	{
+		themeWhite();
+		HMENU hMenu = GetMenu(hWnd);
+		CheckMenuItem(hMenu, IDM_THEMEWHITE, MF_CHECKED);
+		CheckMenuItem(hMenu, IDM_THEMEDARK, MF_UNCHECKED);
+	}
+	else if (IDM_THEME == IDM_THEMEDARK)
+	{
+		themeDark();
+		HMENU hMenu = GetMenu(hWnd);
+		CheckMenuItem(hMenu, IDM_THEMEWHITE, MF_UNCHECKED);
+		CheckMenuItem(hMenu, IDM_THEMEDARK, MF_CHECKED);
+	}
+	else return;
+
+	HDC hdc = GetDC(hWnd);
+	for (auto& l : article)
+	{
+		l.background_color = MNP_BGCOLOR_EDIT;
+		repaintLine(hdc, l);
+	}
+
+	OnPaint(hdc);
+	ReleaseDC(hWnd, hdc);
+}
+
+void OnMenuLineNumber()
+{
+	HDC hdc = GetDC(hWnd);
+
+	show_line_number = !show_line_number;
+	HMENU hMenu = GetMenu(hWnd);
+	CheckMenuItem(hMenu, IDM_LINENUMBER, show_line_number ? MF_CHECKED : MF_UNCHECKED);
+
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
 }

@@ -27,9 +27,6 @@
     <ClInclude Include="MarkdownParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="view.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="model.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -37,6 +34,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="lex_parse.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="GDIUtilities.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

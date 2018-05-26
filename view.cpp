@@ -1,10 +1,47 @@
 #include "stdafx.h"
 #include "resource.h"
+#include "GDIUtilities.h"
 
 HWND hWnd;
 HINSTANCE hInst;
 
-#include "view.h"
+const int MNP_PADDING_CLIENT = 20;		// padding 20px
+LPCTSTR   MNP_APPNAME = L"MyNotePad";
+LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI";	// L"Lucida Console";
+const int MNP_FONTSIZE = 28;
+const int MNP_LINEHEIGHT = MNP_FONTSIZE;
+
+COLOR MNP_BGCOLOR_EDIT = 0x00EEEEEE;
+COLOR MNP_BGCOLOR_SEL = 0x00CCCCCC;
+COLOR MNP_FONTCOLOR = 0x00444444;
+
+COLOR MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
+COLOR MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
+COLOR MNP_SCROLLBAR_WIDTH = 14;
+
+inline void themeWhite()
+{
+	MNP_BGCOLOR_EDIT = 0x00EEEEEE;
+	MNP_BGCOLOR_SEL = 0x00CCCCCC;
+	MNP_FONTCOLOR = 0x00444444;
+
+	MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
+	MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
+}
+
+inline void themeDark()
+{
+	MNP_BGCOLOR_EDIT = 0x001E1E1E;
+	MNP_BGCOLOR_SEL = COLOR(44, 92, 139);
+	MNP_FONTCOLOR = 0x00FFFFFF;
+
+	MNP_SCROLLBAR_BGCOLOR = 0x003E3E3E;
+	MNP_SCROLLBAR_COLOR = 0x00686868;
+}
+
+#include "model.h"
+#include "controller.h"
+
 #include "imm.h"
 #pragma comment(lib, "imm32.lib")
 #pragma comment(lib, "version.lib")
@@ -99,6 +136,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			case IDM_WORDWRAP:
 				OnMenuWordWrap();
+				break;
+			case IDM_THEMEWHITE:
+				OnMenuTheme(IDM_THEMEWHITE);
+				break;
+			case IDM_THEMEDARK:
+				OnMenuTheme(IDM_THEMEDARK);
+				break;
+			case IDM_LINENUMBER:
+				OnMenuLineNumber();
 				break;
 			case IDM_NEW:
 				OnMenuNew();
