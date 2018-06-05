@@ -707,11 +707,13 @@ void OnKeyDown(int nChar) {
 
 void OnChar(WORD nChar)
 {
+	if (nChar == VK_ESCAPE)
+		return;
+
 	// replace selected characters
 	bool flag_removed = sel_begin.removeSelectedChars(caret);
 
-	HDC hdc = GetDC(hWnd);
-
+	HDC hdc;
 	switch (nChar)
 	{
 	case VK_BACK:
@@ -720,10 +722,12 @@ void OnChar(WORD nChar)
 		break;
 	case VK_RETURN:
 		insertAtCursor(L'\n');
+		hdc = GetDC(hWnd);
 		repaintLine(hdc, *(--caret.getSentence()));
 		break;
 	default:
 		insertAtCursor(nChar);
+		hdc = GetDC(hWnd);
 	}
 
 	bSaved = false;
@@ -746,6 +750,10 @@ inline void OnKeyUp(int nChar)
 
 Cursor PosToCaret(int cursor_x, int cursor_y)
 {
+	if (cursor_y < 0)
+		cursor_y = 0;
+	if (cursor_x < 0)
+		cursor_x = 0;
 	cursor_y += yoffset;
 	if (cursor_y < 0)
 		cursor_y = 0;
@@ -781,6 +789,7 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 bool mouse_down;
 inline void OnLButtonDown(DWORD wParam, int x, int y) {
 	mouse_down = true;
+	SetCapture(hWnd);
 	repaintSelectionCanceledLines();
 
 	sel_begin = caret = PosToCaret(x, y);
@@ -789,6 +798,7 @@ inline void OnLButtonDown(DWORD wParam, int x, int y) {
 
 inline void OnLButtonUp(DWORD wParam, int x, int y) {
 	mouse_down = false;
+	ReleaseCapture();
 }
 
 inline void OnRButtonDown(DWORD wParam, int x, int y) {

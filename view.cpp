@@ -276,16 +276,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_ERASEBKGND:
 		return TRUE;
 	case WM_LBUTTONDOWN:
-		OnLButtonDown(wParam, LOWORD(lParam), HIWORD(lParam));
+		OnLButtonDown(wParam, (short)LOWORD(lParam), (short)HIWORD(lParam));
 		break;
 	case WM_LBUTTONUP:
-		OnLButtonUp(wParam, LOWORD(lParam), HIWORD(lParam));
+		OnLButtonUp(wParam, (short)LOWORD(lParam), (short)HIWORD(lParam));
 		break;
 	case WM_RBUTTONDOWN:
-		OnRButtonDown(wParam, LOWORD(lParam), HIWORD(lParam));
+		OnRButtonDown(wParam, (short)LOWORD(lParam), (short)HIWORD(lParam));
 		break;
 	case WM_MOUSEMOVE:
-		OnMouseMove(wParam, LOWORD(lParam), HIWORD(lParam));
+		OnMouseMove(wParam, (short)LOWORD(lParam), (short)HIWORD(lParam));
 		break;
 	case WM_MOUSEHWHEEL:
 		{
