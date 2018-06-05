@@ -1183,6 +1183,16 @@ inline void OnMenuAll() {
 	force_OnPaint();
 }
 
+inline void SaveConfig()
+{
+	std::ofstream out(MNP_CONFIG_FILE, std::ios::out);
+	out << "# Edit this file to config MyNotePad\r\n";
+	out << MNP_CONFIG_THEME << '=' << theme << "\r\n";
+	out << MNP_CONFIG_WORDWRAP << '=' << word_wrap << "\r\n";
+	out << MNP_CONFIG_LINENUMBER << '=' << show_line_number;
+	out.close();
+}
+
 inline void OnMenuWordWrap()
 {
 	HDC hdc = GetDC(hWnd);
@@ -1229,24 +1239,16 @@ inline void OnMenuWordWrap()
 	calc_textView_height();
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
+
+	SaveConfig();
 }
 
 void OnMenuTheme(UINT IDM_THEME)
 {
 	if (IDM_THEME == IDM_THEMEWHITE)
-	{
 		themeWhite();
-		HMENU hMenu = GetMenu(hWnd);
-		CheckMenuItem(hMenu, IDM_THEMEWHITE, MF_CHECKED);
-		CheckMenuItem(hMenu, IDM_THEMEDARK, MF_UNCHECKED);
-	}
 	else if (IDM_THEME == IDM_THEMEDARK)
-	{
 		themeDark();
-		HMENU hMenu = GetMenu(hWnd);
-		CheckMenuItem(hMenu, IDM_THEMEWHITE, MF_UNCHECKED);
-		CheckMenuItem(hMenu, IDM_THEMEDARK, MF_CHECKED);
-	}
 	else return;
 
 	HDC hdc = GetDC(hWnd);
@@ -1258,6 +1260,8 @@ void OnMenuTheme(UINT IDM_THEME)
 
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
+
+	SaveConfig();
 }
 
 void OnMenuLineNumber()
@@ -1270,6 +1274,8 @@ void OnMenuLineNumber()
 
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
+
+	SaveConfig();
 }
 
 void OnMenuShowInBrowser()

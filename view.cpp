@@ -6,18 +6,27 @@ HWND hWnd;
 HINSTANCE hInst;
 
 const int MNP_PADDING_CLIENT = 20;		// padding 20px
+LPCSTR	  MNP_CONFIG_FILE = "MyNotePad.conf";
+LPCSTR	  MNP_CONFIG_THEME = "theme";
+LPCSTR	  MNP_CONFIG_WORDWRAP = "wordwrap";
+LPCSTR	  MNP_CONFIG_LINENUMBER = "linenumber";
 LPCTSTR   MNP_APPNAME = L"MyNotePad";
 LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI";	// L"Lucida Console";
 const int MNP_FONTSIZE = 28;
 const int MNP_LINEHEIGHT = MNP_FONTSIZE;
+COLOR	  MNP_SCROLLBAR_WIDTH = 14;
 
+enum THEME {
+	THEME_LIGHT,
+	THEME_DARK
+};
+THEME theme = THEME::THEME_LIGHT;
 COLOR MNP_BGCOLOR_EDIT = 0x00EEEEEE;
 COLOR MNP_BGCOLOR_SEL = 0x00CCCCCC;
 COLOR MNP_FONTCOLOR = 0x00444444;
 
 COLOR MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
 COLOR MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
-COLOR MNP_SCROLLBAR_WIDTH = 14;
 
 inline void themeWhite()
 {
@@ -27,6 +36,10 @@ inline void themeWhite()
 
 	MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
 	MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
+	theme = THEME::THEME_LIGHT;
+	HMENU hMenu = GetMenu(hWnd);
+	CheckMenuItem(hMenu, IDM_THEMEWHITE, MF_CHECKED);
+	CheckMenuItem(hMenu, IDM_THEMEDARK, MF_UNCHECKED);
 }
 
 inline void themeDark()
@@ -37,6 +50,10 @@ inline void themeDark()
 
 	MNP_SCROLLBAR_BGCOLOR = 0x003E3E3E;
 	MNP_SCROLLBAR_COLOR = 0x00686868;
+	theme = THEME::THEME_DARK;
+	HMENU hMenu = GetMenu(hWnd);
+	CheckMenuItem(hMenu, IDM_THEMEWHITE, MF_UNCHECKED);
+	CheckMenuItem(hMenu, IDM_THEMEDARK, MF_CHECKED);
 }
 
 #include "model.h"
@@ -48,21 +65,57 @@ inline void themeDark()
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance;
+	hInst = hInstance;
 
-   hWnd = CreateWindowExW(WS_EX_ACCEPTFILES, MNP_APPNAME, L"Untitled - MyNotePad", WS_OVERLAPPEDWINDOW,
-	   CW_USEDEFAULT, 0, 800, 600, nullptr, nullptr, hInstance, nullptr);
+	hWnd = CreateWindowExW(WS_EX_ACCEPTFILES, MNP_APPNAME, L"Untitled - MyNotePad", WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, 0, 800, 600, nullptr, nullptr, hInstance, nullptr);
 
-   if (!hWnd) return FALSE;
+	if (!hWnd) return FALSE;
 
-   HDC hdc = GetDC(hWnd);
-   for (auto& l : article)
-	   repaintLine(hdc, l);
-   ReleaseDC(hWnd, hdc);
+	// load user data
+	std::ifstream in(MNP_CONFIG_FILE, std::ios::in);
+	char buff[1024];
+	if (in.good())
+	{
+		while (in.getline(buff, 1024))
+		{
+			if (buff[0] == '#')
+				continue;			// # this is comment
+			const char* pos = strchr(buff, '=');	// eg. best = 999
+			if (pos != NULL)
+			{
+				std::string key(buff, pos - buff);	// acquire key
+				std::string val(pos + 1);			// acquire value
+				if (val.back() == '\r') val.pop_back();	// remove '\r' at the end
+				if (key == MNP_CONFIG_THEME && std::atoi(val.c_str()) == THEME::THEME_DARK)
+					themeDark();
+				else if (key == MNP_CONFIG_WORDWRAP && val == "1")
+				{
+					word_wrap = true;
+					HMENU hMenu = GetMenu(hWnd);
+					CheckMenuItem(hMenu, IDM_WORDWRAP, MF_CHECKED);
+				}
+				else if (key == MNP_CONFIG_LINENUMBER && val == "1")
+				{
+					show_line_number = true;
+					HMENU hMenu = GetMenu(hWnd);
+					CheckMenuItem(hMenu, IDM_LINENUMBER, MF_CHECKED);
+				}
+			}
+		}
+	}
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
-   return TRUE;
+	HDC hdc = GetDC(hWnd);
+	for (auto& l : article)
+	{
+		l.background_color = MNP_BGCOLOR_EDIT;
+		repaintLine(hdc, l);
+	}
+	ReleaseDC(hWnd, hdc);
+
+	ShowWindow(hWnd, nCmdShow);
+	UpdateWindow(hWnd);
+	return TRUE;
 }
 
 std::wstring GetFileVersion(HMODULE hModule)
