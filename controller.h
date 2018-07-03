@@ -14,7 +14,7 @@ size_t ClientWidth, ClientHeight, EditAreaWidth, EditAreaHeight;
 bool word_wrap = false;				// break word
 bool show_line_number = false;		// display line number
 bool resized = false;
-TCHAR two_utf16_encoded_chars = 0;	// if a unicode between U+10000 and U+10FFFF (eg. emoji)
+char32_t two_utf16_encoded_chars = 0;	// if a unicode between U+10000 and U+10FFFF (eg. emoji)
 									// input by user, it will be encoded with UTF-16.
 									// System send WM_CHAR message twice,
 									// the first TCHAR will be in the range 0xD800..0xDBFF,
@@ -333,7 +333,6 @@ void OnPaint(HDC hdc) {
 	// background color of edit area
 	GDIUtil::fill(clientDC, MNP_BGCOLOR_EDIT, 0, 0, ClientWidth, ClientHeight);
 
-	// paste lines can be seen to mdc
 	size_t y = 0;
 	Article::const_iterator l = article.begin();
 	// draw first line (probably can't be seen entirely)
@@ -377,7 +376,7 @@ void OnPaint(HDC hdc) {
 		}
 	}
 	y -= yoffset;	// Y-Axis to paint the second line 
-	// draw medium lines
+	// draw middle lines
 	for (; l != article.end(); ++l)
 	{
 		if (y > EditAreaHeight)	// last line (can't be seen entirely) 
@@ -719,6 +718,7 @@ void OnChar(WORD nChar)
 	case VK_BACK:
 		if (!flag_removed && !caret.backspace())
 			return;
+		hdc = GetDC(hWnd);
 		break;
 	case VK_RETURN:
 		insertAtCursor(L'\n');

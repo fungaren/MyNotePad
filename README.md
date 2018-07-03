@@ -8,6 +8,15 @@
 
 [微软的例子](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx)
 
+## 未实现的功能 not implemented
+
+- 即时代码着色
+- 撤销
+- TAB 对齐
+- 行号
+- 彩色 Emoji
+- 搜索、替换
+
 ## 下载
 
 [Release](../../releases)
