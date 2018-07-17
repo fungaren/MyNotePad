@@ -567,7 +567,11 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 			{
 				//以数字开头，有可能是序列表
 				size_t beg = determineData(MD_TOKEN::ORDERED_LIST, line);
-				items.emplace_back(line.substr(beg), MD_TOKEN::ORDERED_LIST, MD_ITEM::LINE);
+				//获取起始的数字
+				std::wstring startIndex;
+				if (beg != std::wstring::npos)
+					startIndex = line.substr(0, beg);
+				items.emplace_back(line.substr(beg), MD_TOKEN::ORDERED_LIST, MD_ITEM::LINE, startIndex);
 				lastToken = MD_TOKEN::ORDERED_LIST;
 				++currentIndex;
 				break;

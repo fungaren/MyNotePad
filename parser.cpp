@@ -86,7 +86,8 @@ std::wostream &parse_fromlex(std::wostream &os,
 		{
 			//有序列表
 			std::list<Item>::iterator nested_iter = citer;
-			os << L"<ol start=\"1\">\n";
+			// 获取起始的编号
+			os << L"<ol start=\"" << citer->getTag() << "\">\n";
 			for (; nested_iter != end && nested_iter->getToken() == MD_TOKEN::ORDERED_LIST;)
 			{
 				os << L"<li>"; writeInner(os, nested_iter->getData());
