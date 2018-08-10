@@ -5,7 +5,9 @@
 #include <cstdlib>
 #include <iostream>
 #include <iomanip>
-//#define SHOW_PARSEING_TIME
+#ifdef _DEBUG
+#define SHOW_PARSEING_TIME
+#endif
 void parse_markdown(std::wstring& str)
 {
 	//std::wregex regex_table_align(L"^([:\\s]?-+[:\\s]?\\|?)+$");

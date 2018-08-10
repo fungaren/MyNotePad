@@ -15,6 +15,7 @@ enum MD_TOKEN {
 	URI_LEFT, URI_RIGHT,//( )
 	QUTOE,//>
 	CODE,// ```
+	LATEX,//Latex 代码
 	ITALIC,//*
 	BOLD,//**
 	ITALIC_BOLD,//***

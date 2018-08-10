@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <iomanip>
 
+
 Item::Item(const std::wstring &data, MD_TOKEN token, MD_ITEM itemtype, const std::wstring &tag)
 	:m_token(token),
 	m_mditemtype(itemtype),
@@ -172,10 +173,11 @@ std::wstring parse_inner(const std::wstring &str, size_t begin)
 {
 	//这个函数解析所有的行内的引用
 	std::wostringstream result;
+	size_t length = str.length();
 	//用于URL连接的行列式的正则表达式
 	std::wregex regex_url(L"(\\!)?\\[(.*)\\]\\(([\\S]*)(\\s[\"']([\\S]*)[\"'])?\\)");
 	std::wregex regex_url_link(L"\\(([\\S]*)(\\s[\"']([\\S]*)[\"'])?\\)");
-	for (size_t index = begin; index < str.length();)
+	for (size_t index = begin; index < length;)
 	{
 		const wchar_t &ch = str[index];
 		//遍历每一个字符
@@ -341,6 +343,22 @@ std::wstring parse_inner(const std::wstring &str, size_t begin)
 				++index;
 			}
 		}
+		else if (ch == '$')
+		{
+			result << '$';
+			int j;
+			//行内 Latext 的开始
+			for (j = index + 1; j < length && str[j] != '$'; ++j)
+			{
+				result << str[j];
+			}
+			if (j < length)
+			{
+				result << '$';
+			}
+			index = j + 1;
+			
+		}
 		else
 		{
 			result << str[index++];//不识别的内容
@@ -429,12 +447,13 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 	std::wregex regex_delimiter(L"^[=*-]{1,3}$");
 	std::list<Item> items;
 	std::wstring line;
-
 	//跨行使用的上下文信息
 	MD_TOKEN lastToken = MD_TOKEN::EMPTY;
 
 	//分解为每一行
 	auto &&allLines = split(str, '\n', true);
+	// 保存大小
+	size_t linesSize = allLines.size();
 	// 表示当前文档的指针的范围
 	int currentIndex = 0;
 	while (currentIndex < allLines.size())
@@ -461,9 +480,9 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 					tag_html = L"class=\"" + line.substr(3u) + L"\"";
 				std::wostringstream strstream;
 				int j;
-				for(j = currentIndex + 1; j < allLines.size(); ++j)
+				for(j = currentIndex + 1; j < linesSize; ++j)
 				{
-					if (allLines[j][0] == '`' && line.find(L"```") == 0u)
+					if (allLines[j][0] == '`' && allLines[j].find(L"```") == 0u)
 					{
 						break;
 					}
@@ -473,6 +492,32 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 				}
 				items.emplace_back(strstream.str(), MD_TOKEN::CODE, MD_ITEM::LINE, tag_html);
 				currentIndex = j + 1;//不需要考虑 大于大小的问题，因为已经大于了
+				break;
+			}
+			// 是否是 Latex 公式，目前支持$$...$$包围的
+			if (ch == '$' && line.find(L"$$") == 0u && !onlynested)
+			{
+				// 找到公式的开头
+				std::wostringstream latex_str;
+				// 检查其他的行是否有其他的公式
+				int j = currentIndex + 1;
+				// 获取当前的结束符的位置
+				size_t double_dollar_end_pos;
+				// 先写入第一行
+				latex_str << allLines[currentIndex] << L"\n";
+				if (allLines[currentIndex].rfind(L"$$") == 0u)
+				{
+					while (j < linesSize)
+					{
+						double_dollar_end_pos = allLines[j].rfind(L"$$");
+						latex_str << allLines[j] << L"\n";
+						if (double_dollar_end_pos != std::wstring::npos)
+							break;// 有结束的符号
+						++j;
+					}
+				}
+				items.emplace_back(latex_str.str(), MD_TOKEN::LATEX, MD_ITEM::LINE);
+				currentIndex = j + 1;
 				break;
 			}
 			if (ch == '#' && !onlynested)

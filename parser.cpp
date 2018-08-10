@@ -64,6 +64,11 @@ std::wostream &parse_fromlex(std::wostream &os,
 			os << citer->getData() << L"</pre>\n";
 			++citer;
 		}
+		else if (token == MD_TOKEN::LATEX)
+		{
+			os <<citer->getData();
+			++citer;
+		}
 		else if (token == MD_TOKEN::DELIMITER)
 		{
 			os << "<hr />";
