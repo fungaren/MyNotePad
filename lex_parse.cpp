@@ -515,9 +515,15 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 							break;// 有结束的符号
 						++j;
 					}
+					currentIndex = j + 1;
+				}
+				else 
+				{
+					// 一行结束
+					++currentIndex;
 				}
 				items.emplace_back(latex_str.str(), MD_TOKEN::LATEX, MD_ITEM::LINE);
-				currentIndex = j + 1;
+				
 				break;
 			}
 			if (ch == '#' && !onlynested)
