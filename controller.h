@@ -1,18 +1,18 @@
 #pragma once
 #include "MarkdownParser.h"
-
 //---------------------------------
 Article article = { Line() };		// article text
 Cursor caret(article);				// current position = end of selection
 Cursor sel_begin(article);			// beginning of selection 
-bool bSaved = true;					// set false when file is modified
+bool bSaved = true;					// set false after file is modified
 unsigned int textView_width = 0, textView_height = 0;
 unsigned int caret_x, caret_y;		// for IME (relative to EditArea)
 unsigned int xoffset = 0;			// offset-x of textView
 unsigned int yoffset = 0;			// offset-y of textView
 size_t ClientWidth, ClientHeight, EditAreaWidth, EditAreaHeight;
-bool word_wrap = false;				// break word
-bool show_line_number = false;		// display line number
+bool word_wrap = false;				// break word (initial false)
+bool show_line_number = true;		// display line number (initial true)
+std::unique_ptr<Font> line_number_font;
 bool resized = false;
 char32_t two_utf16_encoded_chars = 0;	// if a unicode between U+10000 and U+10FFFF (eg. emoji)
 									// input by user, it will be encoded with UTF-16.
@@ -291,6 +291,7 @@ void repaintSelectedLines()
 }
 
 void OnPaint(HDC hdc) {
+	// Window size changed so we should adjust text.
 	if (word_wrap && resized)
 	{
 		// for selection
@@ -335,14 +336,37 @@ void OnPaint(HDC hdc) {
 
 	size_t y = 0;
 	Article::const_iterator l = article.begin();
-	// draw first line (probably can't be seen entirely)
+	size_t n_line = article.size();	// a counter for line number
+	if (show_line_number)
+	{
+		line_number_font->bind(clientDC);
+		if (n_line > 999)
+			MNP_PADDING_LEFT = 64;
+		else if (n_line > 99)
+			MNP_PADDING_LEFT = 50;
+		else if (n_line > 9)
+			MNP_PADDING_LEFT = 38;
+		else
+			MNP_PADDING_LEFT = 26;
+		n_line = 0;
+	}
+	// draw first line (probably can't be fully seen)
 	for (; l != article.end(); ++l)
 	{
 		y += l->text_height + l->padding_top;
-		if (y > yoffset)	// first line in edit area
+		if (show_line_number && !l->child_line)
+			++n_line;
+		// the first line of edit area
+		if (y > yoffset)
 		{
+			if (show_line_number)
+			{
+				std::wstringstream ss; ss << n_line;
+				line_number_font->printLine(ss.str(),
+					4, 6+(y - l->text_height - l->padding_top) - yoffset);
+			}
 			BitBlt(clientDC,
-				MNP_PADDING_CLIENT,	// dest x
+				MNP_PADDING_LEFT,	// dest x
 				0,					// dest y
 				l->text_width + l->padding_left,	// dest width
 				y - yoffset,		// dest height
@@ -367,8 +391,8 @@ void OnPaint(HDC hdc) {
 				{
 					caret_x -= xoffset;
 					caret_y = (y - l->text_height) - yoffset;
-					GDIUtil::line(clientDC, MNP_FONTCOLOR, caret_x + MNP_PADDING_CLIENT, caret_y,
-						caret_x + MNP_PADDING_CLIENT, caret_y + caret.getSentence()->text_height);
+					GDIUtil::line(clientDC, MNP_FONTCOLOR, caret_x + MNP_PADDING_LEFT, caret_y,
+						caret_x + MNP_PADDING_LEFT, caret_y + caret.getSentence()->text_height);
 				}
 			}
 			++l;
@@ -376,13 +400,20 @@ void OnPaint(HDC hdc) {
 		}
 	}
 	y -= yoffset;	// Y-Axis to paint the second line 
-	// draw middle lines
+	// draw subsequent lines
 	for (; l != article.end(); ++l)
 	{
+		if (show_line_number)
+		{
+			if (!l->child_line)
+				++n_line;
+			std::wstringstream ss; ss << n_line;
+			line_number_font->printLine(ss.str(), 4, 6 + y);
+		}
 		if (y > EditAreaHeight)	// last line (can't be seen entirely) 
 		{
 			BitBlt(clientDC,
-				MNP_PADDING_CLIENT,	// dest x
+				MNP_PADDING_LEFT,	// dest x
 				y,					// dest y
 				l->text_width + l->padding_left,	// dest width
 				EditAreaHeight - (y - l->text_height - l->padding_top),	// dest height
@@ -393,7 +424,7 @@ void OnPaint(HDC hdc) {
 			break;
 		}
 		BitBlt(clientDC,
-			MNP_PADDING_CLIENT,		// dest x
+			MNP_PADDING_LEFT,		// dest x
 			y,						// dest y
 			l->text_width + l->padding_left,	// dest width
 			l->text_height + l->padding_top,	// dest height
@@ -418,15 +449,18 @@ void OnPaint(HDC hdc) {
 			{
 				caret_x -= xoffset;
 				caret_y = y + caret.getSentence()->padding_top;
-				GDIUtil::line(clientDC, MNP_FONTCOLOR, caret_x + MNP_PADDING_CLIENT, caret_y,
-					caret_x + MNP_PADDING_CLIENT, caret_y + caret.getSentence()->text_height);
+				GDIUtil::line(clientDC, MNP_FONTCOLOR, caret_x + MNP_PADDING_LEFT, caret_y,
+					caret_x + MNP_PADDING_LEFT, caret_y + caret.getSentence()->text_height);
 			}
 		}
 		y += l->text_height + l->padding_top;
 	}
 
+	if (show_line_number)
+		line_number_font->unbind();
+
 	// draw vertical scrollbar
-	if (textView_height > ClientHeight - MNP_PADDING_CLIENT) {
+	if (textView_height > ClientHeight - MNP_PADDING_LEFT) {
 		GDIUtil::fill(clientDC,
 			MNP_SCROLLBAR_BGCOLOR,
 			ClientWidth - MNP_SCROLLBAR_WIDTH,
@@ -443,7 +477,7 @@ void OnPaint(HDC hdc) {
 		);
 	}
 	// draw horizontal scrollbar
-	if (!word_wrap && textView_width > ClientWidth - MNP_PADDING_CLIENT) {
+	if (!word_wrap && textView_width > ClientWidth - MNP_PADDING_LEFT) {
 		GDIUtil::fill(clientDC,
 			MNP_SCROLLBAR_BGCOLOR,
 			0,
@@ -530,7 +564,7 @@ void repaintSelectionCanceledLines()
 inline void OnSize(unsigned int width, unsigned int height) {
 	ClientWidth = width;
 	ClientHeight = height;
-	EditAreaWidth = ClientWidth - MNP_PADDING_CLIENT - MNP_SCROLLBAR_WIDTH;
+	EditAreaWidth = ClientWidth - MNP_PADDING_LEFT - MNP_SCROLLBAR_WIDTH;
 	EditAreaHeight = ClientHeight - MNP_SCROLLBAR_WIDTH;
 	resized = true;
 	if (word_wrap)
@@ -757,7 +791,7 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 	cursor_y += yoffset;
 	if (cursor_y < 0)
 		cursor_y = 0;
-	cursor_x += xoffset - MNP_PADDING_CLIENT;
+	cursor_x += xoffset - MNP_PADDING_LEFT;
 	if (cursor_x < 0)
 		cursor_x = 0;
 	
@@ -825,9 +859,16 @@ inline void OnMouseMove(DWORD wParam, int x, int y) {
 }
 
 void OnMouseHWheel(short zDeta, int x, int y) {
-
-	if (textView_width < EditAreaWidth)
+	// no scroll bar
+	if (textView_width < EditAreaWidth && xoffset == 0)
+	{
+		if (xoffset != 0)
+		{
+			xoffset = 0;
+			force_OnPaint();
+		}
 		return;
+	}
 	xoffset += zDeta / 2;
 
 	if ((int)xoffset < 0)
@@ -844,8 +885,16 @@ void OnMouseWheel(short zDeta, int x, int y) {
 		return;
 	}
 
+	// no scroll bar
 	if (textView_height < EditAreaHeight)
+	{
+		if (yoffset != 0)
+		{
+			yoffset = 0;
+			force_OnPaint();
+		}
 		return;
+	}
 	yoffset -= zDeta / 2;
 
 	if ((int)yoffset < 0)
@@ -960,7 +1009,13 @@ inline void saveHTML(T pathname)
 	parse_markdown(str);
 	f << cvt.to_bytes(str);
 	f << "</main><center><small>Created by <a href=\"https:/" \
-	"/github.com/mooction/MyNotePad\">MyNotePad</a>.</small></center></body>";
+	"/github.com/mooction/MyNotePad\">MyNotePad</a>.</small></center><script src=\"https:/"\
+	"/cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=default\" type=\""\
+	"text/javascript\"></script><script type=\"text/x-mathjax-config;executed=true\">"\
+	"MathJax.Hub.Config({\n"\
+	"  TeX: {equationNumbers: { autoNumber: \"AMS\" } },\n"\
+	"  tex2jax: {inlineMath: [['$','$'], ['\\\\(','\\\\)']]}\n"\
+	"});</script></body>";
 	f.close();
 }
 
@@ -1261,12 +1316,16 @@ void OnMenuTheme(UINT IDM_THEME)
 		themeDark();
 	else return;
 
+	line_number_font = std::make_unique<Font>(
+		MNP_LINENUM_SIZE, MNP_LINENUM_FONTFACE, MNP_LINENUM_FONTCOLOR);
+
 	HDC hdc = GetDC(hWnd);
 	for (auto& l : article)
 	{
 		l.background_color = MNP_BGCOLOR_EDIT;
 		repaintLine(hdc, l);
 	}
+	repaintSelectedLines();
 
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
@@ -1276,12 +1335,17 @@ void OnMenuTheme(UINT IDM_THEME)
 
 void OnMenuLineNumber()
 {
-	HDC hdc = GetDC(hWnd);
-
 	show_line_number = !show_line_number;
 	HMENU hMenu = GetMenu(hWnd);
 	CheckMenuItem(hMenu, IDM_LINENUMBER, show_line_number ? MF_CHECKED : MF_UNCHECKED);
 
+	if (show_line_number)
+		line_number_font = std::make_unique<Font>(
+			MNP_LINENUM_SIZE, MNP_LINENUM_FONTFACE, MNP_LINENUM_FONTCOLOR);
+	else
+		MNP_PADDING_LEFT = 20;
+
+	HDC hdc = GetDC(hWnd);
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
 

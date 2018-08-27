@@ -72,7 +72,7 @@ struct Line
 		mdc(nullptr)
 	{ }
 
-	operator std::wstring() const 
+	operator std::wstring() const
 	{
 		return Character::to_wstring(sentence.begin(),sentence.end());
 	}

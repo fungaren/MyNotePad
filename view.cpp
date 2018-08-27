@@ -5,14 +5,16 @@
 HWND hWnd;
 HINSTANCE hInst;
 
-const int MNP_PADDING_CLIENT = 20;		// padding 20px
+int		  MNP_PADDING_LEFT = 20;	// space for line number
 LPCSTR	  MNP_CONFIG_FILE = "MyNotePad.conf";
 LPCSTR	  MNP_CONFIG_THEME = "theme";
 LPCSTR	  MNP_CONFIG_WORDWRAP = "wordwrap";
 LPCSTR	  MNP_CONFIG_LINENUMBER = "linenumber";
 LPCTSTR   MNP_APPNAME = L"MyNotePad";
 LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI";	// L"Lucida Console";
+LPCTSTR	  MNP_LINENUM_FONTFACE = L"Lucida Console";
 const int MNP_FONTSIZE = 28;
+const int MNP_LINENUM_SIZE = 20;
 const int MNP_LINEHEIGHT = MNP_FONTSIZE;
 COLOR	  MNP_SCROLLBAR_WIDTH = 14;
 
@@ -24,6 +26,7 @@ THEME theme = THEME::THEME_LIGHT;
 COLOR MNP_BGCOLOR_EDIT = 0x00EEEEEE;
 COLOR MNP_BGCOLOR_SEL = 0x00CCCCCC;
 COLOR MNP_FONTCOLOR = 0x00444444;
+COLOR MNP_LINENUM_FONTCOLOR = MNP_BGCOLOR_SEL;
 
 COLOR MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
 COLOR MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
@@ -33,6 +36,7 @@ inline void themeWhite()
 	MNP_BGCOLOR_EDIT = 0x00EEEEEE;
 	MNP_BGCOLOR_SEL = 0x00CCCCCC;
 	MNP_FONTCOLOR = 0x00444444;
+	MNP_LINENUM_FONTCOLOR = MNP_BGCOLOR_SEL;
 
 	MNP_SCROLLBAR_BGCOLOR = 0x00E5E5E5;
 	MNP_SCROLLBAR_COLOR = 0x00D1D1D1;
@@ -47,6 +51,7 @@ inline void themeDark()
 	MNP_BGCOLOR_EDIT = 0x001E1E1E;
 	MNP_BGCOLOR_SEL = COLOR(44, 92, 139);
 	MNP_FONTCOLOR = 0x00FFFFFF;
+	MNP_LINENUM_FONTCOLOR = MNP_BGCOLOR_SEL;
 
 	MNP_SCROLLBAR_BGCOLOR = 0x003E3E3E;
 	MNP_SCROLLBAR_COLOR = 0x00686868;
@@ -95,16 +100,19 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 					HMENU hMenu = GetMenu(hWnd);
 					CheckMenuItem(hMenu, IDM_WORDWRAP, MF_CHECKED);
 				}
-				else if (key == MNP_CONFIG_LINENUMBER && val == "1")
+				else if (key == MNP_CONFIG_LINENUMBER && val == "0")
 				{
-					show_line_number = true;
+					show_line_number = false;
 					HMENU hMenu = GetMenu(hWnd);
-					CheckMenuItem(hMenu, IDM_LINENUMBER, MF_CHECKED);
+					CheckMenuItem(hMenu, IDM_LINENUMBER, MF_UNCHECKED);
 				}
 			}
 		}
 	}
-
+	// set default line_number_font
+	line_number_font = std::make_unique<Font>(
+		MNP_LINENUM_SIZE, MNP_LINENUM_FONTFACE, MNP_LINENUM_FONTCOLOR);
+	
 	HDC hdc = GetDC(hWnd);
 	for (auto& l : article)
 	{
@@ -255,7 +263,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			HIMC hImc = ImmGetContext(hWnd);
 			COMPOSITIONFORM Composition;
 			Composition.dwStyle = CFS_POINT;
-			Composition.ptCurrentPos.x = caret_x + MNP_PADDING_CLIENT;	// IME follow
+			Composition.ptCurrentPos.x = caret_x + MNP_PADDING_LEFT;	// IME follow
 			Composition.ptCurrentPos.y = caret_y + MNP_FONTSIZE / 4;	// set IME position
 			ImmSetCompositionWindow(hImc, &Composition);
 			ImmReleaseContext(hWnd, hImc);
