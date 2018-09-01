@@ -1,6 +1,6 @@
 body {
 	font-family: Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
-	font-size: 24px;
+	font-size: 22px;
 	color: #444;
 	font-weight: 100;
 	background-color: #fbfbfb;
@@ -33,7 +33,7 @@ p {line-height: 42px;margin:18px 0;}
 a {color: #0099ff;text-decoration: none;outline: none;}
 a:hover {color: #44bbff;}
 pre {
-	font-size: 22px;
+	font-size: 20px;
 	border: 1px dashed #ddd;
 	padding: 7px;
 	line-height: 36px;
@@ -85,4 +85,5 @@ tr:nth-child(even) {background: #F5FAFA;}
 main {
 	margin: 60px auto;
 	width: 61.8%;
+	min-width: 900px;
 }

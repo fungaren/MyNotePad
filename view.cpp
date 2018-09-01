@@ -6,7 +6,8 @@ HWND hWnd;
 HINSTANCE hInst;
 
 int		  MNP_PADDING_LEFT = 20;	// space for line number
-LPCSTR	  MNP_CONFIG_FILE = "MyNotePad.conf";
+LPCTSTR	  MNP_CONFIG_FILE = L"MyNotePad.conf";
+LPCTSTR	  MNP_CSS_STYLE = L"style.css";
 LPCSTR	  MNP_CONFIG_THEME = "theme";
 LPCSTR	  MNP_CONFIG_WORDWRAP = "wordwrap";
 LPCSTR	  MNP_CONFIG_LINENUMBER = "linenumber";
@@ -77,8 +78,15 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 	if (!hWnd) return FALSE;
 
+	TCHAR exeFullPath[MAX_PATH]; // Full path
+	GetModuleFileName(NULL, exeFullPath, MAX_PATH);
+	uint16_t i = lstrlen(exeFullPath);
+	while (exeFullPath[i] != L'\\') --i;
+	exeFullPath[i + 1] = L'\0';
+	exeFilePath = exeFullPath;
+
 	// load user data
-	std::ifstream in(MNP_CONFIG_FILE, std::ios::in);
+	std::ifstream in(exeFilePath + MNP_CONFIG_FILE, std::ios::in);
 	char buff[1024];
 	if (in.good())
 	{

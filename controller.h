@@ -5,6 +5,7 @@ Article article = { Line() };		// article text
 Cursor caret(article);				// current position = end of selection
 Cursor sel_begin(article);			// beginning of selection 
 bool bSaved = true;					// set false after file is modified
+std::wstring exeFilePath;			// EXE File Path, eg. C:\Example\ 
 unsigned int textView_width = 0, textView_height = 0;
 unsigned int caret_x, caret_y;		// for IME (relative to EditArea)
 unsigned int xoffset = 0;			// offset-x of textView
@@ -987,7 +988,7 @@ inline std::wstring all_to_string()
 
 inline std::string loadStyle()
 {
-	std::ifstream style("style.css");
+	std::ifstream style(exeFilePath + MNP_CSS_STYLE, std::ios::in);
 	if (!style) return "";
 
 	std::istreambuf_iterator<char> begin(style), end;
@@ -1250,7 +1251,7 @@ inline void OnMenuAll() {
 
 inline void SaveConfig()
 {
-	std::ofstream out(MNP_CONFIG_FILE, std::ios::out);
+	std::ofstream out(exeFilePath + MNP_CONFIG_FILE, std::ios::in);
 	out << "# Edit this file to config MyNotePad\r\n";
 	out << MNP_CONFIG_THEME << '=' << theme << "\r\n";
 	out << MNP_CONFIG_WORDWRAP << '=' << word_wrap << "\r\n";
