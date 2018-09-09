@@ -14,7 +14,7 @@ fieldset, legend, input, textarea, th, td {margin: 0;padding: 0;}
 h1, h2, h3, h4, h5, h6 {
 	font-family: Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
 	font-weight: 400;
-	margin-bottom: 6px;
+	margin: 14px 0 20px 0;
 }
 h1 {font-size: 36px;}
 h2 {font-size: 32px;}
@@ -29,9 +29,10 @@ input, textarea, select, button {
 	padding: 5px;
 	outline-color: #ddd;
 }
-p {line-height: 42px;margin:18px 0;}
+p {line-height: 28px;margin:18px 0;}
 a {color: #0099ff;text-decoration: none;outline: none;}
 a:hover {color: #44bbff;}
+img {max-width: 100%}
 pre {
 	font-size: 20px;
 	border: 1px dashed #ddd;
