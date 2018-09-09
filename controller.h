@@ -911,6 +911,24 @@ inline void OnMenuNew() {
 	ShellExecuteW(hWnd, L"Open", L"MyNotePad.exe", NULL, NULL, SW_SHOWNORMAL);
 }
 
+template<typename T>
+inline T all_to_string()
+{
+	T str;
+	for (Article::const_iterator l = article.begin(); ;)
+	{
+		str += *l;
+		if (++l != article.end())
+		{
+			if (!l->child_line)
+				str.push_back(L'\n');
+		}
+		else
+			break;
+	}
+	return str;
+}
+
 #include <commdlg.h>
 #include <fstream>
 #include <sstream>
@@ -926,13 +944,7 @@ inline void OnMenuCopyHtml() {
 		return;
 	}
 
-	// !important
-
-	// to HTML
-	std::wstring str = L"\n";
-	for (const Line& l : article)
-		str += static_cast<std::wstring>(l) + L"\n";
-
+	std::wstring str = all_to_string<std::wstring>();
 	parse_markdown(str);
 
 	HGLOBAL h = GlobalAlloc(GMEM_MOVEABLE, str.size() * 2 + 2);
@@ -941,7 +953,7 @@ inline void OnMenuCopyHtml() {
 		*p = c;
 		++p;
 	}
-	*p = '\0';
+	*p = L'\0';
 	
 	GlobalUnlock(h);
 	SetClipboardData(CF_UNICODETEXT, h);
@@ -969,23 +981,6 @@ inline void setOFN(OPENFILENAME& ofn, LPCTSTR lpstrFilter, LPCTSTR lpstrDefExt) 
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_EXPLORER;
 }
 
-inline std::wstring all_to_string()
-{
-	std::wstring str;
-	for (Article::const_iterator l = article.begin(); ;)
-	{
-		str += *l;
-		if (++l != article.end())
-		{
-			if (!l->child_line)
-				str.push_back(L'\n');
-		}
-		else
-			break;
-	}
-	return str;
-}
-
 inline std::string loadStyle()
 {
 	std::ifstream style(exeFilePath + MNP_CSS_STYLE, std::ios::in);
@@ -1006,23 +1001,26 @@ inline void saveHTML(T pathname)
 	
 	f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><style>";
 	f << loadStyle() << "</style><head><body><main>";
-	std::wstring str = all_to_string();
+	std::wstring str = all_to_string<std::wstring>();
 	parse_markdown(str);
 	f << cvt.to_bytes(str);
-	f << "</main><center><small>Created by <a href=\"https:/" \
-	"/github.com/mooction/MyNotePad\">MyNotePad</a>.</small></center><script src=\"https:/"\
-	"/cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=default\" type=\""\
-	"text/javascript\"></script><script type=\"text/x-mathjax-config;executed=true\">"\
-	"MathJax.Hub.Config({\n"\
-	"  TeX: {equationNumbers: { autoNumber: \"AMS\" } },\n"\
-	"  tex2jax: {inlineMath: [['$','$'], ['\\\\(','\\\\)']]}\n"\
-	"});</script></body>";
+	f << "</main><center><small>Created by <a href=\"https:/"\
+			"/github.com/mooction/MyNotePad\">MyNotePad</a>.</small></center>";
+	if (str.find(L'$') != std::string::npos)
+	{
+		f << "<script src=\"https:/"\
+				"/cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=default\" type=\""\
+				"text/javascript\"></script><script type=\"text/x-mathjax-config;executed=true\">"\
+				"MathJax.Hub.Config({\n  TeX: {equationNumbers: { autoNumber: \"AMS\" } },\n"\
+				"  tex2jax: {inlineMath: [['$','$'], ['\\\\(','\\\\)']]}\n});</script>";
+	}
+	f << "</body>";
 	f.close();
 }
 
 inline void OnMenuExport() {
 	TCHAR pathname[MAX_PATH];
-	*pathname = '\0';
+	*pathname = L'\0';
 
 	OPENFILENAME ofn;
 	ofn.lpstrFile = pathname;
@@ -1035,14 +1033,14 @@ inline void OnMenuExport() {
 }
 
 void OnMenuSaveAs() {
-	TCHAR file[MAX_PATH];	*file = '\0';
+	TCHAR file[MAX_PATH];	*file = L'\0';
 
 	OPENFILENAME ofn;
 	ofn.lpstrFile = file;
 	setOFN(ofn, L"MarkDown (*.md)\0*.md\0All Files (*.*)\0*.*\0\0", L"md");
 
 	if (GetSaveFileNameW(&ofn) > 0) {
-		std::wstring str = all_to_string();
+		std::wstring str = all_to_string<std::wstring>();
 		
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
@@ -1060,7 +1058,7 @@ inline void OnMenuSave() {
 		OnMenuSaveAs();
 	else
 	{
-		std::wstring str = all_to_string();
+		std::wstring str = all_to_string<std::wstring>();
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(opened_file);
 		f << cvt.to_bytes(str);
@@ -1088,7 +1086,7 @@ bool sureToQuit() {
 void loadFile(LPTSTR path) {
 	// remove quote
 	if (*path == '\"') {
-		path[lstrlenW(path) - 1] = '\0';
+		path[lstrlenW(path) - 1] = L'\0';
 		++path;
 	}
 	// load file

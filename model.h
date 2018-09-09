@@ -42,6 +42,11 @@ struct Character
 				s += (wchar_t)c->c;
 		return s;
 	}
+
+	static inline std::u32string to_u32string(Sentence::const_iterator from, Sentence::const_iterator to)
+	{
+		return std::u32string(from, to);
+	}
 };
 
 typedef std::list<Character> Sentence;
@@ -75,6 +80,11 @@ struct Line
 	operator std::wstring() const
 	{
 		return Character::to_wstring(sentence.begin(),sentence.end());
+	}
+
+	operator std::u32string() const
+	{
+		return Character::to_u32string(sentence.begin(), sentence.end());
 	}
 };
 
