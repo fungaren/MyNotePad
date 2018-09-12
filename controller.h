@@ -364,7 +364,8 @@ void OnPaint(HDC hdc) {
 			{
 				std::wstringstream ss; ss << n_line;
 				line_number_font->printLine(ss.str(),
-					4, 6+(y - l->text_height - l->padding_top) - yoffset);
+					MNP_LINENUM_MARGIN_LEFT,
+					MNP_LINENUM_MARGIN_TOP + (y - l->text_height - l->padding_top) - yoffset);
 			}
 			BitBlt(clientDC,
 				MNP_PADDING_LEFT,	// dest x
@@ -409,7 +410,9 @@ void OnPaint(HDC hdc) {
 			if (!l->child_line)
 				++n_line;
 			std::wstringstream ss; ss << n_line;
-			line_number_font->printLine(ss.str(), 4, 6 + y);
+			line_number_font->printLine(ss.str(),
+				MNP_LINENUM_MARGIN_LEFT,
+				MNP_LINENUM_MARGIN_TOP + y);
 		}
 		if (y > EditAreaHeight)	// last line (can't be seen entirely) 
 		{
@@ -983,7 +986,7 @@ inline void setOFN(OPENFILENAME& ofn, LPCTSTR lpstrFilter, LPCTSTR lpstrDefExt) 
 
 inline std::string loadStyle()
 {
-	std::ifstream style(exeFilePath + MNP_CSS_STYLE, std::ios::in);
+	std::ifstream style(exeFilePath + MNP_CSS_STYLE);
 	if (!style) return "";
 
 	std::istreambuf_iterator<char> begin(style), end;
@@ -1041,7 +1044,6 @@ void OnMenuSaveAs() {
 
 	if (GetSaveFileNameW(&ofn) > 0) {
 		std::wstring str = all_to_string<std::wstring>();
-		
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::ofstream f(file);
 		f << cvt.to_bytes(str);
@@ -1093,7 +1095,7 @@ void loadFile(LPTSTR path) {
 	std::ifstream f(path);
 	if (f.fail()) {
 		std::wstringstream ss;
-		ss << L"Fail to load \"" << path << L"\".";
+		ss << L"Failed to load \"" << path << L"\".";
 		MessageBoxW(hWnd, ss.str().c_str(), MNP_APPNAME, MB_OK | MB_ICONWARNING);
 		return;
 	}
@@ -1106,7 +1108,7 @@ void loadFile(LPTSTR path) {
 		str = cvt.from_bytes(bytes);
 	}
 	catch (std::range_error re) {
-		MessageBoxW(hWnd, L"Can only open UTF-8 file!", MNP_APPNAME, MB_OK | MB_ICONWARNING);
+		MessageBoxW(hWnd, L"Can only open UTF-8 files!", MNP_APPNAME, MB_OK | MB_ICONWARNING);
 		return;
 	}
 	
@@ -1127,7 +1129,6 @@ void loadFile(LPTSTR path) {
 
 	if (word_wrap)
 	{
-		caret.rebond_all();
 		caret.split_all_long_text(EditAreaWidth);
 		sel_begin = caret;
 	}
@@ -1249,11 +1250,13 @@ inline void OnMenuAll() {
 
 inline void SaveConfig()
 {
-	std::ofstream out(exeFilePath + MNP_CONFIG_FILE, std::ios::in);
+	std::ofstream out(exeFilePath + MNP_CONFIG_FILE);
 	out << "# Edit this file to config MyNotePad\r\n";
 	out << MNP_CONFIG_THEME << '=' << theme << "\r\n";
 	out << MNP_CONFIG_WORDWRAP << '=' << word_wrap << "\r\n";
-	out << MNP_CONFIG_LINENUMBER << '=' << show_line_number;
+	out << MNP_CONFIG_LINENUMBER << '=' << show_line_number << "\r\n";
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
+	out << MNP_CONFIG_FONTNAME << '=' << cvt.to_bytes(MNP_FONTFACE);
 	out.close();
 }
 
@@ -1315,8 +1318,9 @@ void OnMenuTheme(UINT IDM_THEME)
 		themeDark();
 	else return;
 
-	line_number_font = std::make_unique<Font>(
-		MNP_LINENUM_SIZE, MNP_LINENUM_FONTFACE, MNP_LINENUM_FONTCOLOR);
+	if (show_line_number)
+		line_number_font = std::make_unique<Font>(
+			MNP_LINENUM_SIZE, MNP_LINENUM_FONTFACE, MNP_LINENUM_FONTCOLOR);
 
 	HDC hdc = GetDC(hWnd);
 	for (auto& l : article)
@@ -1348,6 +1352,59 @@ void OnMenuLineNumber()
 	OnPaint(hdc);
 	ReleaseDC(hWnd, hdc);
 
+	SaveConfig();
+}
+
+void OnMenuFont(uint8_t font_id)
+{
+	HMENU hMenu = GetMenu(hWnd);
+	CheckMenuItem(hMenu, IDM_FONTNAME_0, MF_UNCHECKED);
+	CheckMenuItem(hMenu, IDM_FONTNAME_1, MF_UNCHECKED);
+	CheckMenuItem(hMenu, IDM_FONTNAME_2, MF_UNCHECKED);
+	CheckMenuItem(hMenu, IDM_FONTNAME_3, MF_UNCHECKED);
+	CheckMenuItem(hMenu, IDM_FONTNAME_4, MF_UNCHECKED);
+	//CheckMenuItem(hMenu, IDM_FONTNAME_5, MF_UNCHECKED);
+	switch (font_id)
+	{
+	case 0:
+		MNP_FONTFACE = L"Microsoft Yahei UI";
+		CheckMenuItem(hMenu, IDM_FONTNAME_0, MF_CHECKED);
+		break;
+	case 1:
+		MNP_FONTFACE = L"Lucida Console";
+		CheckMenuItem(hMenu, IDM_FONTNAME_1, MF_CHECKED);
+		break;
+	case 2:
+		MNP_FONTFACE = L"Courier New";
+		CheckMenuItem(hMenu, IDM_FONTNAME_2, MF_CHECKED);
+		break;
+	case 3:
+		MNP_FONTFACE = L"Consolas";
+		CheckMenuItem(hMenu, IDM_FONTNAME_3, MF_CHECKED);
+		break;
+	/*case 4:
+		MNP_FONTFACE = L"Fira Code";
+		CheckMenuItem(hMenu, IDM_FONTNAME_4, MF_CHECKED);
+		break;*/
+	default:
+		break;
+	}
+
+	HDC hdc = GetDC(hWnd);
+	Font f(MNP_FONTSIZE, MNP_FONTFACE, MNP_FONTCOLOR);
+	f.bind(hdc);
+	// since font face has been changed, we have to update character width
+	for (auto& l : article)
+	{
+		for (Character& c : l.sentence) 
+			GetCharWidth32W(hdc, c.c, c.c, &c.width);
+	}
+	f.unbind();
+	// force to adjust line-width
+	resized = true;
+
+	OnPaint(hdc);
+	ReleaseDC(hWnd, hdc);
 	SaveConfig();
 }
 

@@ -11,13 +11,16 @@ LPCTSTR	  MNP_CSS_STYLE = L"style.css";
 LPCSTR	  MNP_CONFIG_THEME = "theme";
 LPCSTR	  MNP_CONFIG_WORDWRAP = "wordwrap";
 LPCSTR	  MNP_CONFIG_LINENUMBER = "linenumber";
+LPCSTR	  MNP_CONFIG_FONTNAME = "font-name";
 LPCTSTR   MNP_APPNAME = L"MyNotePad";
-LPCTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI";	// L"Lucida Console";
-LPCTSTR	  MNP_LINENUM_FONTFACE = L"Lucida Console";
+LPTSTR	  MNP_FONTFACE = L"Microsoft Yahei UI";
+LPCTSTR	  MNP_LINENUM_FONTFACE = L"Arial";
 const int MNP_FONTSIZE = 28;
-const int MNP_LINENUM_SIZE = 20;
+const int MNP_LINENUM_SIZE = 23;
+const int MNP_LINENUM_MARGIN_LEFT = 4;
+const int MNP_LINENUM_MARGIN_TOP = 4;
 const int MNP_LINEHEIGHT = MNP_FONTSIZE;
-COLOR	  MNP_SCROLLBAR_WIDTH = 14;
+const int MNP_SCROLLBAR_WIDTH = 14;
 
 enum THEME {
 	THEME_LIGHT,
@@ -86,7 +89,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	exeFilePath = exeFullPath;
 
 	// load user data
-	std::ifstream in(exeFilePath + MNP_CONFIG_FILE, std::ios::in);
+	std::ifstream in(exeFilePath + MNP_CONFIG_FILE);
 	char buff[1024];
 	if (in.good())
 	{
@@ -113,6 +116,33 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 					show_line_number = false;
 					HMENU hMenu = GetMenu(hWnd);
 					CheckMenuItem(hMenu, IDM_LINENUMBER, MF_UNCHECKED);
+				}
+				else if (key == MNP_CONFIG_FONTNAME)
+				{
+					HMENU hMenu = GetMenu(hWnd);
+					if (val == "Microsoft Yahei UI") {
+						MNP_FONTFACE = L"Microsoft Yahei UI";
+					}
+					else if (val == "Lucida Console") {
+						MNP_FONTFACE = L"Lucida Console";
+						CheckMenuItem(hMenu, IDM_FONTNAME_0, MF_UNCHECKED);
+						CheckMenuItem(hMenu, IDM_FONTNAME_1, MF_CHECKED);
+					}
+					else if (val == "Courier New") {
+						MNP_FONTFACE = L"Courier New";
+						CheckMenuItem(hMenu, IDM_FONTNAME_0, MF_UNCHECKED);
+						CheckMenuItem(hMenu, IDM_FONTNAME_2, MF_CHECKED);
+					}
+					else if (val == "Consolas") {
+						MNP_FONTFACE = L"Consolas";
+						CheckMenuItem(hMenu, IDM_FONTNAME_0, MF_UNCHECKED);
+						CheckMenuItem(hMenu, IDM_FONTNAME_3, MF_CHECKED);
+					}
+					//else if (val == "Fira Code") {
+					//	MNP_FONTFACE = L"Fira Code";
+					//	CheckMenuItem(hMenu, ID_FONTNAME_0, MF_UNCHECKED);
+					//	CheckMenuItem(hMenu, ID_FONTNAME_4, MF_CHECKED);
+					//}
 				}
 			}
 		}
@@ -257,6 +287,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			case IDM_SHOWINBROWSER:
 				OnMenuShowInBrowser();
 				break;
+			case IDM_FONTNAME_0:
+				OnMenuFont(0);
+				break;
+			case IDM_FONTNAME_1:
+				OnMenuFont(1);
+				break;
+			case IDM_FONTNAME_2:
+				OnMenuFont(2);
+				break;
+			case IDM_FONTNAME_3:
+				OnMenuFont(3);
+				break;
+			/*case IDM_FONTNAME_4:
+				OnMenuFont(4);
+				break;*/
 			case IDM_EXIT:
 				if (sureToQuit())
 					DestroyWindow(hWnd);
