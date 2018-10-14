@@ -557,7 +557,7 @@ void repaintSelectionCanceledLines()
 		}
 		ReleaseDC(hWnd, hdc);
 	}
-	else if (sel_begin.getCharacter() != caret.getCharacter())
+	else
 	{
 		HDC hdc = GetDC(hWnd);
 		repaintLine(hdc, *caret.getSentence());
@@ -733,7 +733,12 @@ void OnKeyDown(int nChar) {
 	};
 
 	if (flag_ShiftPressed)
-		repaintSelectedLines();	// paint selection background
+	{
+		if (caret == sel_begin)
+			repaintSelectionCanceledLines();
+		else
+			repaintSelectedLines();	// paint selection background
+	}
 	else
 		sel_begin = caret;
 
