@@ -97,8 +97,7 @@ class Cursor
 	Sentence::iterator c;		// index of the first char is 0.
 
 public:
-	Cursor(Article& a) : a(a)
-	{
+	Cursor(Article& a) : a(a) {
 		reset();
 	}
 
@@ -110,38 +109,48 @@ public:
 		;
 	}
 
-	void reset()
-	{
+	void reset() {
 		toFirstLine();
 		toFirstChar();
 	}
 
-	void end()
-	{
+	void end() {
 		toLastLine();
 		toLastChar();
 	}
 
-	void toFirstLine()
-	{
+	void toFirstLine() {
 		l = a.begin();
 	}
 
-	void toLastLine()
-	{
+	bool isFirstLine() const {
+		return l == a.begin();
+	}
+
+	void toLastLine(){
 		l = --a.end();
 	}
 
-	void toFirstChar()
-	{
+	bool isLastLine() const {
+		return l == --a.end();
+	}
+
+	void toFirstChar() {
 		c = l->sentence.begin();
 	}
 
-	void toLastChar()
-	{
+	bool isFirstChar() const {
+		return c == l->sentence.begin();
+	}
+
+	void toLastChar() {
 		c = l->sentence.end();
 	}
 	
+	bool isLastChar() const {
+		return c == l->sentence.end();
+	}
+
 	void move_left()
 	{
 		if (c == l->sentence.begin())
@@ -179,13 +188,11 @@ public:
 			++c;
 	}
 
-	Article::const_iterator getSentence() const
-	{
+	Article::const_iterator getSentence() const {
 		return l;
 	}
 	
-	Sentence::const_iterator getCharacter() const
-	{
+	Sentence::const_iterator getCharacter() const {
 		return c;
 	}
 

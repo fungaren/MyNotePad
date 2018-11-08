@@ -653,7 +653,7 @@ void OnKeyDown(int nChar) {
 		if (!flag_ShiftPressed)
 			repaintSelectionCanceledLines();
 		// the first line
-		if (caret.getSentence() == article.begin())
+		if (caret.isFirstLine())
 		{
 			force_OnPaint();
 			return;	// nothing to do
@@ -669,7 +669,7 @@ void OnKeyDown(int nChar) {
 		if (!flag_ShiftPressed)
 			repaintSelectionCanceledLines();
 		// the last char in this line, go to the front of next line
-		if (caret.getSentence() == --article.end())
+		if (caret.isLastLine())
 		{
 			force_OnPaint();
 			return;	// nothing to do
@@ -686,8 +686,7 @@ void OnKeyDown(int nChar) {
 			repaintSelectionCanceledLines();
 		if (GetKeyState(VK_CONTROL) < 0)	// Ctrl was pressed
 		{
-			if (caret.getSentence() == article.begin() 
-				&& caret.getCharacter() == caret.getSentence()->sentence.begin())
+			if (caret.isFirstLine() && caret.isFirstChar())
 			{
 				force_OnPaint();
 				return;
@@ -697,7 +696,7 @@ void OnKeyDown(int nChar) {
 		}
 		else
 		{
-			if (caret.getCharacter() != caret.getSentence()->sentence.begin())
+			if (!caret.isFirstChar())
 				caret.toFirstChar();
 			else
 				return;
@@ -708,8 +707,7 @@ void OnKeyDown(int nChar) {
 			repaintSelectionCanceledLines();
 		if (GetKeyState(VK_CONTROL) < 0)	// Ctrl was pressed
 		{
-			if (caret.getSentence() == --article.end()
-				&& caret.getCharacter() == caret.getSentence()->sentence.end())
+			if (caret.isLastLine() && caret.isLastChar())
 			{
 				force_OnPaint();
 				return;
@@ -719,7 +717,7 @@ void OnKeyDown(int nChar) {
 		}
 		else
 		{
-			if (caret.getCharacter() != caret.getSentence()->sentence.end())
+			if (!caret.isLastChar())
 				caret.toLastChar();
 			else
 			{
@@ -831,17 +829,55 @@ Cursor PosToCaret(int cursor_x, int cursor_y)
 
 bool mouse_down;
 inline void OnLButtonDown(DWORD wParam, int x, int y) {
+	bool flag_ShiftPressed = (GetKeyState(VK_SHIFT) < 0);
 	mouse_down = true;
 	SetCapture(hWnd);
 	repaintSelectionCanceledLines();
 
-	sel_begin = caret = PosToCaret(x, y);
+	if (flag_ShiftPressed)
+	{
+		caret = PosToCaret(x, y);
+		if (caret != sel_begin)
+			repaintSelectedLines();
+	}
+	else
+		sel_begin = caret = PosToCaret(x, y);
+
 	force_OnPaint();
 }
 
 inline void OnLButtonUp(DWORD wParam, int x, int y) {
+	if (mouse_down)
+		ReleaseCapture();
 	mouse_down = false;
-	ReleaseCapture();
+}
+
+/*
+ * Double-clicking the left mouse button
+ * actually generates a sequence of four messages:
+ * WM_LBUTTONDOWN, WM_LBUTTONUP, WM_LBUTTONDBLCLK, and WM_LBUTTONUP.
+ * Only windows that have the CS_DBLCLKS style
+ * can receive WM_LBUTTONDBLCLK messages.
+ */
+inline void OnLButtonDBClick(DWORD wParam, int x, int y) {
+	bool flag_ShiftPressed = (GetKeyState(VK_SHIFT) < 0);
+	if (flag_ShiftPressed) {
+		OnLButtonDown(wParam, x, y);
+		return;
+	}
+	repaintSelectionCanceledLines();
+	sel_begin = caret = PosToCaret(x, y);
+
+	if (!caret.getSentence()->sentence.empty())
+	{
+		if (caret.isLastChar())
+			sel_begin.move_left();
+		else
+			sel_begin.move_right();
+		repaintSelectedLines();
+	}
+
+	force_OnPaint();
 }
 
 inline void OnRButtonDown(DWORD wParam, int x, int y) {
@@ -989,40 +1025,35 @@ inline void setOFN(OPENFILENAME& ofn, LPCTSTR lpstrFilter, LPCTSTR lpstrDefExt) 
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_EXPLORER;
 }
 
-inline std::string loadStyle()
-{
-	std::ifstream style(exeFilePath + MNP_CSS_STYLE);
-	if (!style) return "";
-
-	std::istreambuf_iterator<char> begin(style), end;
-	std::string result(begin, end);
-	style.close();
-
-	return result;
-}
-
 template <typename T>
 inline void saveHTML(T pathname)
 {
 	std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 	std::ofstream f(pathname);
 	
-	f << "<!DOCTYPE><head><meta charset=\"utf-8\"/><style>";
-	f << loadStyle() << "</style><head><body><main>";
+	f << "<!DOCTYPE><html><head>"\
+		"<meta charset=\"utf-8\"/>"\
+		"<link href=\"style.css\" rel=\"stylesheet\">"\
+		"<link href=\"github.css\" rel=\"stylesheet\">"\
+		"<script type=\"text/javascript\" src=\"highlight.pack.js\"></script>"\
+		"<script type=\"text/javascript\">hljs.initHighlightingOnLoad();</script>"\
+		"</head><body><main>";
 	std::wstring str = all_to_string<std::wstring>();
 	parse_markdown(str);
 	f << cvt.to_bytes(str);
 	f << "</main><center><small>Created by <a href=\"https:/"\
 			"/github.com/mooction/MyNotePad\">MyNotePad</a>.</small></center>";
-	if (str.find(L'$') != std::string::npos)
+	if (str.find(L'$') != std::string::npos ||
+		str.find(L"\\[") != std::string::npos ||
+		str.find(L"\\(") != std::string::npos)
 	{
-		f << "<script src=\"https:/"\
-				"/cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=default\" type=\""\
-				"text/javascript\"></script><script type=\"text/x-mathjax-config;executed=true\">"\
-				"MathJax.Hub.Config({\n  TeX: {equationNumbers: { autoNumber: \"AMS\" } },\n"\
-				"  tex2jax: {inlineMath: [['$','$'], ['\\\\(','\\\\)']]}\n});</script>";
+		f << "<script type=\"text/x-mathjax-config\">"\
+			"MathJax.Hub.Config({\n  TeX: {equationNumbers: { autoNumber: \"AMS\" } },\n"\
+			"  tex2jax: {inlineMath: [['$','$'], ['\\\\(','\\\\)']]}\n});</script>"\
+			"<script type=\"text/javascript\" src=\"https:/"\
+			"/cdn.bootcss.com/mathjax/2.7.5/MathJax.js?config=default\"></script>";
 	}
-	f << "</body>";
+	f << "</body><html>";
 	f.close();
 }
 
@@ -1413,25 +1444,10 @@ void OnMenuFont(uint8_t font_id)
 	SaveConfig();
 }
 
-void OnMenuShowInBrowser()
+inline void OnMenuShowInBrowser()
 {
-	//wchar_t buffer[L_tmpnam_s];
-	//errno_t err = _wtmpnam_s(buffer);
-	//if (err) return;
-
-	wchar_t *temp;
-	size_t len;
-	errno_t err = _wgetenv_s(&len, NULL, 0, L"tmp");
-	if (err) return;
-	temp = new wchar_t[len];
-	err = _wgetenv_s(&len, temp, len, L"tmp");
-	std::wstring pathname = temp;
-	free(temp);
-
-	pathname += L"/mynotepad_preview.html";
+	std::wstring pathname = exeFilePath + L"\\preview.html";
 	saveHTML(pathname);
 
 	ShellExecute(hWnd, L"open", pathname.c_str(), NULL, NULL, SW_SHOWNORMAL);
-	//Sleep(3000);
-	//_wremove(pathname.c_str());
 }

@@ -7,7 +7,6 @@ HINSTANCE hInst;
 
 int		  MNP_PADDING_LEFT = 20;	// space for line number
 LPCTSTR	  MNP_CONFIG_FILE = L"MyNotePad.conf";
-LPCTSTR	  MNP_CSS_STYLE = L"style.css";
 LPCSTR	  MNP_CONFIG_THEME = "theme";
 LPCSTR	  MNP_CONFIG_WORDWRAP = "wordwrap";
 LPCSTR	  MNP_CONFIG_LINENUMBER = "linenumber";
@@ -342,6 +341,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_LBUTTONUP:
 		OnLButtonUp(wParam, (short)LOWORD(lParam), (short)HIWORD(lParam));
 		break;
+	case WM_LBUTTONDBLCLK:
+		OnLButtonDBClick(wParam, (short)LOWORD(lParam), (short)HIWORD(lParam));
+		break;
 	case WM_RBUTTONDOWN:
 		OnRButtonDown(wParam, (short)LOWORD(lParam), (short)HIWORD(lParam));
 		break;
@@ -407,8 +409,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	WNDCLASSEXW wcex;
 
 	wcex.cbSize = sizeof(WNDCLASSEX);
-
-	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
 	wcex.lpfnWndProc = WndProc;
 	wcex.cbClsExtra = 0;
 	wcex.cbWndExtra = 0;
