@@ -1031,13 +1031,21 @@ inline void saveHTML(T pathname)
 	std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 	std::ofstream f(pathname);
 	
-	f << "<!DOCTYPE><html><head>"\
-		"<meta charset=\"utf-8\"/>"\
-		"<link href=\"style.css\" rel=\"stylesheet\">"\
-		"<link href=\"github.css\" rel=\"stylesheet\">"\
-		"<script type=\"text/javascript\" src=\"highlight.pack.js\"></script>"\
-		"<script type=\"text/javascript\">hljs.initHighlightingOnLoad();</script>"\
-		"</head><body><main>";
+	f << R"raw(<!DOCTYPE><html><head>
+<meta charset="utf-8"/>
+<link href="style.css" rel="stylesheet">
+<link href="highlight.css" rel="stylesheet">
+<script type="text/javascript" src="highlight.pack.js"></script>
+<script type="text/javascript">
+	window.onload = function() {
+		var aCodes = document.getElementsByTagName('pre');
+		for (var i=0; i < aCodes.length; i++) {
+			hljs.highlightBlock(aCodes[i]);
+		}
+	};
+	// hljs.initHighlightingOnLoad();
+</script>
+</head><body><main>)raw";
 	std::wstring str = all_to_string<std::wstring>();
 	parse_markdown(str);
 	f << cvt.to_bytes(str);
@@ -1047,11 +1055,14 @@ inline void saveHTML(T pathname)
 		str.find(L"\\[") != std::string::npos ||
 		str.find(L"\\(") != std::string::npos)
 	{
-		f << "<script type=\"text/x-mathjax-config\">"\
-			"MathJax.Hub.Config({\n  TeX: {equationNumbers: { autoNumber: \"AMS\" } },\n"\
-			"  tex2jax: {inlineMath: [['$','$'], ['\\\\(','\\\\)']]}\n});</script>"\
-			"<script type=\"text/javascript\" src=\"https:/"\
-			"/cdn.bootcss.com/mathjax/2.7.5/MathJax.js?config=default\"></script>";
+		f << R"raw(
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+	TeX: { equationNumbers: { autoNumber: "AMS" } },
+	tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+<script type="text/javascript" src="https://cdn.bootcss.com/mathjax/2.7.5/MathJax.js?config=default"></script>)raw";
 	}
 	f << "</body><html>";
 	f.close();
