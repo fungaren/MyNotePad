@@ -30,15 +30,13 @@ input, textarea, select, button {
 	outline-color: #ddd;
 }
 p {line-height: 28px;margin:18px 0;}
+strong {font-weight: 700;}
 a {color: #0099ff;text-decoration: none;outline: none;}
 a:hover {color: #44bbff;}
 img {max-width: 100%}
 pre {
-	font-size: 20px;
-	border: 1px dashed #ddd;
-	padding: 7px;
-	line-height: 36px;
-	font-family: Courier new;
+	background: #f7f7f7 !important;
+	font-family: Courier new, Consolas, Lucida Console;
 }
 code{
 	margin-right: 4px;
@@ -54,7 +52,6 @@ blockquote {
 	margin: 0 28px;
 }
 table {
-	width: 100%;
 	border-spacing:0;
 	margin: 12px 0;
 } 
