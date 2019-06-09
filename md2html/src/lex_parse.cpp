@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+﻿
 #include "lex_parse.h"
 #include <iostream>
 #include <sstream>
@@ -805,6 +805,8 @@ std::list<Item> scanner(const std::wstring &str, bool onlynested)
 						case MD_TOKEN::CODE:
 							itemtype = MD_ITEM::LINE;
 							break;
+                        default:
+                            break;
 						}
 					}
 				}

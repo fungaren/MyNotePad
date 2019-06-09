@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+﻿
 #include "lex_parse.h"
 bool isTableItem(const MD_TOKEN token)
 {

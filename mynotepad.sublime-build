@@ -1,0 +1,3 @@
+{
+    "shell_cmd": "make -C $project_path/build && $project_path/build/mynotepad"
+}
