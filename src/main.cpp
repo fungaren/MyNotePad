@@ -900,7 +900,7 @@ MyFrame::MyFrame(const wxString& title) :
     fontFace(FONT_MSYAHEI),
     openedFile(MNP_DOC_NOTITLE)
 {
-    SetDropTarget(this);
+    SetDropTarget(new MyDropTarget(this));
     SetIcon(wxICON(ICON_MYNOTEPAD));
 
     /*
@@ -987,13 +987,6 @@ MyFrame::MyFrame(const wxString& title) :
     Centre();
 }
 
-bool MyFrame::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString &filenames)
-{
-    wxCommandEvent evt;
-    sureToQuit(evt);
-    loadFile(filenames[0].ToStdString());
-}
-
 void MyFrame::OnNew(wxCommandEvent& WXUNUSED(event))
 {
     wxString s = wxStandardPaths::Get().GetExecutablePath();
@@ -1049,7 +1042,7 @@ void MyFrame::OnSaveAs(wxCommandEvent& WXUNUSED(event))
     if (filepath.Right(3) != ".md")
         filepath += ".md";
     LOG_MESSAGE(filepath);
-    std::ofstream f(filepath);
+    std::ofstream f(filepath.ToStdString());
     if (!f.good())
     {
         wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
@@ -1098,7 +1091,7 @@ void MyFrame::OnExportHTML(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnQuit(wxCommandEvent& event)
 {
     LOG_MESSAGE("");
-    Close(true);
+    event.Skip(true);
 }
 
 void MyFrame::OnClose(wxCloseEvent& event)
@@ -2199,4 +2192,14 @@ void MyFrame::OnPaint(wxPaintEvent& event)
 //     // display
 //     BitBlt(hdc, 0, 0, ClientWidth, ClientHeight, clientDC, 0, 0, SRCCOPY);
 }
+
 #endif /* USE_NATIVE_EDIT_BOX */
+
+bool MyDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString &filenames)
+{
+    wxCommandEvent evt;
+    frame->sureToQuit(evt);
+    frame->loadFile(filenames[0].ToStdString());
+    return true;
+}
+

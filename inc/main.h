@@ -46,7 +46,7 @@ struct CharStyle
 
 const CharStyle default_style = { 0 };
 
-class MyFrame : public wxFrame, public wxFileDropTarget {
+class MyFrame : public wxFrame {
 public:    
     MyFrame(const wxString& title);
     
@@ -71,11 +71,10 @@ public:
     void seeCaret();
     void repaintSelectionCanceledLines();
 #endif
-    
+   
     void md2html(std::wstring& str);
     
 protected:
-    virtual bool OnDropFiles(wxCoord x, wxCoord y, const wxArrayString &filenames);
     void OnLeftButtonDown(wxMouseEvent& event);
     void OnLeftButtonUp(wxMouseEvent& event);
     void OnLeftButtonDBClick(wxMouseEvent& event);
@@ -186,5 +185,13 @@ const int VIEW_FONT_SELECT    = wxID_SELECT_FONT;
 const int FORMAT_BROWSER      = wxID_NETWORK;
 const int FORMAT_WORDWRAP     = 2008;
 const int HELP_ABOUT          = wxID_ABOUT;
+
+class MyDropTarget : public wxFileDropTarget
+{
+    MyFrame *frame;
+public:
+    MyDropTarget(MyFrame *myFrame) : frame(myFrame) {}
+    virtual bool OnDropFiles(wxCoord x, wxCoord y, const wxArrayString &filenames);
+};
 
 #endif /* __MAIN_H__ */

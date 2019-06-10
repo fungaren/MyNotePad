@@ -1,52 +1,78 @@
 ﻿# MyNotePad
 
-## 简介
+![logo](static/MyNotePad.ico)
 
-一个支持 MarkDown 转换 HTML 的文本编辑器，仅一个 exe。
+## Synopsis
 
-本项目的重点在于自己实现一个文本框。
+A MarkDown editor support export HTML file.
 
-[微软的例子](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx)
+This program is initially using pure Win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidget, you can build it on Windows and Linux. 
 
-## 已实现的功能 implemented
+Download Binaries: [Release](../../releases)
 
-- 按 F5 快速在浏览器中查看
-- 支持黑白两色主题
-- 支持行号显示
-- 支持 Latex 渲染
+Try this Markdown file: [test.md](test.md)
 
-## 未实现的功能 not implemented
+## Compiling instrctions
 
-- 撤销
-- 设置字号
-- 中英文不同字体
-- 鼠标拖动滚动条
-- TAB 对齐
-- 搜索、替换
-- 编码转换（目前仅支持 UTF-8）
-- 即时代码着色
-- 彩色 Emoji
+### Compile On Linux
 
-## 编译
-
-对 GTK+ 2，执行（Deepin 选这个）
+For GTK+ 2, install dependency:
 
 `sudo apt install build-essential cmake libwxgtk3.0-dev`
 
-对于 GTK+ 3，执行
+For GTK+ 3:
 
 `sudo apt install build-essential cmake libwxgtk3.0-gtk3-dev`
 
-## 下载
+Then build and install
 
-[Release](../../releases)
+```bash
+git clone https://github.com/mooction/MyNotePad.git .
+cd MyNotePad
+cmake .
+make
+sudo make install
+```
 
-## 测试
+That's all. Run `mynotepad` to launch the program.
 
-[test.md](test.md)
+### Compile On Windows
 
-## 学习资料
+Download [CMake](https://cmake.org/download/) and [wxWidgets](http://www.wxwidgets.org/downloads/) source code or binaries. If you use wxWidgets binaries, just download:
 
-- [CMake 入门实战](https://www.hahack.com/codes/cmake/)
+- Header Files
+- Development Files
+
+Extract them to the same folder. For example, NOW in `D:/wxWidgets-3.1.2/` there are two folders: `include` and `lib`. See [CMakeLists.txt](CMakeLists.txt) for more detail.
+
+Then open CMake-GUI, click `Browse Source` and `Browse Build` to choose a correct place. Click `Configure` and `Generate` finally we get a Visual Studio solution.
+
+### Options
+
+Use `cmake -D VAR=VALUE` to change any option.
+
+Option | Default | Description
+- | - | -
+`USE_NATIVE_EDIT_BOX` | ON | Use native or custom implemented edit control
+
+## Known bugs
+
+1. Texts will disappear after the window closed
+2. Applying fontface and color do not work
+
+## TODO
+
+- undo/redo
+- set font size
+- scrollbar
+- TAB key
+- search & replace
+- encode conversion(only support utf-8 currently)
+- instant highlight
+- Colorful Emoji
+
+## Programming Guide
+
+- [CMAKE手册](https://www.zybuluo.com/khan-lau/note/254724)
 - [wxWidgets 跨平台 GUI 编程](https://www.ctolib.com/docs/sfile/wxwidgets-book/index.html)
 - [wxWidgets对资源文件的引用](https://blog.csdn.net/h19861104/article/details/28701793)
