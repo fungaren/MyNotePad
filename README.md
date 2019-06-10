@@ -51,9 +51,9 @@ Then open CMake-GUI, click `Browse Source` and `Browse Build` to choose a correc
 
 Use `cmake -D VAR=VALUE` to change any option.
 
-Option | Default | Description
-- | - | -
-`USE_NATIVE_EDIT_BOX` | ON | Use native or custom implemented edit control
+| Option | Default | Description |
+| - | - | - |
+| `USE_NATIVE_EDIT_BOX` | ON | Use native or custom implemented edit control |
 
 ## Known bugs
 
