@@ -187,24 +187,14 @@ void MyFrame::loadSettings()
     GetMenuBar()->Check(VIEW_FONT_MSYAHEI, true);
     GetMenuBar()->Check(FORMAT_WORDWRAP, true);
 
-    confFilePath = wxStandardPaths::Get().GetUserConfigDir();
+#ifdef _WIN32
+    confFilePath = wxStandardPaths::Get().GetExecutablePath();
+    while (confFilePath.back() != '\\')
+        confFilePath.pop_back();
+#else
+    confFilePath = INSTALL_PATH;
+#endif
 
-#ifdef _WIN32
-    confFilePath += '\\';
-#else
-    confFilePath += '/';
-#endif
-    confFilePath += MNP_APPNAME_C;
-    if (!wxDir::Exists(confFilePath)) {
-        if (!wxDir::Make(confFilePath)) {
-            LOG_ERROR(L"Failed to create config directory");
-        }
-    }
-#ifdef _WIN32
-    confFilePath += '\\';
-#else
-    confFilePath += '/';
-#endif
     LOG_MESSAGE(confFilePath);
 
     // load user data
@@ -381,7 +371,7 @@ bool MyFrame::sureToQuit(wxCommandEvent& event)
 {
     if (!bSaved)
     {
-        int r = wxMessageBox(INFO_SAVE, MNP_APPNAME, wxYES_NO | wxCANCEL | wxICON_QUESTION, this);
+        int r = wxMessageBox(INFO_SAVE, MNP_APPNAME, wxYES_NO | wxCANCEL | wxICON_WARNING, this);
         if (r == wxCANCEL)
             return false;
         else if (r == wxYES)
@@ -403,12 +393,19 @@ void MyFrame::saveHTML(const std::string pathname)
         return;
     }
 
-    f << R"raw(<!DOCTYPE><html><head>
-<meta charset="utf-8"/>
+    f << "<!DOCTYPE><html><head><meta charset=\"utf-8\"/>";
+#ifdef WIN32
+    f << R"raw(
 <link href="style.css" rel="stylesheet">
 <link href="highlight.css" rel="stylesheet">
 <script type="text/javascript" src="highlight.pack.js"></script>
-<script type="text/javascript">
+)raw";
+#else
+    f << "<link href='" << INSTALL_PATH_STATIC << "style.css' rel='stylesheet'>\n";
+    f << "<link href='" << INSTALL_PATH_STATIC << "highlight.css' rel='stylesheet'>\n";
+    f << "<script type='text/javascript' src='" << INSTALL_PATH_STATIC << "highlight.pack.js'></script>\n";
+#endif
+    f << R"raw(<script type="text/javascript">
     window.onload = function() {
         var aCodes = document.getElementsByTagName('pre');
         for (var i=0; i < aCodes.length; i++) {
@@ -1091,7 +1088,7 @@ void MyFrame::OnExportHTML(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnQuit(wxCommandEvent& event)
 {
     LOG_MESSAGE("");
-    event.Skip(true);
+    Close(true);
 }
 
 void MyFrame::OnClose(wxCloseEvent& event)
@@ -1464,7 +1461,12 @@ void MyFrame::OnFontSelect(wxCommandEvent& WXUNUSED(event))
 
 void MyFrame::OnBrowser(wxCommandEvent& WXUNUSED(event))
 {
+#ifdef _WIN32
     std::string s = confFilePath + "preview.html";
+#else
+    wxString path = wxStandardPaths::Get().GetTempDir() + "/preview.html";
+    std::string s = path.ToStdString();
+#endif
     saveHTML(s);
     LOG_MESSAGE(s);
     wxLaunchDefaultApplication(s);
@@ -1533,7 +1535,7 @@ void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
     std::wstringstream detail;
     detail << MNP_APPNAME << '\t' << MNP_VERSION_MAJOR << '.' << MNP_VERSION_MINOR << '\n'
            << wxVERSION_STRING << '\n'
-           << L"\nCopyright(c) moooc.cc 2019";
+           << MNP_COPYRIGHT;
 
     wxMessageBox(detail.str(), "About", wxOK | wxICON_INFORMATION, this);
 }

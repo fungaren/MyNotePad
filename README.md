@@ -6,7 +6,7 @@
 
 A MarkDown editor support export HTML file.
 
-This program is initially using pure Win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidget, you can build it on Windows and Linux. 
+This program is initially using pure Win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidgets, you can build it on Windows and Linux. 
 
 Download Binaries: [Release](../../releases)
 
@@ -27,7 +27,7 @@ For GTK+ 3:
 Then build and install
 
 ```bash
-git clone https://github.com/mooction/MyNotePad.git .
+git clone https://github.com/mooction/mynotepad
 cd MyNotePad
 cmake .
 make
@@ -38,27 +38,30 @@ That's all. Run `mynotepad` to launch the program.
 
 ### Compile On Windows
 
-Download [CMake](https://cmake.org/download/) and [wxWidgets](http://www.wxwidgets.org/downloads/) source code or binaries. If you use wxWidgets binaries, just download:
+Download [CMake](https://cmake.org/download/) and [wxWidgets](http://www.wxwidgets.org/downloads/) source code or binaries. If you use wxWidgets binaries, download 3 archives:
 
-- Header Files
-- Development Files
+- Header Files (`include` folder)
+- Development Files (`lib/vc141_dll` folder)
+- Release DLLs (`lib/vc141_dll` folder)
 
-Extract them to the same folder. For example, NOW in `D:/wxWidgets-3.1.2/` there are two folders: `include` and `lib`. See [CMakeLists.txt](CMakeLists.txt) for more detail.
+Extract them to the same folder and merge the `lib/vc141_dll` folder. For example, NOW in `D:/wxWidgets-3.1.2/` there are two folders: `include` and `lib`. See [CMakeLists.txt](CMakeLists.txt) for more detail.
 
 Then open CMake-GUI, click `Browse Source` and `Browse Build` to choose a correct place. Click `Configure` and `Generate` finally we get a Visual Studio solution.
 
 ### Options
 
-Use `cmake -D VAR=VALUE` to change any option.
+Use `cmake -D<VAR>=<VALUE>` to change any option.
 
 | Option | Default | Description |
 | - | - | - |
+| `CMAKE_BUILD_TYPE` | Debug | Build Type for Unix (Release / Debug) |
 | `USE_NATIVE_EDIT_BOX` | ON | Use native or custom implemented edit control |
 
 ## Known bugs
 
-1. Texts will disappear after the window closed
-2. Applying fontface and color do not work
+1. (Linux)Texts copied to clipboard will disappear after the window closed
+2. (Linux)Cannot drop a file to the window to open it
+3. Applying fontface and color doesn’t work
 
 ## TODO
 
