@@ -76,6 +76,4 @@ Use `cmake -D<VAR>=<VALUE>` to change any option.
 
 ## Programming Guide
 
-- [CMAKE手册](https://www.zybuluo.com/khan-lau/note/254724)
-- [wxWidgets 跨平台 GUI 编程](https://www.ctolib.com/docs/sfile/wxwidgets-book/index.html)
-- [wxWidgets对资源文件的引用](https://blog.csdn.net/h19861104/article/details/28701793)
+See our [wiki](./wiki) page.

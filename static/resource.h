@@ -1,5 +1,8 @@
-﻿
-#define ICON_MYNOTEPAD      1001
+﻿//{{NO_DEPENDENCIES}}
+// Microsoft Visual C++ 生成的包含文件。
+// 供 wx.rc 使用
+//
+#define ICON_MYNOTEPAD                  1001
 
 // Next default values for new objects
 // 

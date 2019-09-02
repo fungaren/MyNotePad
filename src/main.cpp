@@ -1,6 +1,6 @@
 ﻿#include <wx/wxprec.h>
 #include <wx/wx.h>
-#include <wx/textctrl.h>
+#include <wx/stc/stc.h>
 #include <wx/dir.h>
 #include <wx/dnd.h>
 #include <wx/colour.h>
@@ -114,9 +114,7 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 
     EVT_MENU(VIEW_THEMELIGHT, MyFrame::OnThemeLight)
     EVT_MENU(VIEW_THEMEDARK, MyFrame::OnThemeDark)
-#ifndef USE_NATIVE_EDIT_BOX
     EVT_MENU(VIEW_LINENUMBER, MyFrame::OnLineNumber)
-#endif
     EVT_MENU(VIEW_FONT_MSYAHEI, MyFrame::OnFont)
     EVT_MENU(VIEW_FONT_LUCIDA, MyFrame::OnFont)
     EVT_MENU(VIEW_FONT_COURIER, MyFrame::OnFont)
@@ -206,11 +204,11 @@ void MyFrame::loadSettings()
         {
             if (buff[0] == '#')
                 continue;            // # this is comment
-            const char* pos = strchr(buff, '=');    // eg. best = 999
+            const char* pos = strchr(buff, '=');      // eg. best = 999
             if (pos != NULL)
             {
                 std::string key(buff, pos - buff);    // acquire key
-                std::string val(pos + 1);            // acquire value
+                std::string val(pos + 1);             // acquire value
                 if (val.back() == '\r') val.pop_back();    // remove '\r' at the end
                 if (key == MNP_CONFIG_THEME && std::atoi(val.c_str()) == THEME::THEME_DARK)
                     themeDark();
@@ -219,13 +217,11 @@ void MyFrame::loadSettings()
                     bWordWrap = false;
                     GetMenuBar()->Check(FORMAT_WORDWRAP, false);
                 }
-#ifndef USE_NATIVE_EDIT_BOX
                 else if (key == MNP_CONFIG_LINENUMBER && val == "0")
                 {
                     bShowLineNumber = false;
                     GetMenuBar()->Check(VIEW_LINENUMBER, false);
                 }
-#endif
                 else if (key == MNP_CONFIG_FONTNAME)
                 {
                     if (val == "Microsoft Yahei UI") {
@@ -886,8 +882,8 @@ MyFrame::MyFrame(const wxString& title) :
     article({ Line() }),
     caret(article),
     sel_begin(article),
-    bShowLineNumber(true),
 #endif
+    bShowLineNumber(true),
     bResized(false),
     bSaved(true),
     bWordWrap(true),
@@ -970,7 +966,7 @@ MyFrame::MyFrame(const wxString& title) :
      */
 #ifdef USE_NATIVE_EDIT_BOX
     wxBoxSizer *boxSizer = new wxBoxSizer( wxVERTICAL );
-    article = new wxTextCtrl(this, wxID_ANY, "", wxPoint(0, 0), wxSize(10, 10), wxTE_MULTILINE | wxTE_BESTWRAP);
+    article = new wxStyledTextCtrl(this, wxID_ANY, wxPoint(0, 0), wxSize(10, 10), wxTE_MULTILINE | wxTE_BESTWRAP);
     boxSizer->Add(article, 1, wxEXPAND | wxALL, 0);
     this->SetSizer(boxSizer);
     article->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(MyFrame::OnRightButtonDown), NULL, this);
@@ -1375,19 +1371,15 @@ void MyFrame::OnThemeDark(wxCommandEvent& WXUNUSED(event))
    saveSettings();
 }
 
-#ifndef USE_NATIVE_EDIT_BOX
 void MyFrame::OnLineNumber(wxCommandEvent& WXUNUSED(event))
 {
+    bShowLineNumber = !bShowLineNumber;
     if (GetMenuBar()->IsChecked(VIEW_LINENUMBER)) {
-        LOG_MESSAGE("turn on line number");
+        article->SetMarginType(0, wxSTC_MARGIN_NUMBER);
     } else {
-        LOG_MESSAGE("turn off line number");
+        article->SetMarginType(0, wxSTC_MARGIN_SYMBOL);
     }
 
-//     bShowLineNumber = !bShowLineNumber;
-//     HMENU hMenu = GetMenu(hWnd);
-//     CheckMenuItem(hMenu, IDM_LINENUMBER, bShowLineNumber ? MF_CHECKED : MF_UNCHECKED);
-//
 //     if (bShowLineNumber)
 //         line_number_font = std::make_unique<Font>(
 //             lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
@@ -1400,7 +1392,6 @@ void MyFrame::OnLineNumber(wxCommandEvent& WXUNUSED(event))
 
     saveSettings();
 }
-#endif
 
 void MyFrame::OnFont(wxCommandEvent& event)
 {

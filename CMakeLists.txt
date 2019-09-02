@@ -15,6 +15,9 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
 #add_definitions("$<$<CONFIG:Debug>:-D_DEBUG>")
 
 if (UNIX)
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
     # Set a default build type if none was specified
     set(default_build_type "Release")
     if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
@@ -48,42 +51,53 @@ if (WIN32)
 endif()
 set(wxWidgets_CONFIGURATION mswu) # or mswud
 
-find_package(wxWidgets COMPONENTS core base REQUIRED)
+# find wxWidgets
+find_package(wxWidgets COMPONENTS core base stc REQUIRED)
 
 include(${wxWidgets_USE_FILE})
 set(EXTRA_LIBS ${EXTRA_LIBS} ${wxWidgets_LIBRARIES})
 
+# submodule md2html
 add_subdirectory(md2html)
 set(EXTRA_LIBS ${EXTRA_LIBS} md2html)
 
+# define header directory
 include_directories(
     "${PROJECT_BINARY_DIR}/inc"
     "${PROJECT_SOURCE_DIR}/inc"
     "${PROJECT_SOURCE_DIR}/static"
     "${PROJECT_SOURCE_DIR}/md2html/inc"
 )
+# define source directory
 aux_source_directory(src SOURCES)
 
 if (WIN32)
+    # add resource file for Windows
     list(APPEND SOURCES "static/wx.rc")
 endif()
 
+# target executable file
 set(TARGT mynotepad)
 add_executable(${TARGT} WIN32 ${SOURCES})
+
+# link libraries
 target_link_libraries(${TARGT} ${EXTRA_LIBS})
 
 if (WIN32)
+    # required DLLs on Windows
     set(ALL_DLLS_DEBUG
         "${wxWidgets_LIB_DIR}/wxbase312ud_vc141.dll"
         "${wxWidgets_LIB_DIR}/wxbase312ud_net_vc141.dll"
         "${wxWidgets_LIB_DIR}/wxbase312ud_xml_vc141.dll"
         "${wxWidgets_LIB_DIR}/wxmsw312ud_core_vc141.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw312ud_stc_vc141.dll"
         )
     set(ALL_DLLS_RELEASE
         "${wxWidgets_LIB_DIR}/wxbase312u_vc141.dll"
         "${wxWidgets_LIB_DIR}/wxbase312u_net_vc141.dll"
         "${wxWidgets_LIB_DIR}/wxbase312u_xml_vc141.dll"
         "${wxWidgets_LIB_DIR}/wxmsw312u_core_vc141.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw312u_stc_vc141.dll"
         )
     set(ALL_DLLS $<$<CONFIG:Debug>:${ALL_DLLS_DEBUG}>$<$<CONFIG:Release>:${ALL_DLLS_RELEASE}>)
     #message(${ALL_DLLS})
@@ -94,6 +108,7 @@ if (WIN32)
         "${PROJECT_SOURCE_DIR}/static/logo.png"
         "${PROJECT_SOURCE_DIR}/static/mynotepad.visualelementsmanifest.xml"
         )
+    # destination directory
     set(COPY_DLLS_TO ${PROJECT_BINARY_DIR}/$<$<CONFIG:Release>:Release>$<$<CONFIG:Debug>:Debug>/)
     #message(${COPY_DLLS_TO})
     add_custom_command(TARGET ${TARGT} POST_BUILD
@@ -105,7 +120,9 @@ if (WIN32)
 endif()
 
 if (UNIX)
+    # install the program after build, default path is /usr/local/bin/
     install(TARGETS ${TARGT} RUNTIME DESTINATION bin)
+    # copy dependent files while installing, default path is /usr/local/share
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/static" 
             DESTINATION "share/${PROJECT_NAME}" 
             FILES_MATCHING PATTERN "*.css" PATTERN "*.js"

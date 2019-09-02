@@ -113,9 +113,7 @@ protected:
     void OnMenuOpen(wxMenuEvent& event);
     void OnThemeLight(wxCommandEvent& event);
     void OnThemeDark(wxCommandEvent& event);
-#ifndef USE_NATIVE_EDIT_BOX
     void OnLineNumber(wxCommandEvent& event);
-#endif
     void OnFont(wxCommandEvent& event);
     void OnFontSelect(wxCommandEvent& event);
     void OnBrowser(wxCommandEvent& event);
@@ -125,7 +123,7 @@ protected:
     
 private:
 #ifdef USE_NATIVE_EDIT_BOX
-    wxTextCtrl *article;
+    wxStyledTextCtrl *article;
 #else
     uint32_t textView_width;
     uint32_t textView_height;
@@ -135,8 +133,8 @@ private:
 //     Article article;            // article text
 //     Cursor caret;               // current position = end of selection
 //     Cursor sel_begin;           // beginning of selection 
-    bool bShowLineNumber;       // display line number (initial true)
 #endif
+    bool bShowLineNumber;       // display line number (initial true)
     bool bResized;              // flag indicates the app window is resized
     bool bSaved;                // set false after file is modified
     bool bWordWrap;             // break word (initial false)
@@ -179,10 +177,8 @@ const int EDIT_DELETE         = wxID_DELETE;
 const int EDIT_SELALL         = wxID_SELECTALL;
 const int EDIT_OPTIONS        = wxID_PREFERENCES;
 const int VIEW_THEMELIGHT     = 2001;
-const int VIEW_THEMEDARK     = 2002;
-#ifndef USE_NATIVE_EDIT_BOX
+const int VIEW_THEMEDARK      = 2002;
 const int VIEW_LINENUMBER     = 2003;
-#endif
 const int VIEW_FONT_MSYAHEI   = 2004;
 const int VIEW_FONT_LUCIDA    = 2005;
 const int VIEW_FONT_COURIER   = 2006;
