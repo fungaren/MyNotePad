@@ -31,7 +31,7 @@ const wchar_t*  ERR_FAULT_ENCODING        = L"Can only open UTF-8 files!";
 const wchar_t*  ERR_UNKNOWN               = L"Unknown error";
 
 #ifdef _WIN32
-const wchar_t*  FONT_MSYAHEI              = L"Microsft Yahei";
+const wchar_t*  FONT_MSYAHEI              = L"Microsoft Yahei";
 const wchar_t*  FONT_LUCIDA               = L"Lucida Console";
 const wchar_t*  FONT_COURIER              = L"Courier New";
 const wchar_t*  FONT_CONSOLAS             = L"Consolas";

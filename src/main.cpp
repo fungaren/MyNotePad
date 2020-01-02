@@ -180,10 +180,9 @@ void MyFrame::themeDark()
 
 void MyFrame::loadSettings()
 {
-    themeDark();
+    themeLight();
 
     GetMenuBar()->Check(VIEW_FONT_MSYAHEI, true);
-    GetMenuBar()->Check(FORMAT_WORDWRAP, true);
 
 #ifdef _WIN32
     confFilePath = wxStandardPaths::Get().GetExecutablePath();
@@ -216,11 +215,13 @@ void MyFrame::loadSettings()
                 {
                     bWordWrap = false;
                     GetMenuBar()->Check(FORMAT_WORDWRAP, false);
+                    article->SetWrapMode(wxSTC_WRAP_NONE);
                 }
                 else if (key == MNP_CONFIG_LINENUMBER && val == "0")
                 {
                     bShowLineNumber = false;
                     GetMenuBar()->Check(VIEW_LINENUMBER, false);
+                    article->SetMarginType(0, wxSTC_MARGIN_SYMBOL);
                 }
                 else if (key == MNP_CONFIG_FONTNAME)
                 {
@@ -235,7 +236,7 @@ void MyFrame::loadSettings()
                     else if (val == "Courier New") {
                         fontFace = L"Courier New";
                         GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
-                        GetMenuBar()->Check(VIEW_FONT_LUCIDA, true);
+                        GetMenuBar()->Check(VIEW_FONT_COURIER, true);
                     }
                     else if (val == "Consolas") {
                         fontFace = L"Consolas";
@@ -247,16 +248,17 @@ void MyFrame::loadSettings()
                     //    GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
                     //    GetMenuBar()->Check(VIEW_FONT_NOTOMONO, true);
                     //}
+                    article->StyleSetFaceName(0, fontFace);
                 }
             }
         }
     }
 #ifdef USE_NATIVE_EDIT_BOX
- 	wxFont font(fontSize, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, fontFace);
-    wxTextAttr at(fontColor, bgColorEdit, font);
-    at.SetFlags(wxTEXT_ATTR_FONT | wxTEXT_ATTR_TEXT_COLOUR | wxTEXT_ATTR_BACKGROUND_COLOUR);
-    article->SetDefaultStyle(at);
-    article->SetStyle(0, article->GetValue().size(), at);
+ 	//wxFont font(fontSize, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, fontFace);
+  //  wxTextAttr at(fontColor, bgColorEdit, font);
+  //  at.SetFlags(wxTEXT_ATTR_FONT | wxTEXT_ATTR_TEXT_COLOUR | wxTEXT_ATTR_BACKGROUND_COLOUR);
+    //article->SetDefaultStyle(at);
+    //article->SetStyle(0, article->GetValue().size(), at);
 #else
         // set default line_number_font
 //         line_number_font = std::make_unique<Font>(
@@ -284,9 +286,7 @@ void MyFrame::saveSettings()
     out << "# Edit this file to config MyNotePad\r\n";
     out << MNP_CONFIG_THEME << '=' << theme << "\r\n";
     out << MNP_CONFIG_WORDWRAP << '=' << bWordWrap << "\r\n";
-#ifndef USE_NATIVE_EDIT_BOX
     out << MNP_CONFIG_LINENUMBER << '=' << bShowLineNumber << "\r\n";
-#endif
     std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
     out << MNP_CONFIG_FONTNAME << '=' << cvt.to_bytes(fontFace);
     out.close();
@@ -930,9 +930,8 @@ MyFrame::MyFrame(const wxString& title) :
     viewMenu->AppendCheckItem(VIEW_THEMELIGHT, L"&Light", L"Use white theme");
     viewMenu->AppendCheckItem(VIEW_THEMEDARK, L"&Black", L"Use black theme");
     viewMenu->AppendSeparator();
-#ifndef USE_NATIVE_EDIT_BOX
     viewMenu->AppendCheckItem(VIEW_LINENUMBER, L"&Line Number", L"Show line number");
-#endif
+    viewMenu->Check(VIEW_LINENUMBER, true);
     wxMenu *fontMenu = new wxMenu();
     fontMenu->AppendCheckItem(VIEW_FONT_MSYAHEI, FONT_MSYAHEI, FONT_MSYAHEI);
     fontMenu->AppendCheckItem(VIEW_FONT_LUCIDA, FONT_LUCIDA, FONT_LUCIDA);
@@ -946,9 +945,7 @@ MyFrame::MyFrame(const wxString& title) :
     wxMenu *formatMenu = new wxMenu();
     formatMenu->Append(FORMAT_BROWSER, L"&Show in browser...\tF5", L"Show in browser");
     formatMenu->AppendCheckItem(FORMAT_WORDWRAP, L"Line &Wrap", L"Line wrap");
-#ifdef USE_NATIVE_EDIT_BOX
-    formatMenu->Enable(FORMAT_WORDWRAP, false);
-#endif
+    formatMenu->Check(FORMAT_WORDWRAP, true);
 
     wxMenu *helpMenu = new wxMenu();
     helpMenu->Append(HELP_ABOUT, L"&About...\tAlt+A", L"Show about dialog");
@@ -966,8 +963,13 @@ MyFrame::MyFrame(const wxString& title) :
      */
 #ifdef USE_NATIVE_EDIT_BOX
     wxBoxSizer *boxSizer = new wxBoxSizer( wxVERTICAL );
-    article = new wxStyledTextCtrl(this, wxID_ANY, wxPoint(0, 0), wxSize(10, 10), wxTE_MULTILINE | wxTE_BESTWRAP);
-    boxSizer->Add(article, 1, wxEXPAND | wxALL, 0);
+    //article = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_CHARWRAP);
+    // Regard to the control, see https://wiki.wxwidgets.org/WxStyledTextCtrl
+    article = new wxStyledTextCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_MULTILINE);
+    article->SetMarginWidth(0, 20);
+    article->SetWrapMode(wxSTC_WRAP_WORD);
+    article->SetLexer(wxSTC_LEX_MARKDOWN);
+    boxSizer->Add(article, 1, wxEXPAND | wxALL, 1);
     this->SetSizer(boxSizer);
     article->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(MyFrame::OnRightButtonDown), NULL, this);
     //article->Connect(wxEVT_RIGHT_UP, wxMouseEventHandler(MyFrame::OnRightButtonUp), NULL, this);
@@ -1282,6 +1284,8 @@ void MyFrame::OnOptions(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnMenuOpen(wxMenuEvent& event)
 {
     wxMenu *menu = event.GetMenu();
+    if (menu == NULL)
+        return;
     wxMenuItem *item = menu->FindItem(EDIT_CUT);
     if (item != NULL)
     {
@@ -1316,12 +1320,12 @@ void MyFrame::OnThemeLight(wxCommandEvent& WXUNUSED(event))
     LOG_MESSAGE("");
     themeLight();
 #ifdef USE_NATIVE_EDIT_BOX
-    wxTextAttr at = article->GetDefaultStyle();
-    at.SetTextColour(fontColor);
-    at.SetBackgroundColour(bgColorEdit);
-    at.SetFlags(wxTEXT_ATTR_TEXT_COLOUR | wxTEXT_ATTR_BACKGROUND_COLOUR);
-    article->SetDefaultStyle(at);
-    article->SetStyle(0, article->GetValue().size(), at);
+    //wxTextAttr at = article->GetDefaultStyle();
+    //at.SetTextColour(fontColor);
+    //at.SetBackgroundColour(bgColorEdit);
+    //at.SetFlags(wxTEXT_ATTR_TEXT_COLOUR | wxTEXT_ATTR_BACKGROUND_COLOUR);
+    //article->SetDefaultStyle(at);
+    //article->SetStyle(0, article->GetValue().size(), at);
 #else
 //         if (bShowLineNumber)
 //         line_number_font = std::make_unique<Font>(
@@ -1346,12 +1350,12 @@ void MyFrame::OnThemeDark(wxCommandEvent& WXUNUSED(event))
     LOG_MESSAGE("");
     themeDark();
 #ifdef USE_NATIVE_EDIT_BOX
-    wxTextAttr at = article->GetDefaultStyle();
-    at.SetTextColour(fontColor);
-    at.SetBackgroundColour(bgColorEdit);
-    at.SetFlags(wxTEXT_ATTR_TEXT_COLOUR | wxTEXT_ATTR_BACKGROUND_COLOUR);
-    article->SetDefaultStyle(at);
-    article->SetStyle(0, article->GetValue().size(), at);
+    //wxTextAttr at = article->GetDefaultStyle();
+    //at.SetTextColour(fontColor);
+    //at.SetBackgroundColour(bgColorEdit);
+    //at.SetFlags(wxTEXT_ATTR_TEXT_COLOUR | wxTEXT_ATTR_BACKGROUND_COLOUR);
+    //article->SetDefaultStyle(at);
+    //article->SetStyle(0, article->GetValue().size(), at);
 #else
 //     if (bShowLineNumber)
 //     line_number_font = std::make_unique<Font>(
@@ -1375,21 +1379,26 @@ void MyFrame::OnLineNumber(wxCommandEvent& WXUNUSED(event))
 {
     bShowLineNumber = !bShowLineNumber;
     if (GetMenuBar()->IsChecked(VIEW_LINENUMBER)) {
+#ifdef USE_NATIVE_EDIT_BOX
         article->SetMarginType(0, wxSTC_MARGIN_NUMBER);
-    } else {
-        article->SetMarginType(0, wxSTC_MARGIN_SYMBOL);
-    }
+#else
+        //         line_number_font = std::make_unique<Font>(
+        //             lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
 
-//     if (bShowLineNumber)
-//         line_number_font = std::make_unique<Font>(
-//             lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
-//     else
-//         MNP_PADDING_LEFT = 20;
-//
+#endif
+    } else {
+#ifdef USE_NATIVE_EDIT_BOX
+        article->SetMarginType(0, wxSTC_MARGIN_SYMBOL);
+#else
+        //         MNP_PADDING_LEFT = 20;
+
+#endif
+    }
+#ifndef USE_NATIVE_EDIT_BOX
 //     HDC hdc = GetDC(hWnd);
 //     OnPaint(hdc);
 //     ReleaseDC(hWnd, hdc);
-
+#endif
     saveSettings();
 }
 
@@ -1424,7 +1433,7 @@ void MyFrame::OnFont(wxCommandEvent& event)
     LOG_MESSAGE(fontFace);
 
 #ifdef USE_NATIVE_EDIT_BOX
-    ;
+    article->StyleSetFaceName(0, fontFace);
 #else
 //         HDC hdc = GetDC(hWnd);
 //     Font f(fontSize, fontFace, fontColor);
@@ -1465,55 +1474,56 @@ void MyFrame::OnBrowser(wxCommandEvent& WXUNUSED(event))
 
 void MyFrame::OnWordWrap(wxCommandEvent& WXUNUSED(event))
 {
+    bWordWrap = !bWordWrap;
+#ifndef USE_NATIVE_EDIT_BOX
+    //     HDC hdc = GetDC(hWnd);
+#endif
     if (GetMenuBar()->IsChecked(FORMAT_WORDWRAP)) {
-        LOG_MESSAGE("turn on word wrap");
+#ifdef USE_NATIVE_EDIT_BOX
+        article->SetWrapMode(wxSTC_WRAP_WORD);
+#else
+        //         // exit word wrap mode
+        //         if (sel_begin == caret)
+        //         {
+        //             caret.rebond_all();
+        //             sel_begin = caret;
+        //             for (auto& l : article)
+        //                 repaintLine(hdc, l);
+        //         }
+        //         else
+        //         {
+        //             int dist_y = sel_begin.distance_y(caret);
+        //             if (dist_y < 0)    // forward selection
+        //                 sel_begin.recover(caret);
+        //             else if (dist_y > 0)
+        //                 caret.recover(sel_begin);
+        //             else
+        //             {
+        //                 int dist_x = sel_begin.distance_x(caret);
+        //                 if (dist_x < 0)    // forward selection
+        //                     sel_begin.recover(caret);
+        //                 else
+        //                     caret.recover(sel_begin);
+        //             }
+        //             for (auto& l : article)
+        //                 repaintLine(hdc, l);
+        //             repaintSelectedLines();
+        //         }
+
+#endif
     } else {
-        LOG_MESSAGE("turn off word wrap");
+#ifdef USE_NATIVE_EDIT_BOX
+        article->SetWrapMode(wxSTC_WRAP_NONE);
+#else
+        //         // enter word wrap mode
+        //         xoffset = 0;
+        //         resized = true;    // rebond() and split() in OnPaint()
+
+#endif
     }
 #ifdef USE_NATIVE_EDIT_BOX
     ;
 #else
-//     HDC hdc = GetDC(hWnd);
-//     if (bWordWrap)
-//     {
-//         // exit word wrap mode
-//         if (sel_begin == caret)
-//         {
-//             caret.rebond_all();
-//             sel_begin = caret;
-//             for (auto& l : article)
-//                 repaintLine(hdc, l);
-//         }
-//         else
-//         {
-//             int dist_y = sel_begin.distance_y(caret);
-//             if (dist_y < 0)    // forward selection
-//                 sel_begin.recover(caret);
-//             else if (dist_y > 0)
-//                 caret.recover(sel_begin);
-//             else
-//             {
-//                 int dist_x = sel_begin.distance_x(caret);
-//                 if (dist_x < 0)    // forward selection
-//                     sel_begin.recover(caret);
-//                 else
-//                     caret.recover(sel_begin);
-//             }
-//             for (auto& l : article)
-//                 repaintLine(hdc, l);
-//             repaintSelectedLines();
-//         }
-//     }
-//     else
-//     {
-//         // enter word wrap mode
-//         xoffset = 0;
-//         resized = true;    // rebond() and split() in OnPaint()
-//     }
-//     bWordWrap = !bWordWrap;
-//     HMENU hMenu = GetMenu(hWnd);
-//     CheckMenuItem(hMenu, IDM_WORDWRAP, bWordWrap ? MF_CHECKED : MF_UNCHECKED);
-//
 //     calc_textView_height();
 //     OnPaint(hdc);
 //     ReleaseDC(hWnd, hdc);
@@ -1559,8 +1569,7 @@ void MyFrame::OnLeftButtonDown(wxMouseEvent& event)
  * Double-clicking the left mouse button
  * actually generates a sequence of four messages:
  * WM_LBUTTONDOWN, WM_LBUTTONUP, WM_LBUTTONDBLCLK, and WM_LBUTTONUP.
- * Only windows that have the CS_DBLCLKS style
- * can receive WM_LBUTTONDBLCLK messages.
+ * Only windows having CS_DBLCLKS style can receive WM_LBUTTONDBLCLK.
  */
 void MyFrame::OnLeftButtonDBClick(wxMouseEvent& event)
 {
