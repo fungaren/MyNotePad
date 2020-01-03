@@ -232,7 +232,8 @@ void MyFrame::loadSettings()
                 {
                     bShowLineNumber = false;
                     GetMenuBar()->Check(VIEW_LINENUMBER, false);
-                    article->SetMarginType(0, wxSTC_MARGIN_SYMBOL);
+                    article->SetMarginType(wxSTC_MARGINOPTION_NONE, wxSTC_MARGIN_SYMBOL);
+                    article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT / 2);
                 }
                 else if (key == MNP_CONFIG_FONTNAME)
                 {
@@ -963,11 +964,11 @@ MyFrame::MyFrame(const wxString& title) :
     wxBoxSizer *boxSizer = new wxBoxSizer( wxVERTICAL );
     // Regard to the control, see https://wiki.wxwidgets.org/WxStyledTextCtrl
     article = new wxStyledTextCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_MULTILINE);
-    article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT*2);
     article->SetWrapMode(wxSTC_WRAP_WORD);
     article->SetLexer(wxSTC_LEX_MARKDOWN);
     for (int i = 0; i <= 32; i++)
         article->StyleSetSize(i, fontSize / 2);
+    article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT * 2);
 
     boxSizer->Add(article, 1, wxEXPAND | wxALL, 1);
     this->SetSizer(boxSizer);
@@ -1381,6 +1382,7 @@ void MyFrame::OnLineNumber(wxCommandEvent& WXUNUSED(event))
     if (GetMenuBar()->IsChecked(VIEW_LINENUMBER)) {
 #ifdef USE_NATIVE_EDIT_BOX
         article->SetMarginType(0, wxSTC_MARGIN_NUMBER);
+        article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT * 2);
 #else
         //         line_number_font = std::make_unique<Font>(
         //             lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
@@ -1389,6 +1391,7 @@ void MyFrame::OnLineNumber(wxCommandEvent& WXUNUSED(event))
     } else {
 #ifdef USE_NATIVE_EDIT_BOX
         article->SetMarginType(0, wxSTC_MARGIN_SYMBOL);
+        article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT / 2);
 #else
         //         MNP_PADDING_LEFT = 20;
 
