@@ -259,7 +259,8 @@ void MyFrame::loadSettings()
                     //    GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
                     //    GetMenuBar()->Check(VIEW_FONT_NOTOMONO, true);
                     //}
-                    article->StyleSetFaceName(0, fontFace);
+                    for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
+                        article->StyleSetFaceName(i, fontFace);
                 }
             }
         }
@@ -892,7 +893,7 @@ MyFrame::MyFrame(const wxString& title) :
     SendMessage(this->GetHWND(), WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
 #else
     SetIcon(wxICON(ICON_MYNOTEPAD));
-#endif 
+#endif
     /*
      * Create menu items
      */
@@ -968,7 +969,6 @@ MyFrame::MyFrame(const wxString& title) :
     for (int i = 0; i <= 32; i++)
         article->StyleSetSize(i, fontSize / 2);
 
-    
     boxSizer->Add(article, 1, wxEXPAND | wxALL, 1);
     this->SetSizer(boxSizer);
     article->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(MyFrame::OnRightButtonDown), NULL, this);
@@ -1433,7 +1433,8 @@ void MyFrame::OnFont(wxCommandEvent& event)
     LOG_MESSAGE(fontFace);
 
 #ifdef USE_NATIVE_EDIT_BOX
-    article->StyleSetFaceName(0, fontFace);
+    for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
+        article->StyleSetFaceName(i, fontFace);
 #else
 //         HDC hdc = GetDC(hWnd);
 //     Font f(fontSize, fontFace, fontColor);
