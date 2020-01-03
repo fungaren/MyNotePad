@@ -53,7 +53,7 @@ struct CharStyle
 const CharStyle default_style = { 0 };
 
 class MyFrame : public wxFrame {
-public:    
+public:
     MyFrame(const wxString& title);
     
     void themeLight();
@@ -77,7 +77,7 @@ public:
     void seeCaret();
     void repaintSelectionCanceledLines();
 #endif
-   
+    void ApplyTheme();
     void md2html(std::wstring& str);
     
 protected:
@@ -145,8 +145,12 @@ private:
     };
     THEME theme;
     wxColour bgColorEdit;
+    wxColour bgColorLight;
     wxColour bgColorSel;
     wxColour fontColor;
+    wxColour linkColor;
+    wxColour strongColor;
+    wxColour quoteColor;
     wxColour lineNumFontColor;
     wxColour scrollBarBgColor;
     wxColour scrollBarColor;

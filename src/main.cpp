@@ -154,8 +154,13 @@ bool MyApp::OnInit()
 void MyFrame::themeLight()
 {
     bgColorEdit = wxColour(0xEE, 0xEE, 0xEE);
+    bgColorLight = wxColour(0xF7, 0xF7, 0xF7);
     bgColorSel = wxColour(0xCC, 0xCC, 0xCC);
     fontColor = wxColour(0x44, 0x44, 0x44);
+    linkColor = wxColour(0x00, 0x63, 0xB1);
+    strongColor = *wxWHITE;
+    quoteColor = *wxLIGHT_GREY;
+
     lineNumFontColor = bgColorSel;
     scrollBarBgColor = wxColour(0xE5, 0xE5, 0xE5);
     scrollBarColor = wxColour(0xD1, 0xD1, 0xD1);
@@ -164,11 +169,17 @@ void MyFrame::themeLight()
     GetMenuBar()->Check(VIEW_THEMELIGHT, true);
     GetMenuBar()->Check(VIEW_THEMEDARK, false);
 }
+
 void MyFrame::themeDark()
 {
     bgColorEdit = wxColour(0x1E, 0x1E, 0x1E);
+    bgColorLight = wxColour(0x27, 0x27, 0x27);
     bgColorSel = wxColour(44, 92, 139);
-    fontColor =  *wxWHITE;
+    fontColor = wxColour(0xDD, 0xDD, 0xDD);
+    linkColor = wxColour(0x00, 0x63, 0xB1);
+    strongColor = *wxWHITE;
+    quoteColor = wxColour(0xCC, 0xCC, 0xCC);
+
     lineNumFontColor = bgColorSel;
     scrollBarBgColor = 0x003E3E3E;
     scrollBarColor = 0x00686868;
@@ -253,25 +264,7 @@ void MyFrame::loadSettings()
             }
         }
     }
-#ifdef USE_NATIVE_EDIT_BOX
- 	//wxFont font(fontSize, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, fontFace);
-  //  wxTextAttr at(fontColor, bgColorEdit, font);
-  //  at.SetFlags(wxTEXT_ATTR_FONT | wxTEXT_ATTR_TEXT_COLOUR | wxTEXT_ATTR_BACKGROUND_COLOUR);
-    //article->SetDefaultStyle(at);
-    //article->SetStyle(0, article->GetValue().size(), at);
-#else
-        // set default line_number_font
-//         line_number_font = std::make_unique<Font>(
-//             lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
-//
-//         HDC hdc = GetDC(hWnd);
-//         for (auto& l : article)
-//         {
-//             l.background_color = bgColorEdit;
-//             repaintLine(hdc, l);
-//         }
-//         ReleaseDC(hWnd, hdc);
-#endif
+    ApplyTheme();
 }
 
 void MyFrame::saveSettings()
@@ -894,8 +887,12 @@ MyFrame::MyFrame(const wxString& title) :
     openedFile(MNP_DOC_NOTITLE)
 {
     SetDropTarget(new MyDropTarget(this));
+#ifdef _WIN32
+    HICON hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(ICON_MYNOTEPAD));
+    SendMessage(this->GetHWND(), WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
+#else
     SetIcon(wxICON(ICON_MYNOTEPAD));
-
+#endif 
     /*
      * Create menu items
      */
@@ -963,12 +960,15 @@ MyFrame::MyFrame(const wxString& title) :
      */
 #ifdef USE_NATIVE_EDIT_BOX
     wxBoxSizer *boxSizer = new wxBoxSizer( wxVERTICAL );
-    //article = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_CHARWRAP);
     // Regard to the control, see https://wiki.wxwidgets.org/WxStyledTextCtrl
     article = new wxStyledTextCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_MULTILINE);
-    article->SetMarginWidth(0, 20);
+    article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT*2);
     article->SetWrapMode(wxSTC_WRAP_WORD);
     article->SetLexer(wxSTC_LEX_MARKDOWN);
+    for (int i = 0; i <= 32; i++)
+        article->StyleSetSize(i, fontSize / 2);
+
+    
     boxSizer->Add(article, 1, wxEXPAND | wxALL, 1);
     this->SetSizer(boxSizer);
     article->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(MyFrame::OnRightButtonDown), NULL, this);
@@ -1140,7 +1140,7 @@ void MyFrame::OnCopy(wxCommandEvent& WXUNUSED(event))
 #ifdef USE_NATIVE_EDIT_BOX
     wxString str;
     if (article->CanCopy())
-        str = article->GetStringSelection();
+        str = article->GetSelectedText();
     if (str.IsEmpty())
         return;
 #else
@@ -1315,33 +1315,55 @@ void MyFrame::OnMenuOpen(wxMenuEvent& event)
     }
 }
 
+void MyFrame::ApplyTheme()
+{
+#ifdef USE_NATIVE_EDIT_BOX
+    for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
+        article->StyleSetBackground(i, bgColorEdit);
+    for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
+        article->StyleSetForeground(i, fontColor);
+    article->StyleSetBackground(wxSTC_MARKDOWN_BLOCKQUOTE, bgColorLight);
+    article->StyleSetBackground(wxSTC_MARKDOWN_CODE, bgColorLight);
+    article->StyleSetBackground(wxSTC_MARKDOWN_CODE2, bgColorLight);
+    article->StyleSetBackground(wxSTC_MARKDOWN_CODEBK, bgColorLight);
+
+    article->StyleSetForeground(wxSTC_MARKDOWN_STRONG1, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_STRONG2, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_BLOCKQUOTE, quoteColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_STRIKEOUT, quoteColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_LINK, linkColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_CODE, quoteColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_CODE2, quoteColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_CODEBK, quoteColor);
+
+    article->SetCaretForeground(fontColor);
+    article->SetSelBackground(true, bgColorSel);
+    article->StyleSetBackground(wxSTC_STYLE_DEFAULT, bgColorEdit);
+    article->StyleSetForeground(wxSTC_STYLE_LINENUMBER, lineNumFontColor);
+    article->StyleSetBackground(wxSTC_STYLE_LINENUMBER, bgColorEdit);
+#else
+    //         if (bShowLineNumber)
+    //         line_number_font = std::make_unique<Font>(
+    //             lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
+    //
+    //     HDC hdc = GetDC(hWnd);
+    //     for (auto& l : article)
+    //     {
+    //         l.background_color = bgColorEdit;
+    //         repaintLine(hdc, l);
+    //     }
+    //     repaintSelectedLines();
+    //
+    //     OnPaint(hdc);
+    //     ReleaseDC(hWnd, hdc);
+#endif
+}
+
 void MyFrame::OnThemeLight(wxCommandEvent& WXUNUSED(event))
 {
     LOG_MESSAGE("");
     themeLight();
-#ifdef USE_NATIVE_EDIT_BOX
-    //wxTextAttr at = article->GetDefaultStyle();
-    //at.SetTextColour(fontColor);
-    //at.SetBackgroundColour(bgColorEdit);
-    //at.SetFlags(wxTEXT_ATTR_TEXT_COLOUR | wxTEXT_ATTR_BACKGROUND_COLOUR);
-    //article->SetDefaultStyle(at);
-    //article->SetStyle(0, article->GetValue().size(), at);
-#else
-//         if (bShowLineNumber)
-//         line_number_font = std::make_unique<Font>(
-//             lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
-//
-//     HDC hdc = GetDC(hWnd);
-//     for (auto& l : article)
-//     {
-//         l.background_color = bgColorEdit;
-//         repaintLine(hdc, l);
-//     }
-//     repaintSelectedLines();
-//
-//     OnPaint(hdc);
-//     ReleaseDC(hWnd, hdc);
-#endif
+    ApplyTheme();
     saveSettings();
 }
 
@@ -1349,30 +1371,8 @@ void MyFrame::OnThemeDark(wxCommandEvent& WXUNUSED(event))
 {
     LOG_MESSAGE("");
     themeDark();
-#ifdef USE_NATIVE_EDIT_BOX
-    //wxTextAttr at = article->GetDefaultStyle();
-    //at.SetTextColour(fontColor);
-    //at.SetBackgroundColour(bgColorEdit);
-    //at.SetFlags(wxTEXT_ATTR_TEXT_COLOUR | wxTEXT_ATTR_BACKGROUND_COLOUR);
-    //article->SetDefaultStyle(at);
-    //article->SetStyle(0, article->GetValue().size(), at);
-#else
-//     if (bShowLineNumber)
-//     line_number_font = std::make_unique<Font>(
-//         lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
-//
-//     HDC hdc = GetDC(hWnd);
-//     for (auto& l : article)
-//     {
-//         l.background_color = bgColorEdit;
-//         repaintLine(hdc, l);
-//     }
-//     repaintSelectedLines();
-//
-//     OnPaint(hdc);
-//     ReleaseDC(hWnd, hdc);
-#endif
-   saveSettings();
+    ApplyTheme();
+    saveSettings();
 }
 
 void MyFrame::OnLineNumber(wxCommandEvent& WXUNUSED(event))

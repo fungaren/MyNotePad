@@ -4,13 +4,13 @@
 
 ## Synopsis
 
-A MarkDown editor support export HTML file.
+A markdown editor that supports exporting HTML.
 
-This program is initially using pure Win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidgets, you can build it on Windows and Linux. 
+This program is initially written in pure win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidgets, you can build it on Windows and Linux. 
 
-Download Binaries: [Release](../../releases)
+Download binaries: [Release](../../releases)
 
-Try this Markdown file: [test.md](test.md)
+Try this markdown file: [test.md](test.md)
 
 ## Compiling instrctions
 
@@ -36,7 +36,7 @@ sudo make install
 
 That's all. Run `mynotepad` to launch the program.
 
-### Compile On Windows
+### Compile on Windows
 
 Download [CMake](https://cmake.org/download/) and [wxWidgets](http://www.wxwidgets.org/downloads/) source code or binaries. If you use wxWidgets binaries, download 3 archives:
 
@@ -61,7 +61,7 @@ Use `cmake -D<VAR>=<VALUE>` to change any option.
 
 1. (Linux)Texts copied to clipboard will disappear after the window closed
 2. (Linux)Cannot drop a file to the window to open it
-3. Applying fontface and color doesn’t work
+3. (Linux)Fail to open/save file in non-ascii path 
 
 ## TODO
 
@@ -72,7 +72,6 @@ Use `cmake -D<VAR>=<VALUE>` to change any option.
 - search & replace
 - encode conversion(only support utf-8 currently)
 - instant highlight
-- Colorful Emoji
 
 ## Programming Guide
 
