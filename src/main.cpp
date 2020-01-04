@@ -4,6 +4,7 @@
 #include <wx/dir.h>
 #include <wx/dnd.h>
 #include <wx/colour.h>
+#include <wx/caret.h>
 #include <wx/stdpaths.h>
 #include <wx/utils.h>
 #include <wx/filedlg.h>
@@ -42,23 +43,38 @@
 #pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #endif
 
-#ifdef USE_NATIVE_EDIT_BOX
+
+/* ===========================================
+ * INPUT METHOD
+ * ===========================================
+ */
 #include "imm.h"
 #pragma comment(lib, "imm32.lib")
 #pragma comment(lib, "version.lib")
 
-// case WM_IME_STARTCOMPOSITION:
-//     {
-//         HIMC hImc = ImmGetContext(hWnd);
-//         COMPOSITIONFORM Composition;
-//         Composition.dwStyle = CFS_POINT;
-//         Composition.ptCurrentPos.x = caret_x + MNP_PADDING_LEFT;    // IME follow
-//         Composition.ptCurrentPos.y = caret_y + fontSize / 4;    // set IME position
-//         ImmSetCompositionWindow(hImc, &Composition);
-//         ImmReleaseContext(hWnd, hImc);
-//     }
-//     break;
+WXLRESULT MyFrame::notepadCtrl::MSWWindowProc(WXUINT message, WXWPARAM wParam, WXLPARAM lParam)
+{
+    HWND hWnd = GetHWND();
+    HIMC hImc = ImmGetContext(hWnd);
+    COMPOSITIONFORM Composition;
+    wxPoint p;
+    switch (message) {
+    case WM_IME_STARTCOMPOSITION:
+        Composition.dwStyle = CFS_POINT;
+#ifdef USE_NATIVE_EDIT_BOX
+        p = PointFromPosition(GetCurrentPos());
+        Composition.ptCurrentPos.x = p.x;
+        Composition.ptCurrentPos.y = p.y + 10;
+#else
+        Composition.ptCurrentPos.x = caret_x + MNP_PADDING_LEFT;    // IME follow
+        Composition.ptCurrentPos.y = caret_y + fontSize / 4;    // set IME position
 #endif
+        ImmSetCompositionWindow(hImc, &Composition);
+        ImmReleaseContext(hWnd, hImc);
+        return TRUE;
+    }
+    return wxStyledTextCtrl::MSWWindowProc(message, wParam, lParam);
+}
 #endif
 
 #define LOG_MESSAGE(msg) {wxLogDebug(L"%s: %s", __func__, msg);}
@@ -158,8 +174,8 @@ void MyFrame::themeLight()
     bgColorSel = wxColour(0xCC, 0xCC, 0xCC);
     fontColor = wxColour(0x44, 0x44, 0x44);
     linkColor = wxColour(0x00, 0x63, 0xB1);
-    strongColor = *wxWHITE;
-    quoteColor = *wxLIGHT_GREY;
+    strongColor = *wxBLACK;
+    quoteColor = wxColour(0x77, 0x77, 0x77);
 
     lineNumFontColor = bgColorSel;
     scrollBarBgColor = wxColour(0xE5, 0xE5, 0xE5);
@@ -963,12 +979,14 @@ MyFrame::MyFrame(const wxString& title) :
 #ifdef USE_NATIVE_EDIT_BOX
     wxBoxSizer *boxSizer = new wxBoxSizer( wxVERTICAL );
     // Regard to the control, see https://wiki.wxwidgets.org/WxStyledTextCtrl
-    article = new wxStyledTextCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_MULTILINE);
+    article = new MyFrame::notepadCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_MULTILINE);
     article->SetWrapMode(wxSTC_WRAP_WORD);
     article->SetLexer(wxSTC_LEX_MARKDOWN);
     for (int i = 0; i <= 32; i++)
         article->StyleSetSize(i, fontSize / 2);
     article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT * 2);
+    article->StyleSetBold(wxSTC_MARKDOWN_STRONG1, true);
+    article->StyleSetBold(wxSTC_MARKDOWN_STRONG2, true);
 
     boxSizer->Add(article, 1, wxEXPAND | wxALL, 1);
     this->SetSizer(boxSizer);

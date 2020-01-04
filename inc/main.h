@@ -120,10 +120,18 @@ protected:
     void OnWordWrap(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
-    
 private:
 #ifdef USE_NATIVE_EDIT_BOX
-    wxStyledTextCtrl *article;
+    class notepadCtrl : public wxStyledTextCtrl {
+    public:
+        notepadCtrl(wxWindow *parent, wxWindowID id = wxID_ANY,
+            const wxPoint& pos = wxDefaultPosition,
+            const wxSize& size = wxDefaultSize, long style = 0,
+            const wxString& name = wxSTCNameStr)
+            : wxStyledTextCtrl(parent, id, pos, size, style, name) {};
+        WXLRESULT MSWWindowProc(WXUINT message, WXWPARAM wParam, WXLPARAM lParam);
+    };
+    notepadCtrl *article;
 #else
     uint32_t textView_width;
     uint32_t textView_height;
