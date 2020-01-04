@@ -61,14 +61,9 @@ WXLRESULT MyFrame::notepadCtrl::MSWWindowProc(WXUINT message, WXWPARAM wParam, W
     switch (message) {
     case WM_IME_STARTCOMPOSITION:
         Composition.dwStyle = CFS_POINT;
-#ifdef USE_NATIVE_EDIT_BOX
         p = PointFromPosition(GetCurrentPos());
         Composition.ptCurrentPos.x = p.x;
         Composition.ptCurrentPos.y = p.y + 10;
-#else
-        Composition.ptCurrentPos.x = caret_x + MNP_PADDING_LEFT;    // IME follow
-        Composition.ptCurrentPos.y = caret_y + fontSize / 4;    // set IME position
-#endif
         ImmSetCompositionWindow(hImc, &Composition);
         ImmReleaseContext(hWnd, hImc);
         return TRUE;
@@ -97,14 +92,6 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_LEFT_DCLICK(MyFrame::OnLeftButtonDBClick)
     EVT_RIGHT_DOWN(MyFrame::OnRightButtonDown)
     EVT_RIGHT_UP(MyFrame::OnRightButtonUp)
-
-#ifndef USE_NATIVE_EDIT_BOX
-    EVT_MOTION(MyFrame::OnMouseMove)
-    EVT_MOUSEWHEEL(MyFrame::OnMouseWheel)
-
-    EVT_SIZE(MyFrame::OnSize)
-    EVT_PAINT(MyFrame::OnPaint)
-#endif
     EVT_CHAR(MyFrame::OnChar)
 
     /*
@@ -337,38 +324,7 @@ void MyFrame::loadFile(const std::string pathname)
     openedFile = path;
     SetTitle((openedFile + MNP_DOC_TITLE).c_str());
 
-#ifdef USE_NATIVE_EDIT_BOX
     article->SetValue(str);
-#else
-//     // clean
-//     article.clear();
-//     article.push_back(Line());
-//
-//     // set text
-//     caret.reset();
-//     insertAtCursor(str);
-//
-//     // init
-//     sel_begin.reset();
-//     caret.reset();
-//
-//     if (bWordWrap)
-//     {
-//         caret.split_all_long_text(EditAreaWidth);
-//         sel_begin = caret;
-//     }
-//
-//     HDC hdc = GetDC(hWnd);
-//     for (auto& l : article)
-//         repaintLine(hdc, l);
-//
-//     calc_textView_height();
-//
-//     seeCaret();
-//
-//     OnPaint(hdc);
-//     ReleaseDC(hWnd, hdc);
-#endif
 }
 
 /*
@@ -447,412 +403,8 @@ MathJax.Hub.Config({
 
 std::wstring MyFrame::all_to_string()
 {
-#ifdef USE_NATIVE_EDIT_BOX
     return article->GetValue().ToStdWstring();
-#else
-    std::wstring str;
-    for (Article::const_iterator l = article.begin(); ;)
-    {
-        str += *l;
-        if (++l != article.end())
-        {
-            if (!l->child_line)
-                str.push_back(L'\n');
-        }
-        else
-            break;
-    }
-    return str;
-#endif
 }
-
-#ifndef USE_NATIVE_EDIT_BOX
-// Cursor MyFrame::PosToCaret(int cursor_x, int cursor_y)
-// {
-//     if (cursor_y < 0)
-//         cursor_y = 0;
-//     if (cursor_x < 0)
-//         cursor_x = 0;
-//     cursor_y += yoffset;
-//     if (cursor_y < 0)
-//         cursor_y = 0;
-//     cursor_x += xoffset - MNP_PADDING_LEFT;
-//     if (cursor_x < 0)
-//         cursor_x = 0;
-//
-//     Article::iterator l;
-//     int y = 0;
-//     for (l = article.begin(); l != --article.end(); ++l)
-//     {
-//         if ((y += l->text_height + l->padding_top) >= cursor_y)
-//             break;
-//     }
-//
-//     Sentence::iterator c;
-//     int x = l->padding_left;
-//     for (c = l->sentence.begin(); c != l->sentence.end(); ++c)
-//     {
-//         if ((x += c->width) >= cursor_x + c->width/2)
-//             break;
-//     }
-//
-//     if (bWordWrap && c == l->sentence.begin() && l->child_line)
-//     {
-//         --l;
-//         c = l->sentence.end();
-//     }
-//
-//     return Cursor(article, l, c);
-// }
-//
-// void MyFrame::repaintModifiedLine(HDC& hdc)
-// {
-//     if (bWordWrap)
-//     {
-//         caret.rebond();
-//         Article::const_iterator a = caret.getSentence();
-//         Article::const_iterator b = caret.split_long_text(EditAreaWidth);
-//         sel_begin = caret;
-//         for (auto i = a; i != b; ++i)
-//             repaintLine(hdc, *i);
-//     }
-//     else
-//         repaintLine(hdc, *caret.getSentence());
-// }
-
-// void MyFrame::insertAtCursor(const TCHAR& c)
-// {
-//     if (c == L'\n')
-//     {
-//         caret.insertCharacter(Character(L'\n'));
-//     }
-//     else if (c == L'\t')
-//     {
-//         Character tab(L' ');
-//
-//         // set tab to 4 spaces' width
-//         HDC hdc = GetDC(hWnd);
-//         Font f(fontSize, fontFace, fontColor);
-//         f.bind(hdc);
-//         GetCharWidth32W(hdc, tab.c, tab.c, &tab.width);
-//         f.unbind();
-//         ReleaseDC(hWnd, hdc);
-//
-//         tab.c = L'\t';
-//         tab.width *= 4;
-//         caret.insertCharacter(tab);
-//     }
-//     else
-//     {
-//         // emoji
-//         if (c > 0xD800 && c < 0xDBFF)
-//         {
-//             two_utf16_encoded_chars = c;
-//             return;
-//         }
-//         if (two_utf16_encoded_chars != 0)
-//         {
-//             if (c > 0xDC00 && c < 0xDFFF)
-//             {
-//                 Character ch((two_utf16_encoded_chars << 16) | c);
-//                 two_utf16_encoded_chars = 0;
-//                 ch.width = 20;    // emoji char width
-//                 caret.insertCharacter(ch);
-//             }
-//             else
-//             {
-//                 two_utf16_encoded_chars = 0;
-//                 wxMessageBox(ERR_FAULT_ENCODING, MNP_APPNAME, wxOK | wxICON_INFORMATION, this);
-//             }
-//         }
-//         else
-//         {
-//             Character ch(c);
-//             HDC hdc = GetDC(hWnd);
-//             Font f(fontSize, fontFace, fontColor);
-//             f.bind(hdc);
-//             GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
-//             f.unbind();
-//             ReleaseDC(hWnd, hdc);
-//             caret.insertCharacter(ch);
-//         }
-//     }
-//}
-
-// void MyFrame::insertAtCursor(const std::wstring& str)
-// {
-//     HDC hdc = GetDC(hWnd);
-//     Font f(fontSize, fontFace, fontColor);
-//     f.bind(hdc);
-//
-//     for (auto i = str.begin(); i != str.end(); ++i)
-//     {
-//         if (*i == L'\r')
-//         {
-//             ;
-//         }
-//         else if (*i == L'\t')
-//         {
-//             // convert tab to 4 spaces' width
-//             Character ch(L' ');
-//             GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
-//             ch.c = L'\t';
-//             ch.width *= 4;
-//             caret.insertCharacter(ch);
-//         }
-//         else if (*i == L'\n')
-//         {
-//             insertAtCursor(L'\n');
-//         }
-//         else
-//         {
-//             TCHAR c = *i;
-//
-//             // emoji
-//             if (c > 0xD800 && c < 0xDBFF)
-//             {
-//                 two_utf16_encoded_chars = c;
-//                 continue;
-//             }
-//             if (two_utf16_encoded_chars != 0)
-//             {
-//                 if (c > 0xDC00 && c < 0xDFFF)
-//                 {
-//                     Character ch((two_utf16_encoded_chars << 16) | c);
-//                     two_utf16_encoded_chars = 0;
-//                     ch.width = 20;    // emoji char width
-//                     caret.insertCharacter(ch);
-//                 }
-//                 else
-//                 {
-//                     two_utf16_encoded_chars = 0;
-//                     wxMessageBox(ERR_FAULT_ENCODING, MNP_APPNAME, wxOK | wxICON_WARNING, this);
-//                 }
-//             }
-//             else
-//             {
-//                 Character ch(c);
-//                 GetCharWidth32W(hdc, ch.c, ch.c, &ch.width);
-//                 caret.insertCharacter(ch);
-//             }
-//         }
-//     }
-//
-//     f.unbind();
-//     ReleaseDC(hWnd, hdc);
-// }
-
-// update MemDC, text_width, text_height for the line
-// and increase textView_width (only if text_width is greater)
-// void MyFrame::repaintLine(HDC clientDC, const Line& l, bool whole_line_selected = false)
-// {
-//     // calc width of each line
-//     l.text_width = 0;
-//     for (Sentence::const_iterator i = l.sentence.begin(); i != l.sentence.end(); ++i)
-//         l.text_width += i->width;
-//     if (!bWordWrap && l.text_width + l.padding_left > textView_width)
-//         textView_width = l.text_width + l.padding_left;
-//
-//     // discard present MemDC and recreate
-//     l.mdc = std::make_unique<MemDC>(clientDC,
-//         l.text_width + l.padding_left,
-//         l.text_height + l.padding_top);
-//
-//     // fill background
-//     if (whole_line_selected)
-//         GDIUtil::fill(*l.mdc,
-//             bgColorSel,
-//             0,
-//             0,
-//             l.text_width + l.padding_left,
-//             l.text_height + l.padding_top);
-//     else
-//         GDIUtil::fill(*l.mdc,
-//             l.background_color,
-//             0,
-//             0,
-//             l.text_width + l.padding_left,
-//             l.text_height + l.padding_top);
-//
-//     // draw text
-//     Font f(fontSize, fontFace, fontColor);
-//     f.bind(*l.mdc);
-//     f.printLine(l, l.padding_left, l.padding_top);
-//     f.unbind();
-// }
-
-// update MemDC, text_width, text_height for the line
-// (only if some text selected in this line)
-// void MyFrame::repaintLine(HDC clientDC, const Line& l,
-//     const Sentence::const_iterator sel_from,
-//     const Sentence::const_iterator sel_to)
-// {
-//     // make sure sel_from and sel_to are in the same line
-//     size_t x_sel_from = 0, x_sel_to = 0;
-//
-//     // calc width of each line
-//     l.text_width = 0;
-//     for (Sentence::const_iterator i = l.sentence.begin(); i != l.sentence.end(); ++i)
-//     {
-//         if (i == sel_from)    // if sel_to equals sentence.end(),
-//             x_sel_from = l.text_width;    // x_sel_from will not be assigned a value
-//         if (i == sel_to)    // if sel_to equals sentence.end(),
-//             x_sel_to = l.text_width;    // x_sel_to will not be assigned a value
-//         l.text_width += i->width;
-//     }
-//     if (!bWordWrap && l.text_width + l.padding_left > textView_width)
-//         textView_width = l.text_width + l.padding_left;
-//     if (l.sentence.end() == sel_from)
-//         x_sel_from = l.text_width;
-//     if (l.sentence.end() == sel_to)
-//         x_sel_to = l.text_width;
-//
-//     // discard present MemDC and recreate
-//     l.mdc = std::make_unique<MemDC>(clientDC,
-//         l.text_width + l.padding_left,
-//         l.text_height + l.padding_top);
-//
-//     // fill background
-//     GDIUtil::fill(*l.mdc,
-//         l.background_color,
-//         0,
-//         0,
-//         l.text_width + l.padding_left,
-//         l.text_height + l.padding_top);
-//
-//     // fill selection background
-//     GDIUtil::fill(*l.mdc,
-//         bgColorSel,
-//         l.padding_left + x_sel_from,
-//         l.padding_top,
-//         x_sel_to - x_sel_from,
-//         l.text_height);
-//
-//     // draw text
-//     Font f(fontSize, fontFace, fontColor);
-//     f.bind(*l.mdc);
-//     f.printLine(l, l.padding_left, l.padding_top);
-//     f.unbind();
-// }
-
-// When text was modified, call this function to recalculate textView_height
-// void MyFrame::calc_textView_height()
-// {
-//     textView_height = 0;
-//     for (const Line& i : article)
-//         textView_height += i.text_height + i.padding_top;
-//
-//     // textView_width will be updated when repaintLine() or OnSize() is called
-// }
-
-// fill selection background
-// void MyFrame::repaintSelectedLines()
-// {
-//     if (sel_begin.getSentence() != caret.getSentence())
-//     {
-//         HDC hdc = GetDC(hWnd);
-//         // repaint selected lines
-//         int dist_y = sel_begin.distance_y(caret);
-//         if (dist_y < 0)    // forward selection
-//         {
-//             // repaint first line
-//             Article::const_iterator l = sel_begin.getSentence();
-//             repaintLine(hdc, *l, sel_begin.getCharacter(), l->sentence.end());
-//             // repaint each line
-//             for (++l; l != caret.getSentence(); ++l)
-//                 repaintLine(hdc, *l, true);
-//             // repaint last line
-//             repaintLine(hdc, *l, l->sentence.begin(), caret.getCharacter());
-//         }
-//         else    // backwards selection
-//         {
-//             // repaint first line
-//             Article::const_iterator l = caret.getSentence();
-//             repaintLine(hdc, *l, caret.getCharacter(), l->sentence.end());
-//             // repaint each line
-//             for (++l; l != sel_begin.getSentence(); ++l)
-//                 repaintLine(hdc, *l, true);
-//             // repaint last line
-//             repaintLine(hdc, *l, l->sentence.begin(), sel_begin.getCharacter());
-//         }
-//         ReleaseDC(hWnd, hdc);
-//     }
-//     else if (sel_begin.getCharacter() != caret.getCharacter())
-//     {
-//         HDC hdc = GetDC(hWnd);
-//         int dist_x = sel_begin.distance_x(caret);
-//         if (dist_x < 0)
-//             repaintLine(hdc, *caret.getSentence(), sel_begin.getCharacter(), caret.getCharacter());
-//         else
-//             repaintLine(hdc, *caret.getSentence(), caret.getCharacter(), sel_begin.getCharacter());
-//         ReleaseDC(hWnd, hdc);
-//     }
-// }
-
-// if caret is out of client area, jump there
-// void MyFrame::seeCaret()
-// {
-//     size_t x = 0, y = 0;
-//
-//     // count y
-//     for (Article::const_iterator a_iter = article.begin();
-//         a_iter != caret.getSentence();
-//         ++a_iter)
-//         y += a_iter->text_height + a_iter->padding_top;
-//
-//     if (y < yoffset)    // over the client area
-//         yoffset = y;
-//     else if (y + lineHeight > yoffset + EditAreaHeight)    // below the client area
-//         yoffset = y + lineHeight - EditAreaHeight;
-//
-//     if (bWordWrap)
-//         xoffset = 0;
-//     else
-//     {
-//         // count x
-//         for (Sentence::const_iterator s_iter = caret.getSentence()->sentence.begin();
-//             s_iter != caret.getCharacter();
-//             ++s_iter)
-//             x += s_iter->width;
-//
-//         if (x < xoffset)    // on the left of client area
-//             xoffset = x;
-//         else if (x > xoffset + EditAreaWidth)    // on the right of client area
-//             xoffset = x - EditAreaWidth;
-//     }
-// }
-
-// remove selection background
-// void MyFrame::repaintSelectionCanceledLines()
-// {
-//     // repaint selected lines to remove selection background
-//     if (sel_begin.getSentence() != caret.getSentence())
-//     {
-//         HDC hdc = GetDC(hWnd);
-//         // repaint selected lines
-//         int dist_y = sel_begin.distance_y(caret);
-//         if (dist_y < 0)    // forward selection
-//         {
-//             for (Article::const_iterator l = sel_begin.getSentence();
-//                 l != ++caret.getSentence(); ++l)
-//                 repaintLine(hdc, *l);
-//         }
-//         else    // backwards selection
-//         {
-//             for (Article::const_iterator l = caret.getSentence();
-//                 l != ++sel_begin.getSentence(); ++l)
-//                 repaintLine(hdc, *l);
-//         }
-//         ReleaseDC(hWnd, hdc);
-//     }
-//     else
-//     {
-//         HDC hdc = GetDC(hWnd);
-//         repaintLine(hdc, *caret.getSentence());
-//         ReleaseDC(hWnd, hdc);
-//     }
-// }
-#endif /* USE_NATIVE_EDIT_BOX */
 
 #ifdef _DEBUG
 #define SHOW_PARSING_TIME
@@ -887,13 +439,7 @@ void MyFrame::md2html(std::wstring& str)
  */
 MyFrame::MyFrame(const wxString& title) :
     wxFrame(NULL, wxID_ANY, title),
-#ifdef USE_NATIVE_EDIT_BOX
     article(nullptr),
-#else
-    article({ Line() }),
-    caret(article),
-    sel_begin(article),
-#endif
     bShowLineNumber(true),
     bResized(false),
     bSaved(true),
@@ -976,7 +522,6 @@ MyFrame::MyFrame(const wxString& title) :
     /*
      * Initialize edit area
      */
-#ifdef USE_NATIVE_EDIT_BOX
     wxBoxSizer *boxSizer = new wxBoxSizer( wxVERTICAL );
     // Regard to the control, see https://wiki.wxwidgets.org/WxStyledTextCtrl
     article = new MyFrame::notepadCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_MULTILINE);
@@ -995,9 +540,6 @@ MyFrame::MyFrame(const wxString& title) :
     //article->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(MyFrame::OnKeyDown), NULL, this);
     //article->Connect(wxEVT_KEY_UP, wxKeyEventHandler(MyFrame::OnKeyUp), NULL, this);
     article->Connect(wxEVT_CHAR, wxKeyEventHandler(MyFrame::OnChar), NULL, this);
-#else
-    // TODO: ADD clientDC
-#endif
     Centre();
 }
 
@@ -1129,44 +671,22 @@ void MyFrame::OnRedo(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnCut(wxCommandEvent& event)
 {
     LOG_MESSAGE("");
-#ifdef USE_NATIVE_EDIT_BOX
     if (article->CanCut())
     {
         OnCopy(event);
         article->RemoveSelection();
         bSaved = false;
     }
-#else
-    OnCopy(event);
-//     if (sel_begin.removeSelectedChars(caret))
-//     {
-//         bSaved = false;
-//         HDC hdc = GetDC(hWnd);
-//
-//         repaintModifiedLine(hdc);
-//
-//         calc_textView_height();
-//
-//         OnPaint(hdc);
-//         ReleaseDC(hWnd, hdc);
-//     }
-#endif
 }
 
 void MyFrame::OnCopy(wxCommandEvent& WXUNUSED(event))
 {
     LOG_MESSAGE("");
-#ifdef USE_NATIVE_EDIT_BOX
     wxString str;
     if (article->CanCopy())
         str = article->GetSelectedText();
     if (str.IsEmpty())
         return;
-#else
-    std::wstring str = sel_begin.getSelectedChars(caret);
-    if (str.empty())
-        return;
-#endif
     if (wxTheClipboard->Open())
     {
         wxTheClipboard->SetData( new wxTextDataObject(str) );
@@ -1179,120 +699,23 @@ void MyFrame::OnPaste(wxCommandEvent& WXUNUSED(event))
 {
     LOG_MESSAGE("");
     bSaved = false;
-#ifdef USE_NATIVE_EDIT_BOX
     article->Paste();
-#else
-    const wchar_t* str;
-    if (wxTheClipboard->Open())
-    {
-        if (wxTheClipboard->IsSupported( wxDF_TEXT ))
-        {
-            wxTextDataObject data;
-            wxTheClipboard->GetData( data );
-            str = data.GetText().c_str();
-        }
-        wxTheClipboard->Close();
-    }
-//     sel_begin.removeSelectedChars(caret);
-//
-//     insertAtCursor(str);
-//
-//     sel_begin = caret;
-//     if (bWordWrap)
-//     {
-//         caret.rebond_all();
-//         caret.split_all_long_text(EditAreaWidth);
-//         sel_begin = caret;
-//     }
-//
-//     HDC hdc = GetDC(hWnd);
-//     for (auto& l : article)
-//         repaintLine(hdc, l);
-//
-//     calc_textView_height();
-//
-//     OnPaint(hdc);
-//     ReleaseDC(hWnd, hdc);
-#endif
 }
 
 void MyFrame::OnDelete(wxCommandEvent& WXUNUSED(event))
 {
     LOG_MESSAGE("");
-#ifdef USE_NATIVE_EDIT_BOX
     if (article->CanCut())
     {
         bSaved = false;
         article->RemoveSelection();
     }
-#else
-//     bool flag_ShiftPressed = (GetKeyState(WXK_SHIFT) < 0);
-//     if (sel_begin.removeSelectedChars(caret))
-//     {
-//         bSaved = false;
-//
-//         HDC hdc = GetDC(hWnd);
-//
-//         repaintModifiedLine(hdc);
-//
-//         calc_textView_height();
-//         seeCaret();
-//
-//         OnPaint(hdc);
-//         ReleaseDC(hWnd, hdc);
-//         return;
-//     }
-//     else
-//     {
-//         // delete the character
-//         if (!caret.eraseChar())
-//             return;
-//         bSaved = false;
-//
-//         HDC hdc = GetDC(hWnd);
-//
-//         sel_begin = caret;
-//         repaintModifiedLine(hdc);
-//
-//         calc_textView_height();
-//         seeCaret();
-//
-//         OnPaint(hdc);
-//         ReleaseDC(hWnd, hdc);
-//         return;
-//     }
-//     if (flag_ShiftPressed)
-//     {
-//         if (caret == sel_begin)
-//             repaintSelectionCanceledLines();
-//         else
-//             repaintSelectedLines();    // paint selection background
-//     }
-//     else
-//         sel_begin = caret;
-//
-//     seeCaret();
-//
-//     HDC hdc = GetDC(hWnd);
-//     OnPaint(hdc);
-//     ReleaseDC(hWnd, hdc);
-#endif
 }
 
 void MyFrame::OnSelAll(wxCommandEvent& WXUNUSED(event))
 {
     LOG_MESSAGE("");
-#ifdef USE_NATIVE_EDIT_BOX
     article->SelectAll();
-#else
-//     sel_begin.reset();
-//     caret.end();
-//     repaintSelectedLines();
-//
-//     HDC hdc = GetDC(hWnd);
-//     OnPaint(hdc);
-//     ReleaseDC(hWnd, hdc);
-#endif
 }
 
 void MyFrame::OnOptions(wxCommandEvent& WXUNUSED(event))
@@ -1308,35 +731,22 @@ void MyFrame::OnMenuOpen(wxMenuEvent& event)
     wxMenuItem *item = menu->FindItem(EDIT_CUT);
     if (item != NULL)
     {
-#ifdef USE_NATIVE_EDIT_BOX
         item->Enable(article->CanCut());
-#else
-        item->Enable(caret != sel_begin);
-#endif
     }
     item = menu->FindItem(EDIT_COPY);
     if (item != NULL)
     {
-#ifdef USE_NATIVE_EDIT_BOX
         item->Enable(article->CanCut());
-#else
-        item->Enable(caret != sel_begin);
-#endif
     }
     item = menu->FindItem(EDIT_DELETE);
     if (item != NULL)
     {
-#ifdef USE_NATIVE_EDIT_BOX
         item->Enable(article->CanCut());
-#else
-        item->Enable(caret != sel_begin);
-#endif
     }
 }
 
 void MyFrame::ApplyTheme()
 {
-#ifdef USE_NATIVE_EDIT_BOX
     for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
         article->StyleSetBackground(i, bgColorEdit);
     for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
@@ -1360,22 +770,6 @@ void MyFrame::ApplyTheme()
     article->StyleSetBackground(wxSTC_STYLE_DEFAULT, bgColorEdit);
     article->StyleSetForeground(wxSTC_STYLE_LINENUMBER, lineNumFontColor);
     article->StyleSetBackground(wxSTC_STYLE_LINENUMBER, bgColorEdit);
-#else
-    //         if (bShowLineNumber)
-    //         line_number_font = std::make_unique<Font>(
-    //             lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
-    //
-    //     HDC hdc = GetDC(hWnd);
-    //     for (auto& l : article)
-    //     {
-    //         l.background_color = bgColorEdit;
-    //         repaintLine(hdc, l);
-    //     }
-    //     repaintSelectedLines();
-    //
-    //     OnPaint(hdc);
-    //     ReleaseDC(hWnd, hdc);
-#endif
 }
 
 void MyFrame::OnThemeLight(wxCommandEvent& WXUNUSED(event))
@@ -1398,28 +792,13 @@ void MyFrame::OnLineNumber(wxCommandEvent& WXUNUSED(event))
 {
     bShowLineNumber = !bShowLineNumber;
     if (GetMenuBar()->IsChecked(VIEW_LINENUMBER)) {
-#ifdef USE_NATIVE_EDIT_BOX
         article->SetMarginType(0, wxSTC_MARGIN_NUMBER);
         article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT * 2);
-#else
-        //         line_number_font = std::make_unique<Font>(
-        //             lineNumSize, MNP_LINENUM_FONTFACE, lineNumFontColor);
 
-#endif
     } else {
-#ifdef USE_NATIVE_EDIT_BOX
         article->SetMarginType(0, wxSTC_MARGIN_SYMBOL);
         article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT / 2);
-#else
-        //         MNP_PADDING_LEFT = 20;
-
-#endif
     }
-#ifndef USE_NATIVE_EDIT_BOX
-//     HDC hdc = GetDC(hWnd);
-//     OnPaint(hdc);
-//     ReleaseDC(hWnd, hdc);
-#endif
     saveSettings();
 }
 
@@ -1453,26 +832,8 @@ void MyFrame::OnFont(wxCommandEvent& event)
     }
     LOG_MESSAGE(fontFace);
 
-#ifdef USE_NATIVE_EDIT_BOX
     for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
         article->StyleSetFaceName(i, fontFace);
-#else
-//         HDC hdc = GetDC(hWnd);
-//     Font f(fontSize, fontFace, fontColor);
-//     f.bind(hdc);
-//     // since font face has been changed, we have to update character width
-//     for (auto& l : article)
-//     {
-//         for (Character& c : l.sentence)
-//             GetCharWidth32W(hdc, c.c, c.c, &c.width);
-//     }
-//     f.unbind();
-//     // force to adjust line-width
-//     resized = true;
-//
-//     OnPaint(hdc);
-//     ReleaseDC(hWnd, hdc);
-#endif
     saveSettings();
 }
 
@@ -1497,59 +858,11 @@ void MyFrame::OnBrowser(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnWordWrap(wxCommandEvent& WXUNUSED(event))
 {
     bWordWrap = !bWordWrap;
-#ifndef USE_NATIVE_EDIT_BOX
-    //     HDC hdc = GetDC(hWnd);
-#endif
     if (GetMenuBar()->IsChecked(FORMAT_WORDWRAP)) {
-#ifdef USE_NATIVE_EDIT_BOX
         article->SetWrapMode(wxSTC_WRAP_WORD);
-#else
-        //         // exit word wrap mode
-        //         if (sel_begin == caret)
-        //         {
-        //             caret.rebond_all();
-        //             sel_begin = caret;
-        //             for (auto& l : article)
-        //                 repaintLine(hdc, l);
-        //         }
-        //         else
-        //         {
-        //             int dist_y = sel_begin.distance_y(caret);
-        //             if (dist_y < 0)    // forward selection
-        //                 sel_begin.recover(caret);
-        //             else if (dist_y > 0)
-        //                 caret.recover(sel_begin);
-        //             else
-        //             {
-        //                 int dist_x = sel_begin.distance_x(caret);
-        //                 if (dist_x < 0)    // forward selection
-        //                     sel_begin.recover(caret);
-        //                 else
-        //                     caret.recover(sel_begin);
-        //             }
-        //             for (auto& l : article)
-        //                 repaintLine(hdc, l);
-        //             repaintSelectedLines();
-        //         }
-
-#endif
     } else {
-#ifdef USE_NATIVE_EDIT_BOX
         article->SetWrapMode(wxSTC_WRAP_NONE);
-#else
-        //         // enter word wrap mode
-        //         xoffset = 0;
-        //         resized = true;    // rebond() and split() in OnPaint()
-
-#endif
     }
-#ifdef USE_NATIVE_EDIT_BOX
-    ;
-#else
-//     calc_textView_height();
-//     OnPaint(hdc);
-//     ReleaseDC(hWnd, hdc);
-#endif
     saveSettings();
 }
 
@@ -1566,25 +879,6 @@ void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnLeftButtonDown(wxMouseEvent& event)
 {
     LOG_MESSAGE("");
-#ifndef USE_NATIVE_EDIT_BOX
-//     bool flag_ShiftPressed = (GetKeyState(WXK_SHIFT) < 0);
-//     mouse_down = true;
-//     SetCapture(hWnd);
-//     repaintSelectionCanceledLines();
-//
-//     if (flag_ShiftPressed)
-//     {
-//         caret = PosToCaret(x, y);
-//         if (caret != sel_begin)
-//             repaintSelectedLines();
-//     }
-//     else
-//         sel_begin = caret = PosToCaret(x, y);
-//
-//                 HDC hdc = GetDC(hWnd);
-//                 OnPaint(hdc);
-//                 ReleaseDC(hWnd, hdc);
-#endif
 }
 
 /*
@@ -1596,38 +890,11 @@ void MyFrame::OnLeftButtonDown(wxMouseEvent& event)
 void MyFrame::OnLeftButtonDBClick(wxMouseEvent& event)
 {
     LOG_MESSAGE("");
-#ifndef USE_NATIVE_EDIT_BOX
-//     bool flag_ShiftPressed = (GetKeyState(WXK_SHIFT) < 0);
-//     if (flag_ShiftPressed) {
-//         OnLButtonDown(wParam, x, y);
-//         return;
-//     }
-//     repaintSelectionCanceledLines();
-//     sel_begin = caret = PosToCaret(x, y);
-//
-//     if (!caret.getSentence()->sentence.empty())
-//     {
-//         if (caret.isLastChar())
-//             sel_begin.move_left();
-//         else
-//             sel_begin.move_right();
-//         repaintSelectedLines();
-//     }
-//
-//                 HDC hdc = GetDC(hWnd);
-//                 OnPaint(hdc);
-//                 ReleaseDC(hWnd, hdc);
-#endif
 }
 
 void MyFrame::OnLeftButtonUp(wxMouseEvent& event)
 {
     LOG_MESSAGE("");
-#ifndef USE_NATIVE_EDIT_BOX
-//         if (mouse_down)
-//         ReleaseCapture();
-//     mouse_down = false;
-#endif
 }
 
 void MyFrame::OnRightButtonDown(wxMouseEvent& event)
@@ -1639,7 +906,6 @@ void MyFrame::OnRightButtonDown(wxMouseEvent& event)
     editMenu->Append(EDIT_DELETE, L"&Delete\tDel", L"Delete selected items");
     editMenu->AppendSeparator();
     editMenu->Append(EDIT_SELALL, L"&Select All\tCtrl+A", L"Select all");
-#ifdef USE_NATIVE_EDIT_BOX
     if (article->CanCut())
     {
         editMenu->Enable(EDIT_CUT, false);
@@ -1647,14 +913,6 @@ void MyFrame::OnRightButtonDown(wxMouseEvent& event)
         editMenu->Enable(EDIT_DELETE, false);
     }
     event.Skip(false);
-#else
-    if (sel_begin == caret)
-    {
-        editMenu->Enable(EDIT_CUT, false);
-        editMenu->Enable(EDIT_COPY, false);
-        editMenu->Enable(EDIT_DELETE, false);
-    }
-#endif
     PopupMenu(editMenu);
 }
 
@@ -1662,87 +920,6 @@ void MyFrame::OnRightButtonUp(wxMouseEvent& event)
 {
     return;
 }
-
-#ifndef USE_NATIVE_EDIT_BOX
-void MyFrame::OnMouseMove(wxMouseEvent& event)
-{
-//         if (mouse_down) // wParam & MK_LBUTTON
-//     {
-//         Cursor new_caret = PosToCaret(x, y);
-//         if (caret != new_caret)
-//         {
-//             repaintSelectionCanceledLines();
-//             caret = new_caret;
-//             repaintSelectedLines();
-//                 HDC hdc = GetDC(hWnd);
-//                 OnPaint(hdc);
-//                 ReleaseDC(hWnd, hdc);
-//         }
-//     }
-}
-
-void MyFrame::OnMouseWheel(wxMouseEvent& event)
-{
-    if (event.ShiftDown())
-    {
-        if (bWordWrap)
-            return;
-
-        // no scroll bar
-//     if (textView_width < EditAreaWidth && xoffset == 0)
-//     {
-//         if (xoffset != 0)
-//         {
-//             xoffset = 0;
-//                 HDC hdc = GetDC(hWnd);
-//                 OnPaint(hdc);
-//                 ReleaseDC(hWnd, hdc);
-//         }
-//         return;
-//     }
-//     xoffset += zDeta / 2;
-//
-//     if ((int)xoffset < 0)
-//         xoffset = 0;
-//     else if (xoffset + EditAreaWidth > textView_width)
-//         xoffset = textView_width - EditAreaWidth;
-//
-//                 HDC hdc = GetDC(hWnd);
-//                 OnPaint(hdc);
-//                 ReleaseDC(hWnd, hdc);
-    }
-    else
-    {
-//         if (!bWordWrap && GetKeyState(WXK_SHIFT) < 0) {
-//         OnMouseHWheel(-zDeta, x, y);
-//         return;
-//     }
-//
-//     // no scroll bar
-//     if (textView_height < EditAreaHeight)
-//     {
-//         if (yoffset != 0)
-//         {
-//             yoffset = 0;
-//                 HDC hdc = GetDC(hWnd);
-//                 OnPaint(hdc);
-//                 ReleaseDC(hWnd, hdc);
-//         }
-//         return;
-//     }
-//     yoffset -= zDeta / 2;
-//
-//     if ((int)yoffset < 0)
-//         yoffset = 0;
-//     else if (yoffset + EditAreaHeight > textView_height)
-//         yoffset = textView_height - EditAreaHeight;
-//
-//                 HDC hdc = GetDC(hWnd);
-//                 OnPaint(hdc);
-//                 ReleaseDC(hWnd, hdc);
-    }
-}
-#endif /* USE_NATIVE_EDIT_BOX */
 
 void MyFrame::OnChar(wxKeyEvent& event)
 {
@@ -1755,53 +932,23 @@ void MyFrame::OnChar(wxKeyEvent& event)
         // WXK_BACK, so check for them explicitly.
         if ( uc >= 32 )
         {
-#ifndef USE_NATIVE_EDIT_BOX
-            // replace selected characters
-            bool flag_removed = sel_begin.removeSelectedChars(caret);
-#endif
             switch (uc)
             {
             case WXK_BACK:
-#ifdef USE_NATIVE_EDIT_BOX
                 if (article->IsEmpty())
                     return;
-#else
-                if (!flag_removed && !caret.backspace())
-                    return;
-#endif
                 break;
             case WXK_RETURN:
-#ifndef USE_NATIVE_EDIT_BOX
-                insertAtCursor(L'\n');
-                hdc = GetDC(hWnd);
-                repaintLine(hdc, *(--caret.getSentence()));
-#endif
                 break;
             default:
-#ifndef USE_NATIVE_EDIT_BOX
-                insertAtCursor(event.GetKeyCode());
-                hdc = GetDC(hWnd);
-#endif
                 break;
             }
             bSaved = false;
-#ifdef USE_NATIVE_EDIT_BOX
             event.Skip(true);
-#else
-            // sel_begin = caret;
-            // repaintModifiedLine(hdc);
-
-            // calc_textView_height();
-            // seeCaret();
-
-            // OnPaint(hdc);
-            // ReleaseDC(hWnd, hdc);
-#endif
         }
         else
         {
             // It's a control character, eg. WXK_ESCAPE, WXK_F1, ...
-#ifdef USE_NATIVE_EDIT_BOX
             event.Skip(true);
             switch (event.GetKeyCode())
             {
@@ -1812,412 +959,13 @@ void MyFrame::OnChar(wxKeyEvent& event)
             default:
                 break;
             }
-#else
-            switch (event.GetKeyCode())
-            {
-            case WXK_CONTROL_X:
-                OnCut(wxCommandEvent());
-                return;
-            case WXK_CONTROL_V:
-                OnPaste(wxCommandEvent());
-                return;
-            default:
-                break;
-            }
-#endif
         }
     }
     else // No Unicode equivalent.
     {
-#ifdef USE_NATIVE_EDIT_BOX
         event.Skip(true);
-#else
-        bool flag_ShiftPressed = event.ShiftDown();
-        // It's a special key, deal with all the known ones:
-        switch ( event.GetKeyCode() )
-        {
-        case WXK_LEFT:
-            // // some lines were selected, but Shift was not pressed,
-            // // remove selection background
-            // if (!flag_ShiftPressed)
-            //     repaintSelectionCanceledLines();
-            // caret.move_left();
-            break;
-        case WXK_RIGHT:
-            // if (!flag_ShiftPressed)
-            //     repaintSelectionCanceledLines();
-            // caret.move_right();
-            break;
-        case WXK_UP:
-            // if (!flag_ShiftPressed)
-            //     repaintSelectionCanceledLines();
-            // // the first line
-            // if (caret.isFirstLine())
-            // {
-            //     HDC hdc = GetDC(hWnd);
-            //     OnPaint(hdc);
-            //     ReleaseDC(hWnd, hdc);
-            //     return;    // nothing to do
-            // }
-            // else
-            // {
-            //     // not the first line, go to previous line
-            //     caret.toFirstChar();
-            //     caret.move_left();
-            // }
-            break;
-        case WXK_DOWN:
-            // if (!flag_ShiftPressed)
-            //     repaintSelectionCanceledLines();
-            // // the last char in this line, go to the front of next line
-            // if (caret.isLastLine())
-            // {
-            //         HDC hdc = GetDC(hWnd);
-            //         OnPaint(hdc);
-            //         ReleaseDC(hWnd, hdc);
-            //     return;    // nothing to do
-            // }
-            // else
-            // {
-            //     // not the last line, go to next line
-            //     caret.toLastChar();
-            //     caret.move_right();
-            // }
-            break;
-        case WXK_HOME:
-            // if (!flag_ShiftPressed)
-            //     repaintSelectionCanceledLines();
-            // if (GetKeyState(WXK_CONTROL) < 0)    // Ctrl was pressed
-            // {
-            //     if (caret.isFirstLine() && caret.isFirstChar())
-            //     {
-            //         HDC hdc = GetDC(hWnd);
-            //         OnPaint(hdc);
-            //         ReleaseDC(hWnd, hdc);
-            //         return;
-            //     }
-            //     else
-            //         caret.reset();
-            // }
-            // else
-            // {
-            //     if (!caret.isFirstChar())
-            //         caret.toFirstChar();
-            //     else
-            //         return;
-            // }
-            break;
-        case WXK_END:
-            // if (!flag_ShiftPressed)
-            //     repaintSelectionCanceledLines();
-            // if (GetKeyState(WXK_CONTROL) < 0)    // Ctrl was pressed
-            // {
-            //     if (caret.isLastLine() && caret.isLastChar())
-            //     {
-            //         HDC hdc = GetDC(hWnd);
-            //         OnPaint(hdc);
-            //         ReleaseDC(hWnd, hdc);
-            //         return;
-            //     }
-            //     else
-            //         caret.end();
-            // }
-            // else
-            // {
-            //     if (!caret.isLastChar())
-            //         caret.toLastChar();
-            //     else
-            //     {
-            //         HDC hdc = GetDC(hWnd);
-            //         OnPaint(hdc);
-            //         ReleaseDC(hWnd, hdc);
-            //         return;
-            //     }
-            // }
-            break;
-        case WXK_DELETE:
-            // if (sel_begin.removeSelectedChars(caret))
-            // {
-            //     bSaved = false;
-
-            //     HDC hdc = GetDC(hWnd);
-
-            //     repaintModifiedLine(hdc);
-
-            //     calc_textView_height();
-            //     seeCaret();
-
-            //     OnPaint(hdc);
-            //     ReleaseDC(hWnd, hdc);
-            //     return;
-            // }
-            // else
-            // {
-            //     // delete the character
-            //     if (!caret.eraseChar())
-            //         return;
-            //     bSaved = false;
-
-            //     HDC hdc = GetDC(hWnd);
-
-            //     sel_begin = caret;
-            //     repaintModifiedLine(hdc);
-
-            //     calc_textView_height();
-            //     seeCaret();
-
-            //     OnPaint(hdc);
-            //     ReleaseDC(hWnd, hdc);
-            //     return;
-            // }
-            break;
-        default:
-            break
-        }
-        // if (flag_ShiftPressed)
-        // {
-        //     if (caret == sel_begin)
-        //         repaintSelectionCanceledLines();
-        //     else
-        //         repaintSelectedLines();    // paint selection background
-        // }
-        // else
-        //     sel_begin = caret;
-
-        // seeCaret();
-
-        // HDC hdc = GetDC(hWnd);
-        // OnPaint(hdc);
-        // ReleaseDC(hWnd, hdc);
-#endif
     }
 }
-
-#ifndef USE_NATIVE_EDIT_BOX
-void MyFrame::OnSize(wxSizeEvent& event)
-{
-//     ClientWidth = width;
-//     ClientHeight = height;
-//     EditAreaWidth = ClientWidth - MNP_PADDING_LEFT - MNP_SCROLLBAR_WIDTH;
-//     EditAreaHeight = ClientHeight - MNP_SCROLLBAR_WIDTH;
-//     bResized = true;
-//     if (bWordWrap)
-//         textView_width = EditAreaWidth;
-}
-
-void MyFrame::OnPaint(wxPaintEvent& event)
-{
-//     // Window size changed so we should adjust text.
-//     if (bWordWrap && bResized)
-//     {
-//         // for selection
-//         if (sel_begin == caret)
-//         {
-//             caret.rebond_all();
-//             caret.split_all_long_text(EditAreaWidth);
-//
-//             sel_begin = caret;
-//             for (auto& l : article)
-//                 repaintLine(hdc, l);
-//         }
-//         else
-//         {
-//             int dist_y = sel_begin.distance_y(caret);
-//             if (dist_y < 0)    // forward selection
-//                 sel_begin.reform(EditAreaWidth, caret);
-//             else if (dist_y > 0)
-//                 caret.reform(EditAreaWidth, sel_begin);
-//             else
-//             {
-//                 int dist_x = sel_begin.distance_x(caret);
-//                 if (dist_x < 0)    // forward selection
-//                     sel_begin.reform(EditAreaWidth, caret);
-//                 else
-//                     caret.reform(EditAreaWidth, sel_begin);
-//             }
-//
-//             for (auto& l : article)
-//                 repaintLine(hdc, l);
-//             repaintSelectedLines();
-//         }
-//         calc_textView_height();
-//     }
-//     resized = false;
-//
-//     // create clientDC
-//     MemDC clientDC(hdc, ClientWidth, ClientHeight);
-//
-//     // background color of edit area
-//     GDIUtil::fill(clientDC, bgColorEdit, 0, 0, ClientWidth, ClientHeight);
-//
-//     size_t y = 0;
-//     Article::const_iterator l = article.begin();
-//     size_t n_line = article.size();    // a counter for line number
-//     if (bShowLineNumber)
-//     {
-//         line_number_font->bind(clientDC);
-//         if (n_line > 999)
-//             MNP_PADDING_LEFT = 64;
-//         else if (n_line > 99)
-//             MNP_PADDING_LEFT = 50;
-//         else if (n_line > 9)
-//             MNP_PADDING_LEFT = 38;
-//         else
-//             MNP_PADDING_LEFT = 26;
-//         n_line = 0;
-//     }
-//     // draw first line (probably can't be fully seen)
-//     for (; l != article.end(); ++l)
-//     {
-//         y += l->text_height + l->padding_top;
-//         if (bShowLineNumber && !l->child_line)
-//             ++n_line;
-//         // the first line of edit area
-//         if (y > yoffset)
-//         {
-//             if (bShowLineNumber)
-//             {
-//                 std::wstringstream ss; ss << n_line;
-//                 line_number_font->printLine(ss.str(),
-//                     MNP_LINENUM_MARGIN_LEFT,
-//                     MNP_LINENUM_MARGIN_TOP + (y - l->text_height - l->padding_top) - yoffset);
-//             }
-//             BitBlt(clientDC,
-//                 MNP_PADDING_LEFT,    // dest x
-//                 0,                    // dest y
-//                 l->text_width + l->padding_left,    // dest width
-//                 y - yoffset,        // dest height
-//                 *(l->mdc),
-//                 xoffset,            // source x
-//                 yoffset - (y - l->text_height - l->padding_top),    // source y
-//                 SRCCOPY);
-//             // caret is in this line
-//             if (caret.getSentence() == l)
-//             {
-//                 caret_x = l->padding_left;    // calc caret_x
-//                 for (Sentence::const_iterator c = l->sentence.begin();
-//                     c != caret.getCharacter(); ++c)
-//                 {
-//                     caret_x += c->width;
-//                     // caret at the right of edit area
-//                     if (caret_x > xoffset + EditAreaWidth)
-//                         break;
-//                 }
-//                 // caret is in edit area, draw caret
-//                 if (caret_x >= xoffset && caret_x <= xoffset + EditAreaWidth)
-//                 {
-//                     caret_x -= xoffset;
-//                     caret_y = (y - l->text_height) - yoffset;
-//                     GDIUtil::line(clientDC, fontColor, caret_x + MNP_PADDING_LEFT, caret_y,
-//                         caret_x + MNP_PADDING_LEFT, caret_y + caret.getSentence()->text_height);
-//                 }
-//             }
-//             ++l;
-//             break;
-//         }
-//     }
-//     y -= yoffset;    // Y-Axis to paint the second line
-//     // draw subsequent lines
-//     for (; l != article.end(); ++l)
-//     {
-//         if (bShowLineNumber)
-//         {
-//             if (!l->child_line)
-//                 ++n_line;
-//             std::wstringstream ss; ss << n_line;
-//             line_number_font->printLine(ss.str(),
-//                 MNP_LINENUM_MARGIN_LEFT,
-//                 MNP_LINENUM_MARGIN_TOP + y);
-//         }
-//         if (y > EditAreaHeight)    // last line (can't be seen entirely)
-//         {
-//             BitBlt(clientDC,
-//                 MNP_PADDING_LEFT,    // dest x
-//                 y,                    // dest y
-//                 l->text_width + l->padding_left,    // dest width
-//                 EditAreaHeight - (y - l->text_height - l->padding_top),    // dest height
-//                 *(l->mdc),
-//                 xoffset,            // source x
-//                 0,                    // source y
-//                 SRCCOPY);
-//             break;
-//         }
-//         BitBlt(clientDC,
-//             MNP_PADDING_LEFT,        // dest x
-//             y,                        // dest y
-//             l->text_width + l->padding_left,    // dest width
-//             l->text_height + l->padding_top,    // dest height
-//             *(l->mdc),
-//             xoffset,                // source x
-//             0,                        // source y
-//             SRCCOPY);
-//         // caret at this line
-//         if (caret.getSentence() == l)
-//         {
-//             caret_x = l->padding_left;
-//             for (Sentence::const_iterator c = l->sentence.begin();
-//                 c != caret.getCharacter(); ++c)
-//             {
-//                 caret_x += c->width;
-//                 // caret at the right of edit area
-//                 if (caret_x > xoffset + EditAreaWidth)
-//                     break;
-//             }
-//             // caret is in edit area, draw caret
-//             if (caret_x >= xoffset && caret_x <= xoffset + EditAreaWidth)
-//             {
-//                 caret_x -= xoffset;
-//                 caret_y = y + caret.getSentence()->padding_top;
-//                 GDIUtil::line(clientDC, fontColor, caret_x + MNP_PADDING_LEFT, caret_y,
-//                     caret_x + MNP_PADDING_LEFT, caret_y + caret.getSentence()->text_height);
-//             }
-//         }
-//         y += l->text_height + l->padding_top;
-//     }
-//
-//     if (bShowLineNumber)
-//         line_number_font->unbind();
-//
-//     // draw vertical scrollbar
-//     if (textView_height > ClientHeight - MNP_PADDING_LEFT) {
-//         GDIUtil::fill(clientDC,
-//             scrollBarBgColor,
-//             ClientWidth - MNP_SCROLLBAR_WIDTH,
-//             0,
-//             MNP_SCROLLBAR_WIDTH,
-//             ClientHeight
-//         );
-//         GDIUtil::fill(clientDC,
-//             scrollBarColor,
-//             ClientWidth - MNP_SCROLLBAR_WIDTH,
-//             yoffset * ClientHeight / textView_height,
-//             MNP_SCROLLBAR_WIDTH,
-//             ClientHeight * ClientHeight / textView_height
-//         );
-//     }
-//     // draw horizontal scrollbar
-//     if (!bWordWrap && textView_width > ClientWidth - MNP_PADDING_LEFT) {
-//         GDIUtil::fill(clientDC,
-//             scrollBarBgColor,
-//             0,
-//             ClientHeight - MNP_SCROLLBAR_WIDTH,
-//             ClientWidth,
-//             MNP_SCROLLBAR_WIDTH
-//         );
-//         GDIUtil::fill(clientDC,
-//             scrollBarColor,
-//             xoffset * ClientWidth / textView_width,
-//             ClientHeight - MNP_SCROLLBAR_WIDTH,
-//             ClientWidth * ClientWidth / textView_width,
-//             MNP_SCROLLBAR_WIDTH
-//         );
-//     }
-//
-//     // display
-//     BitBlt(hdc, 0, 0, ClientWidth, ClientHeight, clientDC, 0, 0, SRCCOPY);
-}
-
-#endif /* USE_NATIVE_EDIT_BOX */
 
 bool MyDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString &filenames)
 {

@@ -55,7 +55,6 @@ Use `cmake -D<VAR>=<VALUE>` to change any option.
 | Option | Default | Description |
 | - | - | - |
 | `CMAKE_BUILD_TYPE` | Debug | Build Type for Unix (Release / Debug) |
-| `USE_NATIVE_EDIT_BOX` | ON | Use native or custom implemented edit control |
 
 ## Known bugs
 

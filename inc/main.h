@@ -64,19 +64,6 @@ public:
     bool sureToQuit(wxCommandEvent& event);
     void saveHTML(const std::string pathname);
     std::wstring all_to_string();
-#ifndef USE_NATIVE_EDIT_BOX
-//     Cursor PosToCaret(int cursor_x, int cursor_y);
-//     void repaintModifiedLine(HDC& hdc);
-//     void insertAtCursor(const std::wstring& str);
-//     void repaintLine(HDC clientDC, const Line& l, bool whole_line_selected = false);
-//     void repaintLine(  HDC clientDC, const Line& l,
-//                        const Sentence::const_iterator sel_from,
-//                        const Sentence::const_iterator sel_to);
-    void calc_textView_height();
-    void repaintSelectedLines();
-    void seeCaret();
-    void repaintSelectionCanceledLines();
-#endif
     void ApplyTheme();
     void md2html(std::wstring& str);
     
@@ -86,13 +73,6 @@ protected:
     void OnLeftButtonDBClick(wxMouseEvent& event);
     void OnRightButtonDown(wxMouseEvent& event);
     void OnRightButtonUp(wxMouseEvent& event);
-#ifndef USE_NATIVE_EDIT_BOX
-    void OnMouseMove(wxMouseEvent& event);
-    void OnMouseWheel(wxMouseEvent& event);
-
-    void OnSize(wxSizeEvent& event);
-    void OnPaint(wxPaintEvent& event);
-#endif
     void OnChar(wxKeyEvent& event);
     
     void OnNew(wxCommandEvent& event);
@@ -121,7 +101,6 @@ protected:
     void OnAbout(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
 private:
-#ifdef USE_NATIVE_EDIT_BOX
     class notepadCtrl : public wxStyledTextCtrl {
     public:
         notepadCtrl(wxWindow *parent, wxWindowID id = wxID_ANY,
@@ -132,16 +111,6 @@ private:
         WXLRESULT MSWWindowProc(WXUINT message, WXWPARAM wParam, WXLPARAM lParam);
     };
     notepadCtrl *article;
-#else
-    uint32_t textView_width;
-    uint32_t textView_height;
-    uint32_t caret_x, caret_y;  // for IME (relative to EditArea)
-    uint32_t xoffset;           // offset-x of textView
-    uint32_t yoffset;           // offset-y of textView
-//     Article article;            // article text
-//     Cursor caret;               // current position = end of selection
-//     Cursor sel_begin;           // beginning of selection 
-#endif
     bool bShowLineNumber;       // display line number (initial true)
     bool bResized;              // flag indicates the app window is resized
     bool bSaved;                // set false after file is modified

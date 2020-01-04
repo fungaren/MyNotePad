@@ -37,7 +37,7 @@ endif()
 set(MYNOTEPAD_VERSION_MAJOR 1)
 set(MYNOTEPAD_VERSION_MINOR 0.5)
 
-option(USE_NATIVE_EDIT_BOX "Use native or custom implemented edit control" ON)
+#option(USE_NATIVE_EDIT_BOX "Use native or custom implemented edit control" ON)
 
 configure_file(
     "${PROJECT_SOURCE_DIR}/inc/config.h.in"
