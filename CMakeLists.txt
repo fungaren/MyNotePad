@@ -44,7 +44,7 @@ configure_file(
     "${PROJECT_BINARY_DIR}/inc/config.h"
 )
 
-# for Windows we have to specify the path manually
+# specify the path manually
 if (WIN32)
     #set(wxWidgets_ROOT_DIR "D:/wxWidgets-3.1.3/")
     #set(wxWidgets_LIB_DIR "D:/wxWidgets-3.1.3/lib/vc14x_dll")
@@ -53,6 +53,8 @@ set(wxWidgets_CONFIGURATION mswu) # or mswud
 
 # find wxWidgets
 find_package(wxWidgets COMPONENTS core base stc REQUIRED)
+message("wxWidgets version: ${wxWidgets_VERSION_MAJOR}."
+        "${wxWidgets_VERSION_MINOR}.${wxWidgets_VERSION_PATCH}")
 
 include(${wxWidgets_USE_FILE})
 set(EXTRA_LIBS ${EXTRA_LIBS} ${wxWidgets_LIBRARIES})
@@ -84,20 +86,21 @@ add_executable(${TARGT} WIN32 ${SOURCES})
 target_link_libraries(${TARGT} ${EXTRA_LIBS})
 
 if (WIN32)
+    set(WXVER "${wxWidgets_VERSION_MAJOR}${wxWidgets_VERSION_MINOR}${wxWidgets_VERSION_PATCH}")
     # required DLLs on Windows
     set(ALL_DLLS_DEBUG
-        "${wxWidgets_LIB_DIR}/wxbase312ud_vc14x.dll"
-        "${wxWidgets_LIB_DIR}/wxbase312ud_net_vc14x.dll"
-        "${wxWidgets_LIB_DIR}/wxbase312ud_xml_vc14x.dll"
-        "${wxWidgets_LIB_DIR}/wxmsw312ud_core_vc14x.dll"
-        "${wxWidgets_LIB_DIR}/wxmsw312ud_stc_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxbase${WXVER}ud_vc14x_x64.dll"
+        "${wxWidgets_LIB_DIR}/wxbase${WXVER}ud_net_vc14x_x64.dll"
+        "${wxWidgets_LIB_DIR}/wxbase${WXVER}ud_xml_vc14x_x64.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw${WXVER}ud_core_vc14x_x64.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw${WXVER}ud_stc_vc14x_x64.dll"
         )
     set(ALL_DLLS_RELEASE
-        "${wxWidgets_LIB_DIR}/wxbase312u_vc14x.dll"
-        "${wxWidgets_LIB_DIR}/wxbase312u_net_vc14x.dll"
-        "${wxWidgets_LIB_DIR}/wxbase312u_xml_vc14x.dll"
-        "${wxWidgets_LIB_DIR}/wxmsw312u_core_vc14x.dll"
-        "${wxWidgets_LIB_DIR}/wxmsw312u_stc_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxbase${WXVER}u_vc14x_x64.dll"
+        "${wxWidgets_LIB_DIR}/wxbase${WXVER}u_net_vc14x_x64.dll"
+        "${wxWidgets_LIB_DIR}/wxbase${WXVER}u_xml_vc14x_x64.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw${WXVER}u_core_vc14x_x64.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw${WXVER}u_stc_vc14x_x64.dll"
         )
     set(ALL_DLLS $<$<CONFIG:Debug>:${ALL_DLLS_DEBUG}>$<$<CONFIG:Release>:${ALL_DLLS_RELEASE}>)
     #message(${ALL_DLLS})
@@ -109,7 +112,7 @@ if (WIN32)
         "${PROJECT_SOURCE_DIR}/static/mynotepad.visualelementsmanifest.xml"
         )
     # destination directory
-    set(COPY_DLLS_TO ${PROJECT_BINARY_DIR}/$<$<CONFIG:Release>:Release>$<$<CONFIG:Debug>:Debug>/)
+    set(COPY_DLLS_TO ${PROJECT_BINARY_DIR}/)
     #message(${COPY_DLLS_TO})
     add_custom_command(TARGET ${TARGT} POST_BUILD
         COMMAND_EXPAND_LISTS
