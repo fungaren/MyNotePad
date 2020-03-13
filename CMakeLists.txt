@@ -46,8 +46,8 @@ configure_file(
 
 # for Windows we have to specify the path manually
 if (WIN32)
-    set(wxWidgets_ROOT_DIR "D:/wxWidgets-3.1.2/")
-    set(wxWidgets_LIB_DIR "D:/wxWidgets-3.1.2/lib/vc141_dll")
+    #set(wxWidgets_ROOT_DIR "D:/wxWidgets-3.1.3/")
+    #set(wxWidgets_LIB_DIR "D:/wxWidgets-3.1.3/lib/vc14x_dll")
 endif()
 set(wxWidgets_CONFIGURATION mswu) # or mswud
 
@@ -86,18 +86,18 @@ target_link_libraries(${TARGT} ${EXTRA_LIBS})
 if (WIN32)
     # required DLLs on Windows
     set(ALL_DLLS_DEBUG
-        "${wxWidgets_LIB_DIR}/wxbase312ud_vc141.dll"
-        "${wxWidgets_LIB_DIR}/wxbase312ud_net_vc141.dll"
-        "${wxWidgets_LIB_DIR}/wxbase312ud_xml_vc141.dll"
-        "${wxWidgets_LIB_DIR}/wxmsw312ud_core_vc141.dll"
-        "${wxWidgets_LIB_DIR}/wxmsw312ud_stc_vc141.dll"
+        "${wxWidgets_LIB_DIR}/wxbase312ud_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxbase312ud_net_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxbase312ud_xml_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw312ud_core_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw312ud_stc_vc14x.dll"
         )
     set(ALL_DLLS_RELEASE
-        "${wxWidgets_LIB_DIR}/wxbase312u_vc141.dll"
-        "${wxWidgets_LIB_DIR}/wxbase312u_net_vc141.dll"
-        "${wxWidgets_LIB_DIR}/wxbase312u_xml_vc141.dll"
-        "${wxWidgets_LIB_DIR}/wxmsw312u_core_vc141.dll"
-        "${wxWidgets_LIB_DIR}/wxmsw312u_stc_vc141.dll"
+        "${wxWidgets_LIB_DIR}/wxbase312u_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxbase312u_net_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxbase312u_xml_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw312u_core_vc14x.dll"
+        "${wxWidgets_LIB_DIR}/wxmsw312u_stc_vc14x.dll"
         )
     set(ALL_DLLS $<$<CONFIG:Debug>:${ALL_DLLS_DEBUG}>$<$<CONFIG:Release>:${ALL_DLLS_RELEASE}>)
     #message(${ALL_DLLS})

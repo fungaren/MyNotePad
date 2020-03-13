@@ -51,3 +51,7 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# for Visual Studio
+.vs/
+CMakeSettings.json

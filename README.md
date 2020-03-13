@@ -38,15 +38,35 @@ That's all. Run `mynotepad` to launch the program.
 
 ### Compile on Windows
 
-Download [CMake](https://cmake.org/download/) and [wxWidgets](http://www.wxwidgets.org/downloads/) source code or binaries. If you use wxWidgets binaries, download 3 archives:
+1. Download [CMake](https://cmake.org/download/) and [wxWidgets](http://www.wxwidgets.org/downloads/) source code or binaries. If you use wxWidgets binaries, download 3 archives:
 
 - Header Files (`include` folder)
-- Development Files (`lib/vc141_dll` folder)
-- Release DLLs (`lib/vc141_dll` folder)
+- 32-Bit Development Files (`lib/vc141_dll` folder)
+- 32-Bit Release DLLs (`lib/vc141_dll` folder)
 
-Extract them to the same folder and merge the `lib/vc141_dll` folder. For example, NOW in `D:/wxWidgets-3.1.2/` there are two folders: `include` and `lib`. See [CMakeLists.txt](CMakeLists.txt) for more detail.
+2. Extract them to the same folder and merge the `lib/vc141_dll` folder. For example, the directory tree is like:
 
-Then open CMake-GUI, click `Browse Source` and `Browse Build` to choose a correct place. Click `Configure` and `Generate` finally we get a Visual Studio solution.
+```
+D:\
+|----wxWidgets-3.1.3
+     |---------------include
+                     |--------msvc
+                     |--------wx
+     |---------------lib
+                     |--------vc14x_dll
+                              |-------------mswu
+                              |-------------mswud
+                              |-------------wxbase31u.lib
+                              ......
+                              |-------------wxzlibd.lib
+```
+See [CMakeLists.txt](CMakeLists.txt) for more detail.
+
+3. Then open CMake-GUI, click `Browse Source` and `Browse Build` to choose a correct place.
+
+4. Click `Configure`, set `wxWidgets_ROOT_DIR` and `wxWidgets_LIB_DIR` to the wxWidgets library folder. For the instance above, set `wxWidgets_ROOT_DIR` to `D:\wxWidgets-3.1.3\` and set `wxWidgets_LIB_DIR` to `D:\wxWidgets-3.1.3\lib\vc141_dll`.
+
+5. Click `Generate`, finally we get a Visual Studio solution.
 
 ### Options
 
