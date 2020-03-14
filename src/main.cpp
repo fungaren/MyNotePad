@@ -177,15 +177,15 @@ void MyFrame::themeDark()
 {
     bgColorEdit = wxColour(0x1E, 0x1E, 0x1E);
     bgColorLight = wxColour(0x27, 0x27, 0x27);
-    bgColorSel = wxColour(44, 92, 139);
+    bgColorSel = wxColour(0x2C, 0x5C, 0x8B);
     fontColor = wxColour(0xDD, 0xDD, 0xDD);
     linkColor = wxColour(0x00, 0x63, 0xB1);
     strongColor = *wxWHITE;
     quoteColor = wxColour(0xCC, 0xCC, 0xCC);
 
     lineNumFontColor = bgColorSel;
-    scrollBarBgColor = 0x003E3E3E;
-    scrollBarColor = 0x00686868;
+    scrollBarBgColor = wxColour(0x3E, 0x3E, 0x3E);
+    scrollBarColor = wxColour(0x68, 0x68, 0x68);
 
     theme = THEME::THEME_DARK;
     GetMenuBar()->Check(VIEW_THEMELIGHT, false);
@@ -291,6 +291,15 @@ void MyFrame::saveSettings()
     LOG_MESSAGE(pathname);
 }
 
+void MyFrame::updateSaveState(bool saved)
+{
+    bSaved = saved;
+    if (bSaved)
+        SetTitle(openedFile + MNP_DOC_TITLE);
+    else
+        SetTitle(openedFile + " *" + MNP_DOC_TITLE);
+}
+
 void MyFrame::loadFile(const std::string pathname)
 {
     std::string path(pathname);
@@ -320,10 +329,8 @@ void MyFrame::loadFile(const std::string pathname)
         return;
     }
 
-    bSaved = true;
     openedFile = path;
-    SetTitle((openedFile + MNP_DOC_TITLE).c_str());
-
+    updateSaveState(true);
     article->SetValue(str);
 }
 
@@ -450,7 +457,6 @@ MyFrame::MyFrame(const wxString& title) :
     fontFace(FONT_MSYAHEI),
     openedFile(MNP_DOC_NOTITLE)
 {
-    SetDropTarget(new MyDropTarget(this));
 #ifdef _WIN32
     HICON hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(ICON_MYNOTEPAD));
     SendMessage(this->GetHWND(), WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
@@ -473,9 +479,7 @@ MyFrame::MyFrame(const wxString& title) :
 
     wxMenu *editMenu = new wxMenu();
     editMenu->Append(EDIT_UNDO, L"&Undo\tCtrl+Z", L"Undo");
-    editMenu->Enable(EDIT_UNDO, false);
     editMenu->Append(EDIT_REDO, L"&Redo\tCtrl+Y", L"Redo");
-    editMenu->Enable(EDIT_REDO, false);
     editMenu->AppendSeparator();
     editMenu->Append(EDIT_CUT, L"C&ut\tCtrl+X", L"Cut to clipboard");
     editMenu->Append(EDIT_COPY, L"&Copy\tCtrl+C", L"Copy to clipboard");
@@ -525,21 +529,24 @@ MyFrame::MyFrame(const wxString& title) :
     wxBoxSizer *boxSizer = new wxBoxSizer( wxVERTICAL );
     // Regard to the control, see https://wiki.wxwidgets.org/WxStyledTextCtrl
     article = new MyFrame::notepadCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_MULTILINE);
+    article->SetEOLMode(wxSTC_EOL_LF);
     article->SetWrapMode(wxSTC_WRAP_WORD);
     article->SetLexer(wxSTC_LEX_MARKDOWN);
-    for (int i = 0; i <= 32; i++)
-        article->StyleSetSize(i, fontSize / 2);
+    // Left-margin for line number 
     article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT * 2);
-    article->StyleSetBold(wxSTC_MARKDOWN_STRONG1, true);
-    article->StyleSetBold(wxSTC_MARKDOWN_STRONG2, true);
 
     boxSizer->Add(article, 1, wxEXPAND | wxALL, 1);
     this->SetSizer(boxSizer);
     article->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(MyFrame::OnRightButtonDown), NULL, this);
-    //article->Connect(wxEVT_RIGHT_UP, wxMouseEventHandler(MyFrame::OnRightButtonUp), NULL, this);
+    article->Connect(wxEVT_RIGHT_UP, wxMouseEventHandler(MyFrame::OnRightButtonUp), NULL, this);
+    //article->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(MyFrame::OnLeftButtonDown), NULL, this);
+    //article->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(MyFrame::OnLeftButtonUp), NULL, this);
+    //article->Connect(wxEVT_RIGHT_UP, wxMouseEventHandler(MyFrame::OnLeftButtonDBClick), NULL, this);
     //article->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(MyFrame::OnKeyDown), NULL, this);
     //article->Connect(wxEVT_KEY_UP, wxKeyEventHandler(MyFrame::OnKeyUp), NULL, this);
     article->Connect(wxEVT_CHAR, wxKeyEventHandler(MyFrame::OnChar), NULL, this);
+    // Drag and Drop to open file
+    article->SetDropTarget(new MyDropTarget(this));
     Centre();
 }
 
@@ -580,8 +587,7 @@ void MyFrame::OnSave(wxCommandEvent& event)
         std::wstring str = all_to_string();
         std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
         f << cvt.to_bytes(str);
-        f.close();
-        bSaved = true;
+        updateSaveState(true);
     }
 }
 
@@ -607,12 +613,9 @@ void MyFrame::OnSaveAs(wxCommandEvent& WXUNUSED(event))
     std::wstring str = all_to_string();
     std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
     f << cvt.to_bytes(str);
-    f.close();
 
     openedFile = filepath;
-
-    SetTitle((openedFile + MNP_DOC_TITLE).c_str());
-    bSaved = true;
+    updateSaveState(true);
 }
 
 void MyFrame::OnCopyHtml(wxCommandEvent& WXUNUSED(event))
@@ -660,12 +663,12 @@ void MyFrame::OnClose(wxCloseEvent& event)
 
 void MyFrame::OnUndo(wxCommandEvent& WXUNUSED(event))
 {
-    // TODO: NOT IMPLEMENTED
+    article->Undo();
 }
 
 void MyFrame::OnRedo(wxCommandEvent& WXUNUSED(event))
 {
-    // TODO: NOT IMPLEMENTED
+    article->Redo();
 }
 
 void MyFrame::OnCut(wxCommandEvent& event)
@@ -675,7 +678,7 @@ void MyFrame::OnCut(wxCommandEvent& event)
     {
         OnCopy(event);
         article->RemoveSelection();
-        bSaved = false;
+        updateSaveState(false);
     }
 }
 
@@ -698,7 +701,7 @@ void MyFrame::OnCopy(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnPaste(wxCommandEvent& WXUNUSED(event))
 {
     LOG_MESSAGE("");
-    bSaved = false;
+    updateSaveState(false);
     article->Paste();
 }
 
@@ -707,8 +710,12 @@ void MyFrame::OnDelete(wxCommandEvent& WXUNUSED(event))
     LOG_MESSAGE("");
     if (article->CanCut())
     {
-        bSaved = false;
+        updateSaveState(false);
         article->RemoveSelection();
+    }
+    else {
+        int p = article->GetCurrentPos();
+        article->Remove(p, p + 1);
     }
 }
 
@@ -738,26 +745,44 @@ void MyFrame::OnMenuOpen(wxMenuEvent& event)
     {
         item->Enable(article->CanCut());
     }
-    item = menu->FindItem(EDIT_DELETE);
+    item = menu->FindItem(EDIT_UNDO);
     if (item != NULL)
     {
-        item->Enable(article->CanCut());
+        item->Enable(article->CanUndo());
+    }
+    item = menu->FindItem(EDIT_REDO);
+    if (item != NULL)
+    {
+        item->Enable(article->CanRedo());
     }
 }
 
 void MyFrame::ApplyTheme()
 {
+    // Syntax highlight background
     for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
         article->StyleSetBackground(i, bgColorEdit);
-    for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
-        article->StyleSetForeground(i, fontColor);
-    article->StyleSetBackground(wxSTC_MARKDOWN_BLOCKQUOTE, bgColorLight);
     article->StyleSetBackground(wxSTC_MARKDOWN_CODE, bgColorLight);
     article->StyleSetBackground(wxSTC_MARKDOWN_CODE2, bgColorLight);
     article->StyleSetBackground(wxSTC_MARKDOWN_CODEBK, bgColorLight);
 
+    // Syntax highlight foreground
+    //article->StyleSetForeground(wxSTC_MARKDOWN_LINE_BEGIN, *wxRED);
+    //article->StyleSetForeground(wxSTC_MARKDOWN_EM1, *wxRED);
+    //article->StyleSetForeground(wxSTC_MARKDOWN_EM2, *wxRED);
+    //article->StyleSetForeground(wxSTC_MARKDOWN_PRECHAR, *wxRED);
+    //article->StyleSetForeground(wxSTC_MARKDOWN_HRULE, *wxRED);
+    article->StyleSetForeground(wxSTC_MARKDOWN_DEFAULT, fontColor);
     article->StyleSetForeground(wxSTC_MARKDOWN_STRONG1, strongColor);
     article->StyleSetForeground(wxSTC_MARKDOWN_STRONG2, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_HEADER1, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_HEADER2, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_HEADER3, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_HEADER4, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_HEADER5, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_HEADER6, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_ULIST_ITEM, strongColor);
+    article->StyleSetForeground(wxSTC_MARKDOWN_OLIST_ITEM, strongColor);
     article->StyleSetForeground(wxSTC_MARKDOWN_BLOCKQUOTE, quoteColor);
     article->StyleSetForeground(wxSTC_MARKDOWN_STRIKEOUT, quoteColor);
     article->StyleSetForeground(wxSTC_MARKDOWN_LINK, linkColor);
@@ -765,11 +790,21 @@ void MyFrame::ApplyTheme()
     article->StyleSetForeground(wxSTC_MARKDOWN_CODE2, quoteColor);
     article->StyleSetForeground(wxSTC_MARKDOWN_CODEBK, quoteColor);
 
+    // Other
     article->SetCaretForeground(fontColor);
     article->SetSelBackground(true, bgColorSel);
     article->StyleSetBackground(wxSTC_STYLE_DEFAULT, bgColorEdit);
     article->StyleSetForeground(wxSTC_STYLE_LINENUMBER, lineNumFontColor);
     article->StyleSetBackground(wxSTC_STYLE_LINENUMBER, bgColorEdit);
+
+    // Styles in range 32..38 are predefined for parts of the UI and are not used as normal styles.
+    //for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_STYLE_DEFAULT; i++)
+    for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
+        article->StyleSetSize(i, fontSize / 2);
+    article->StyleSetSize(wxSTC_STYLE_LINENUMBER, fontSize / 2);
+
+    article->StyleSetBold(wxSTC_MARKDOWN_STRONG1, true);
+    article->StyleSetBold(wxSTC_MARKDOWN_STRONG2, true);
 }
 
 void MyFrame::OnThemeLight(wxCommandEvent& WXUNUSED(event))
@@ -879,6 +914,7 @@ void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnLeftButtonDown(wxMouseEvent& event)
 {
     LOG_MESSAGE("");
+    event.Skip(); // Default behaviour
 }
 
 /*
@@ -890,35 +926,39 @@ void MyFrame::OnLeftButtonDown(wxMouseEvent& event)
 void MyFrame::OnLeftButtonDBClick(wxMouseEvent& event)
 {
     LOG_MESSAGE("");
+    event.Skip(); // Default behaviour
 }
 
 void MyFrame::OnLeftButtonUp(wxMouseEvent& event)
 {
     LOG_MESSAGE("");
+    event.Skip(); // Default behaviour
 }
 
 void MyFrame::OnRightButtonDown(wxMouseEvent& event)
 {
-    wxMenu *editMenu = new wxMenu();
-    editMenu->Append(EDIT_CUT, L"C&ut\tCtrl+X", L"Cut to clipboard");
-    editMenu->Append(EDIT_COPY, L"&Copy\tCtrl+C", L"Copy to clipboard");
-    editMenu->Append(EDIT_PASTE, L"&Paste\tCtrl+V", L"Paste from clipboard");
-    editMenu->Append(EDIT_DELETE, L"&Delete\tDel", L"Delete selected items");
-    editMenu->AppendSeparator();
-    editMenu->Append(EDIT_SELALL, L"&Select All\tCtrl+A", L"Select all");
-    if (article->CanCut())
-    {
-        editMenu->Enable(EDIT_CUT, false);
-        editMenu->Enable(EDIT_COPY, false);
-        editMenu->Enable(EDIT_DELETE, false);
-    }
-    event.Skip(false);
-    PopupMenu(editMenu);
+    LOG_MESSAGE("");
+    event.Skip(); // Default behaviour
 }
 
 void MyFrame::OnRightButtonUp(wxMouseEvent& event)
 {
-    return;
+    LOG_MESSAGE("");
+    //wxMenu* editMenu = new wxMenu();
+    //editMenu->Append(EDIT_CUT, L"C&ut\tCtrl+X", L"Cut to clipboard");
+    //editMenu->Append(EDIT_COPY, L"&Copy\tCtrl+C", L"Copy to clipboard");
+    //editMenu->Append(EDIT_PASTE, L"&Paste\tCtrl+V", L"Paste from clipboard");
+    //editMenu->Append(EDIT_DELETE, L"&Delete\tDel", L"Delete selected items");
+    //editMenu->AppendSeparator();
+    //editMenu->Append(EDIT_SELALL, L"&Select All\tCtrl+A", L"Select all");
+    //if (article->CanCut())
+    //{
+    //    editMenu->Enable(EDIT_CUT, true);
+    //    editMenu->Enable(EDIT_COPY, true);
+    //}
+    //PopupMenu(editMenu);
+    //event.Skip(false);
+    event.Skip();
 }
 
 void MyFrame::OnChar(wxKeyEvent& event)
@@ -943,7 +983,7 @@ void MyFrame::OnChar(wxKeyEvent& event)
             default:
                 break;
             }
-            bSaved = false;
+            updateSaveState(false);
             event.Skip(true);
         }
         else
@@ -954,7 +994,7 @@ void MyFrame::OnChar(wxKeyEvent& event)
             {
             case WXK_CONTROL_X:
             case WXK_CONTROL_V:
-                bSaved = false;
+                updateSaveState(false);
                 return;
             default:
                 break;

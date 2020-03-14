@@ -60,6 +60,7 @@ public:
     void themeDark();
     void loadSettings();
     void saveSettings();
+    void updateSaveState(bool saved);
     void loadFile(const std::string path);
     bool sureToQuit(wxCommandEvent& event);
     void saveHTML(const std::string pathname);

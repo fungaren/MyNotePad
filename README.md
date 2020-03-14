@@ -12,7 +12,7 @@ Download binaries: [Release](../../releases)
 
 Try this markdown file: [test.md](test.md)
 
-## Compiling instrctions
+## Compiling instructions
 
 ### Compile On Linux
 
@@ -43,10 +43,10 @@ That's all. Run `mynotepad` to launch the program.
 1. Download [CMake](https://cmake.org/download/) and [wxWidgets](http://www.wxwidgets.org/downloads/) source code or binaries. If you use wxWidgets binaries, download 3 archives:
 
 - Header Files (`include` folder)
-- **64-Bit** Development Files (`lib/vc141_dll` folder)
-- **64-Bit** Release DLLs (`lib/vc141_dll` folder)
+- **64-Bit** Development Files (`lib/vc14x_x64_dll` folder)
+- **64-Bit** Release DLLs (`lib/vc14x_x64_dll` folder)
 
-2. Extract them to the same folder and merge the `lib/vc141_dll` folder. For example, the directory tree is like:
+2. Extract them to the same folder and merge the `lib/vc14x_x64_dll` folder. For example, the directory tree is like:
 
 ```
 D:\
@@ -87,14 +87,9 @@ Use `cmake -D<VAR>=<VALUE>` to change any option.
 
 ## TODO
 
-- undo/redo
-- set font size
-- scrollbar
-- TAB key
 - search & replace
 - encode conversion(only support utf-8 currently)
-- instant highlight
 
 ## Programming Guide
 
-See our [wiki](./wiki) page.
+See our [wiki](../../wiki) page.
