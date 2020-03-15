@@ -46,6 +46,13 @@ configure_file(
     "${PROJECT_BINARY_DIR}/inc/config.h"
 )
 
+if (UNIX)
+    configure_file(
+        "${PROJECT_SOURCE_DIR}/static/mynotepad.desktop.in"
+        "${PROJECT_SOURCE_DIR}/static/mynotepad.desktop"
+    )
+endif()
+
 # specify the path manually
 if (WIN32)
     #set(wxWidgets_ROOT_DIR "D:/wxWidgets-3.1.3/")
@@ -141,7 +148,7 @@ if (UNIX)
     
     # create desktop icon
     install(FILES "${PROJECT_SOURCE_DIR}/static/mynotepad.desktop"
-            DESTINATION /usr/share/application
+            DESTINATION /usr/share/applications
             PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
             )
 endif()

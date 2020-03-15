@@ -204,6 +204,9 @@ void MyFrame::loadSettings()
 #else
     confFilePath = wxStandardPaths::Get().GetUserDataDir();
     confFilePath += '/';
+    if (!wxDir::Exists(confFilePath))
+        // Disallow group & others to write
+        wxDir::Make(confFilePath, ~(wxPOSIX_GROUP_WRITE | wxPOSIX_OTHERS_WRITE));
 #endif
     LOG_MESSAGE(confFilePath);
 

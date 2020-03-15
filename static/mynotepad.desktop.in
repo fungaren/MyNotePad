@@ -1,5 +1,5 @@
 [Desktop Entry]
-Version=1.0
+Version=@MYNOTEPAD_VERSION_MAJOR@.@MYNOTEPAD_VERSION_MINOR@.@MYNOTEPAD_VERSION_PATCH@
 Type=Application
 Name=MyNotePad
 GenericName=MyNotePad Text Editor
@@ -7,7 +7,7 @@ Comment=A markdown editor support dump HTML file
 Exec=/usr/local/bin/mynotepad %F
 Terminal=false
 MimeType=text/plain;
-Icon=mynotepad
+Icon=@MYNOTEPAD_INSTALL_PATH@/mynotepad/icon.png
 Categories=TextEditor;Development;
 StartupNotify=true
 Actions=Window;Document;
