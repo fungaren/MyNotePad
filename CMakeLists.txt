@@ -40,6 +40,7 @@ set(MYNOTEPAD_VERSION_PATCH 5)
 message(STATUS "MyNotePad version: ${MYNOTEPAD_VERSION_MAJOR}."
         "${MYNOTEPAD_VERSION_MINOR}.${MYNOTEPAD_VERSION_PATCH}")
 
+set(MYNOTEPAD_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/share")
 configure_file(
     "${PROJECT_SOURCE_DIR}/inc/config.h.in"
     "${PROJECT_BINARY_DIR}/inc/config.h"
@@ -124,13 +125,23 @@ if (WIN32)
 endif()
 
 if (UNIX)
-    # install the program after build, default path is /usr/local/bin/
+    # default path is /usr/local/
+    message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+
+    # install the program after build, /usr/local/bin/
     install(TARGETS ${TARGT} RUNTIME DESTINATION bin)
-    # make the data directory writable
-    set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS WORLD_READ WORLD_WRITE)
+    
     # copy dependent files while installing, default path is /usr/local/share
-    install(DIRECTORY "${PROJECT_SOURCE_DIR}/static" 
-            DESTINATION "share/${PROJECT_NAME}" 
-            FILES_MATCHING PATTERN "*.css" PATTERN "*.js"
+    install(DIRECTORY "${PROJECT_SOURCE_DIR}/static/"
+            DESTINATION "share/${PROJECT_NAME}"
+            # make the files writable
+            FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ WORLD_WRITE
+            FILES_MATCHING PATTERN "*.css" PATTERN "*.js" PATTERN "*.png"
+            )
+    
+    # create desktop icon
+    install(FILES "${PROJECT_SOURCE_DIR}/static/mynotepad.desktop"
+            DESTINATION /usr/share/application
+            PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
             )
 endif()

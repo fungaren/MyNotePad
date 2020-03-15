@@ -7,11 +7,6 @@ const char*     MNP_DOC_TITLE             = " - MyNotePad";
 const char*     MNP_DOC_NOTITLE           = "Untitled";
 const wchar_t*  MNP_COPYRIGHT             = L"\nCopyright(c) moooc.cc 2020";
 
-#ifndef _WIN32
-const char*     INSTALL_PATH              = "/usr/local/share/MyNotePad/";
-const char*     INSTALL_PATH_STATIC       = "/usr/local/share/MyNotePad/static/";
-#endif
-
 int             MNP_PADDING_LEFT          = 20;    // space for line number
 const int       MNP_LINENUM_MARGIN_LEFT   = 4;
 const int       MNP_LINENUM_MARGIN_TOP    = 4;

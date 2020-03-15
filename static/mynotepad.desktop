@@ -3,7 +3,7 @@ Version=1.0
 Type=Application
 Name=MyNotePad
 GenericName=MyNotePad Text Editor
-Comment=Sophisticated text editor for code, markup and prose
+Comment=A markdown editor support dump HTML file
 Exec=/usr/local/bin/mynotepad %F
 Terminal=false
 MimeType=text/plain;
@@ -12,9 +12,9 @@ Categories=TextEditor;Development;
 StartupNotify=true
 Actions=Window;Document;
 X-Deepin-CreatedBy=com.deepin.dde.daemon.Launcher
-X-Deepin-AppID=sublime_text
+X-Deepin-AppID=mynotepad
 
 [Desktop Action Document]
 Name=New File
-Exec=/usr/local/bin/mynotepad abc
+Exec=/usr/local/bin/mynotepad 
 OnlyShowIn=Unity;
