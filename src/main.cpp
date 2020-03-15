@@ -26,7 +26,7 @@
 #if _WIN32
 #include "resource.h"
 #else
-#include "MyNotePad.xpm"
+#include "mynotepad.xpm"
 #endif
 
 #ifdef _WIN32
@@ -72,8 +72,8 @@ WXLRESULT MyFrame::notepadCtrl::MSWWindowProc(WXUINT message, WXWPARAM wParam, W
 }
 #endif
 
-#define LOG_MESSAGE(msg) {wxLogDebug(L"%s: %s", __func__, msg);}
-#define LOG_ERROR(msg) {wxLogDebug(L"%s: %s", __func__, msg);}
+#define LOG_MESSAGE(msg) do {wxLogDebug(L"%s: %s", __func__, msg);} while(0)
+#define LOG_ERROR(msg) do {wxLogDebug(L"%s: %s", __func__, msg);} while(0)
 
 /*
  * APPLICATION
@@ -195,7 +195,6 @@ void MyFrame::themeDark()
 void MyFrame::loadSettings()
 {
     themeLight();
-
     GetMenuBar()->Check(VIEW_FONT_MSYAHEI, true);
 
 #ifdef _WIN32
@@ -203,9 +202,9 @@ void MyFrame::loadSettings()
     while (confFilePath.back() != '\\')
         confFilePath.pop_back();
 #else
+    // eg. "/usr/local/share/mynotepad/" on Linux 
     confFilePath = INSTALL_PATH;
 #endif
-
     LOG_MESSAGE(confFilePath);
 
     // load user data
@@ -905,7 +904,8 @@ void MyFrame::OnWordWrap(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 {
     std::wstringstream detail;
-    detail << MNP_APPNAME << '\t' << MNP_VERSION_MAJOR << '.' << MNP_VERSION_MINOR << '\n'
+    detail << MNP_APPNAME << '\t' << MNP_VERSION_MAJOR << '.' 
+           << MNP_VERSION_MINOR << '.' << MNP_VERSION_PATCH << '\n'
            << wxVERSION_STRING << '\n'
            << MNP_COPYRIGHT;
 

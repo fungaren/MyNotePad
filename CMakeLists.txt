@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 2.8)
-project(MyNotePad)
+project(mynotepad)
 
 if (COMMAND cmake_policy)
     # Works around warnings libraries linked against that don't
@@ -20,10 +20,10 @@ if (UNIX)
 
     # Set a default build type if none was specified
     set(default_build_type "Release")
-    if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
-        set(default_build_type "Debug")
-    endif()
-     
+    # if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+    #     set(default_build_type "Debug")
+    # endif()
+
     if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
         message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
         set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
@@ -35,9 +35,10 @@ if (UNIX)
 endif()
 
 set(MYNOTEPAD_VERSION_MAJOR 1)
-set(MYNOTEPAD_VERSION_MINOR 0.5)
-
-#option(USE_NATIVE_EDIT_BOX "Use native or custom implemented edit control" ON)
+set(MYNOTEPAD_VERSION_MINOR 0)
+set(MYNOTEPAD_VERSION_PATCH 5)
+message("MyNotePad version: ${MYNOTEPAD_VERSION_MAJOR}."
+        "${MYNOTEPAD_VERSION_MINOR}.${MYNOTEPAD_VERSION_PATCH}")
 
 configure_file(
     "${PROJECT_SOURCE_DIR}/inc/config.h.in"
@@ -128,6 +129,7 @@ if (UNIX)
     # copy dependent files while installing, default path is /usr/local/share
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/static" 
             DESTINATION "share/${PROJECT_NAME}" 
+            PERMISSIONS WORLD_READ WORLD_WRITE
             FILES_MATCHING PATTERN "*.css" PATTERN "*.js"
             )
 endif()

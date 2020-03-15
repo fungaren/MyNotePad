@@ -138,7 +138,7 @@ private:
     int fontSize;
     int lineNumSize;
     int lineHeight;
-    // configure file Path, eg. "C:\Users\username\AppData\Roaming\MyNotePad\"
+    // configure file Path
     std::string confFilePath;
     std::string openedFile;
     DECLARE_EVENT_TABLE()
