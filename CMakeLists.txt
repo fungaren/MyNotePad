@@ -37,7 +37,7 @@ endif()
 set(MYNOTEPAD_VERSION_MAJOR 1)
 set(MYNOTEPAD_VERSION_MINOR 0)
 set(MYNOTEPAD_VERSION_PATCH 5)
-message("MyNotePad version: ${MYNOTEPAD_VERSION_MAJOR}."
+message(STATUS "MyNotePad version: ${MYNOTEPAD_VERSION_MAJOR}."
         "${MYNOTEPAD_VERSION_MINOR}.${MYNOTEPAD_VERSION_PATCH}")
 
 configure_file(
@@ -54,7 +54,7 @@ set(wxWidgets_CONFIGURATION mswu) # or mswud
 
 # find wxWidgets
 find_package(wxWidgets COMPONENTS core base stc REQUIRED)
-message("wxWidgets version: ${wxWidgets_VERSION_MAJOR}."
+message(STATUS "wxWidgets version: ${wxWidgets_VERSION_MAJOR}."
         "${wxWidgets_VERSION_MINOR}.${wxWidgets_VERSION_PATCH}")
 
 include(${wxWidgets_USE_FILE})
@@ -104,7 +104,7 @@ if (WIN32)
         "${wxWidgets_LIB_DIR}/wxmsw${WXVER}u_stc_vc14x_x64.dll"
         )
     set(ALL_DLLS $<$<CONFIG:Debug>:${ALL_DLLS_DEBUG}>$<$<CONFIG:Release>:${ALL_DLLS_RELEASE}>)
-    #message(${ALL_DLLS})
+    #message(STATUS ${ALL_DLLS})
     set(STATIC_RESOURCES
         "${PROJECT_SOURCE_DIR}/static/highlight.css"
         "${PROJECT_SOURCE_DIR}/static/highlight.pack.js"
@@ -114,7 +114,7 @@ if (WIN32)
         )
     # destination directory
     set(COPY_DLLS_TO ${PROJECT_BINARY_DIR}/)
-    #message(${COPY_DLLS_TO})
+    #message(STATUS ${COPY_DLLS_TO})
     add_custom_command(TARGET ${TARGT} POST_BUILD
         COMMAND_EXPAND_LISTS
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ALL_DLLS}" "${COPY_DLLS_TO}"
@@ -126,10 +126,11 @@ endif()
 if (UNIX)
     # install the program after build, default path is /usr/local/bin/
     install(TARGETS ${TARGT} RUNTIME DESTINATION bin)
+    # make the data directory writable
+    set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS WORLD_READ WORLD_WRITE)
     # copy dependent files while installing, default path is /usr/local/share
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/static" 
             DESTINATION "share/${PROJECT_NAME}" 
-            PERMISSIONS WORLD_READ WORLD_WRITE
             FILES_MATCHING PATTERN "*.css" PATTERN "*.js"
             )
 endif()
