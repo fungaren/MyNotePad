@@ -370,9 +370,9 @@ void MyFrame::saveHTML(const std::string pathname)
 <script type="text/javascript" src="highlight.pack.js"></script>
 )raw";
 #else
-    f << "<link href='" << INSTALL_PATH << "style.css' rel='stylesheet'>\n";
-    f << "<link href='" << INSTALL_PATH << "highlight.css' rel='stylesheet'>\n";
-    f << "<script type='text/javascript' src='" << INSTALL_PATH << "highlight.pack.js'></script>\n";
+    f << "<link href='" << MNP_INSTALL_PATH << "style.css' rel='stylesheet'>\n";
+    f << "<link href='" << MNP_INSTALL_PATH << "highlight.css' rel='stylesheet'>\n";
+    f << "<script type='text/javascript' src='" << MNP_INSTALL_PATH << "highlight.pack.js'></script>\n";
 #endif
     f << R"raw(<script type="text/javascript">
     window.onload = function() {
