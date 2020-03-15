@@ -143,7 +143,7 @@ std::wstring mdToHTMLDoc(const std::wstring &str)
 		return std::regex_replace(temp, REGEX_GT, L"&gt;");
 	}
 	std::wostringstream result;//存在标签需要替换
-	ptrdiff_t distan = std::distance(tag_begin, tag_end);
+	std::ptrdiff_t distan = std::distance(tag_begin, tag_end);
 	size_t count = 0;
 	std::wstring temp;
 	for (; tag_begin != tag_end; ++tag_begin)
