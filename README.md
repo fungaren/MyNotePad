@@ -16,19 +16,11 @@ Try this markdown file: [test.md](test.md)
 
 ### Compile On Linux
 
-For GTK+ 2, install dependency:
-
-`sudo apt install build-essential cmake libwxgtk3.0-dev`
-
-For GTK+ 3:
-
-`sudo apt install build-essential cmake libwxgtk3.0-gtk3-dev`
-
-Then build and install
-
 ```bash
+sudo apt update
+sudo apt install build-essential cmake libwxgtk3.0-dev
 git clone https://github.com/mooction/mynotepad
-cd MyNotePad
+cd mynotepad
 cmake .
 make
 sudo make install

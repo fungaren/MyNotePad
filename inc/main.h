@@ -109,7 +109,9 @@ private:
             const wxSize& size = wxDefaultSize, long style = 0,
             const wxString& name = wxSTCNameStr)
             : wxStyledTextCtrl(parent, id, pos, size, style, name) {};
+#ifdef _WIN32
         WXLRESULT MSWWindowProc(WXUINT message, WXWPARAM wParam, WXLPARAM lParam);
+#endif
     };
     notepadCtrl *article;
     bool bShowLineNumber;       // display line number (initial true)

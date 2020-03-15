@@ -528,12 +528,13 @@ MyFrame::MyFrame(const wxString& title) :
      */
     wxBoxSizer *boxSizer = new wxBoxSizer( wxVERTICAL );
     // Regard to the control, see https://wiki.wxwidgets.org/WxStyledTextCtrl
-    article = new MyFrame::notepadCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_MULTILINE);
+    article = new MyFrame::notepadCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_LINE);
     article->SetEOLMode(wxSTC_EOL_LF);
     article->SetWrapMode(wxSTC_WRAP_WORD);
     article->SetLexer(wxSTC_LEX_MARKDOWN);
     // Left-margin for line number 
     article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT * 2);
+    article->StyleSetSize(wxSTC_STYLE_LINENUMBER, fontSize / 2);
 
     boxSizer->Add(article, 1, wxEXPAND | wxALL, 1);
     this->SetSizer(boxSizer);
@@ -801,7 +802,7 @@ void MyFrame::ApplyTheme()
     //for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_STYLE_DEFAULT; i++)
     for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
         article->StyleSetSize(i, fontSize / 2);
-    article->StyleSetSize(wxSTC_STYLE_LINENUMBER, fontSize / 2);
+    //article->StyleSetSize(wxSTC_STYLE_LINENUMBER, fontSize / 2);
 
     article->StyleSetBold(wxSTC_MARKDOWN_STRONG1, true);
     article->StyleSetBold(wxSTC_MARKDOWN_STRONG2, true);
