@@ -7,7 +7,7 @@ const char*     MNP_DOC_TITLE             = " - MyNotePad";
 const char*     MNP_DOC_NOTITLE           = "Untitled";
 const wchar_t*  MNP_COPYRIGHT             = L"\nCopyright(c) moooc.cc 2020";
 
-int             MNP_PADDING_LEFT          = 20;    // space for line number
+int             MNP_PADDING_LEFT          = 16;    // space for line number
 const int       MNP_LINENUM_MARGIN_LEFT   = 4;
 const int       MNP_LINENUM_MARGIN_TOP    = 4;
 const wchar_t*  MNP_LINENUM_FONTFACE      = L"Arial";
@@ -62,6 +62,7 @@ public:
     std::wstring all_to_string();
     void ApplyTheme();
     void md2html(std::wstring& str);
+    int widthOfLineNumber() const;
     
 protected:
     void OnLeftButtonDown(wxMouseEvent& event);
@@ -69,6 +70,7 @@ protected:
     void OnLeftButtonDBClick(wxMouseEvent& event);
     void OnRightButtonDown(wxMouseEvent& event);
     void OnRightButtonUp(wxMouseEvent& event);
+    void OnKeyDown(wxKeyEvent& event);
     void OnChar(wxKeyEvent& event);
     
     void OnNew(wxCommandEvent& event);
@@ -131,8 +133,7 @@ private:
     wxColour scrollBarColor;
     const wchar_t* fontFace;
     int fontSize;
-    int lineNumSize;
-    int lineHeight;
+    int lineNumFontSize;
     // configure file Path
     std::string confFilePath;
     std::string openedFile;

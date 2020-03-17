@@ -196,6 +196,8 @@ void MyFrame::loadSettings()
 {
     themeLight();
     GetMenuBar()->Check(VIEW_FONT_MSYAHEI, true);
+    article->SetMarginType(wxSTC_MARGINOPTION_NONE, wxSTC_MARGIN_NUMBER);
+    article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, FromDIP(MNP_PADDING_LEFT * 2));
 
 #ifdef _WIN32
     confFilePath = wxStandardPaths::Get().GetExecutablePath();
@@ -238,7 +240,7 @@ void MyFrame::loadSettings()
                     bShowLineNumber = false;
                     GetMenuBar()->Check(VIEW_LINENUMBER, false);
                     article->SetMarginType(wxSTC_MARGINOPTION_NONE, wxSTC_MARGIN_SYMBOL);
-                    article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT / 2);
+                    article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, 0);
                 }
                 else if (key == MNP_CONFIG_FONTNAME)
                 {
@@ -293,6 +295,17 @@ void MyFrame::saveSettings()
     LOG_MESSAGE(pathname);
 }
 
+int MyFrame::widthOfLineNumber() const
+{
+    int n = article->GetNumberOfLines();
+    int count = 1;
+    do {
+        count++;
+        n /= 10;
+    } while (n > 0);
+    return MNP_PADDING_LEFT * count;
+}
+
 void MyFrame::updateSaveState(bool saved)
 {
     bSaved = saved;
@@ -300,6 +313,12 @@ void MyFrame::updateSaveState(bool saved)
         SetTitle(openedFile + MNP_DOC_TITLE);
     else
         SetTitle(openedFile + " *" + MNP_DOC_TITLE);
+
+    // any text edit action will fire this function.
+    // so we can make any other update.
+    if (bShowLineNumber) {
+        article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, FromDIP(widthOfLineNumber()));
+    }
 }
 
 void MyFrame::loadFile(const std::string pathname)
@@ -453,9 +472,8 @@ MyFrame::MyFrame(const wxString& title) :
     bResized(false),
     bSaved(true),
     bWordWrap(true),
-    fontSize(28),
-    lineNumSize(23),
-    lineHeight(28),
+    fontSize(13),
+    lineNumFontSize(10),
     fontFace(FONT_MSYAHEI),
     openedFile(MNP_DOC_NOTITLE)
 {
@@ -530,12 +548,10 @@ MyFrame::MyFrame(const wxString& title) :
      */
     wxBoxSizer *boxSizer = new wxBoxSizer( wxVERTICAL );
     // Regard to the control, see https://wiki.wxwidgets.org/WxStyledTextCtrl
-    article = new MyFrame::notepadCtrl(this, 0, wxDefaultPosition, wxDefaultSize, wxSTC_EDGE_LINE);
-    article->SetEOLMode(wxSTC_EOL_LF);
-    article->SetWrapMode(wxSTC_WRAP_WORD);
-    article->SetLexer(wxSTC_LEX_MARKDOWN);
-    // Left-margin for line number 
-    article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT * 2);
+    article = new MyFrame::notepadCtrl(this, 0, wxDefaultPosition, wxDefaultSize);
+    article->SetEOLMode(wxSTC_EOL_LF); // linux line feed
+    article->SetWrapMode(wxSTC_WRAP_WORD); // word wrap
+    article->SetLexer(wxSTC_LEX_MARKDOWN); // syntax highlight
 
     boxSizer->Add(article, 1, wxEXPAND | wxALL, 1);
     this->SetSizer(boxSizer);
@@ -544,7 +560,7 @@ MyFrame::MyFrame(const wxString& title) :
     //article->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(MyFrame::OnLeftButtonDown), NULL, this);
     //article->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(MyFrame::OnLeftButtonUp), NULL, this);
     //article->Connect(wxEVT_RIGHT_UP, wxMouseEventHandler(MyFrame::OnLeftButtonDBClick), NULL, this);
-    //article->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(MyFrame::OnKeyDown), NULL, this);
+    article->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(MyFrame::OnKeyDown), NULL, this);
     //article->Connect(wxEVT_KEY_UP, wxKeyEventHandler(MyFrame::OnKeyUp), NULL, this);
     article->Connect(wxEVT_CHAR, wxKeyEventHandler(MyFrame::OnChar), NULL, this);
     // Drag and Drop to open file
@@ -801,10 +817,10 @@ void MyFrame::ApplyTheme()
 
     // Styles in range 32..38 are predefined for parts of the UI and are not used as normal styles.
     for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
-        article->StyleSetSize(i, FromDIP(fontSize / 2));
+        article->StyleSetSize(i, FromDIP(fontSize));
 
-    article->StyleSetSize(wxSTC_STYLE_DEFAULT, FromDIP(fontSize / 2));
-    article->StyleSetSize(wxSTC_STYLE_LINENUMBER, FromDIP(fontSize / 2));
+    article->StyleSetSize(wxSTC_STYLE_DEFAULT, FromDIP(lineNumFontSize));
+    //article->StyleSetSize(wxSTC_STYLE_LINENUMBER, FromDIP(lineNumFontSize));
 
     article->StyleSetBold(wxSTC_MARKDOWN_STRONG1, true);
     article->StyleSetBold(wxSTC_MARKDOWN_STRONG2, true);
@@ -830,12 +846,11 @@ void MyFrame::OnLineNumber(wxCommandEvent& WXUNUSED(event))
 {
     bShowLineNumber = !bShowLineNumber;
     if (GetMenuBar()->IsChecked(VIEW_LINENUMBER)) {
-        article->SetMarginType(0, wxSTC_MARGIN_NUMBER);
-        article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT * 2);
-
+        article->SetMarginType(wxSTC_MARGINOPTION_NONE, wxSTC_MARGIN_NUMBER);
+        article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, FromDIP(widthOfLineNumber()));
     } else {
-        article->SetMarginType(0, wxSTC_MARGIN_SYMBOL);
-        article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, MNP_PADDING_LEFT / 2);
+        article->SetMarginType(wxSTC_MARGINOPTION_NONE, wxSTC_MARGIN_SYMBOL);
+        article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, 0);
     }
     saveSettings();
 }
@@ -965,45 +980,38 @@ void MyFrame::OnRightButtonUp(wxMouseEvent& event)
     event.Skip();
 }
 
+void MyFrame::OnKeyDown(wxKeyEvent& event)
+{
+    wxChar uc = event.GetUnicodeKey();
+    if (uc != WXK_NONE)
+    {
+        switch (uc)
+        {
+        case WXK_BACK:
+        case WXK_RETURN:
+        case WXK_TAB:
+            LOG_MESSAGE(wxString() + uc);
+            updateSaveState(false);
+            break;
+        default:
+            break;
+        }
+        event.Skip(true);
+    }
+    else // No Unicode equivalent.
+    {
+        event.Skip(true);
+    }
+}
+
 void MyFrame::OnChar(wxKeyEvent& event)
 {
     wxChar uc = event.GetUnicodeKey();
-    LOG_MESSAGE(wxString() + uc);
-    if ( uc != WXK_NONE )
+    if (uc != WXK_NONE)
     {
-        // It's a "normal" character. Notice that this includes
-        // control characters in 1..31 range, e.g. WXK_RETURN or
-        // WXK_BACK, so check for them explicitly.
-        if ( uc >= 32 )
-        {
-            switch (uc)
-            {
-            case WXK_BACK:
-                if (article->IsEmpty())
-                    return;
-                break;
-            case WXK_RETURN:
-                break;
-            default:
-                break;
-            }
-            updateSaveState(false);
-            event.Skip(true);
-        }
-        else
-        {
-            // It's a control character, eg. WXK_ESCAPE, WXK_F1, ...
-            event.Skip(true);
-            switch (event.GetKeyCode())
-            {
-            case WXK_CONTROL_X:
-            case WXK_CONTROL_V:
-                updateSaveState(false);
-                return;
-            default:
-                break;
-            }
-        }
+        LOG_MESSAGE(wxString() + uc);
+        updateSaveState(false);
+        event.Skip(true);
     }
     else // No Unicode equivalent.
     {
