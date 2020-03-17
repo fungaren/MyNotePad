@@ -85,6 +85,7 @@ aux_source_directory(src SOURCES)
 if (WIN32)
     # add resource file for Windows
     list(APPEND SOURCES "static/wx.rc")
+    list(APPEND SOURCES "static/mynotepad.manifest")
 endif()
 
 # target executable file
