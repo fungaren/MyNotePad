@@ -59,9 +59,11 @@ See [CMakeLists.txt](CMakeLists.txt) for more detail.
 
 3. Then open CMake-GUI, click `Browse Source` and `Browse Build` to choose a correct place.
 
-4. Click `Configure`, set `wxWidgets_ROOT_DIR` and `wxWidgets_LIB_DIR` to the wxWidgets library folder. For the instance above, set `wxWidgets_ROOT_DIR` to `D:\wxWidgets-3.1.3\` and set `wxWidgets_LIB_DIR` to `D:\wxWidgets-3.1.3\lib\vc14x_x64_dll`.
+4. Click `Configure`, specify generator for this project. If you are using Visual Studio, then choose `Visual Studio 15 2017 Win64` or other version, but `Win64` is required.
 
-5. Click `Configure` again, then click `Generate`, finally we get a Visual Studio solution. 
+5. Set `wxWidgets_ROOT_DIR` and `wxWidgets_LIB_DIR` to the wxWidgets library folder. For the instance above, set `wxWidgets_ROOT_DIR` to `D:\wxWidgets-3.1.3\` and set `wxWidgets_LIB_DIR` to `D:\wxWidgets-3.1.3\lib\vc14x_x64_dll`.
+
+6. Click `Configure` again, then click `Generate`, finally we get a Visual Studio solution. 
 
 ### Options
 
