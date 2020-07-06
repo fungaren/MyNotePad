@@ -63,7 +63,12 @@ public:
     void ApplyTheme();
     void md2html(std::wstring& str);
     int widthOfLineNumber() const;
-    
+#ifndef _WIN32
+    // this function is not exists on Linux
+    int FromDIP(int n) {
+        return n;
+    }
+#endif
 protected:
     void OnLeftButtonDown(wxMouseEvent& event);
     void OnLeftButtonUp(wxMouseEvent& event);
