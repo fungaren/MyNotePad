@@ -6,7 +6,7 @@
 
 A markdown editor that supports exporting HTML.
 
-This program is initially written in pure win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidgets, you can build it on Windows and Linux. 
+This program is initially written in pure win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidgets, you can build it in Windows and Linux. 
 
 Download binaries: [Release](../../releases)
 
@@ -14,7 +14,7 @@ Try this markdown file: [test.md](test.md)
 
 ## Compiling instructions
 
-### Compile On Linux
+### Linux
 
 ```bash
 sudo apt update
@@ -28,7 +28,7 @@ sudo make install
 
 That's all. Run `mynotepad` to launch the program.
 
-### Compile on Windows
+### Windows
 
 > Notice: No longer support 32-Bit (x86) Windows.
 
@@ -76,8 +76,7 @@ Use `cmake -D<VAR>=<VALUE>` to change any option.
 ## Known bugs
 
 1. (Linux)Texts copied to clipboard will disappear after the window closed
-2. (Linux)Cannot drop a file to the window to open it
-3. (Linux)Fail to open/save file in non-ascii path 
+2. (Linux)Fail to open/save file in non-ascii path 
 
 ## TODO
 
@@ -86,4 +85,4 @@ Use `cmake -D<VAR>=<VALUE>` to change any option.
 
 ## Programming Guide
 
-See our [wiki](../../wiki) page.
+See [wiki](../../wiki) page.

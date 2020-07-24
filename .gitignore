@@ -55,3 +55,20 @@ $RECYCLE.BIN/
 # for Visual Studio
 .vs/
 CMakeSettings.json
+
+# for CMake
+CMakeCache.txt
+*.elf
+*.bin
+*.dbg
+*.hex
+*.a
+*.map
+Makefile
+cmake_install.cmake
+/**/CMakeFiles
+
+# CMake generated
+inc/config.h
+install_manifest.txt
+static/mynotepad.desktop
