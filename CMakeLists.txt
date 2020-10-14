@@ -18,20 +18,23 @@ if (UNIX)
     set(CMAKE_CXX_STANDARD 11)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-    # Set a default build type if none was specified
-    set(default_build_type "Release")
-    # if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
-    #     set(default_build_type "Debug")
-    # endif()
-
-    if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-        message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
-        set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
-            STRING "Choose the type of build." FORCE)
-        # Set the possible values of build type for cmake-gui
-        set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-            "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+    # set build type and flags
+    string(CONCAT CMAKE_CXX_FLAGS_DEBUG
+        "-Wall "            # display all warnings
+        "-g "               # with debug information
+        "-O0 "               # no optimize
+        "-Wno-parentheses"   # disable parentheses warning
+    )
+    string(CONCAT CMAKE_CXX_FLAGS_RELEASE
+        "-O3"               # enable optimize
+    )
+    if (CMAKE_BUILD_TYPE STREQUAL "")
+        set(CMAKE_BUILD_TYPE "Release")
     endif()
+    # Set the possible values of build type for cmake-gui
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+        "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+    message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 endif()
 
 set(MYNOTEPAD_VERSION_MAJOR 1)
@@ -130,9 +133,8 @@ if (WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${STATIC_RESOURCES}" "${COPY_DLLS_TO}"
         COMMENT "Copying DLLs" VERBATIM
         )
-endif()
 
-if (UNIX)
+elseif (UNIX)
     # default path is /usr/local/
     message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 

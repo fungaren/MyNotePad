@@ -1,29 +1,35 @@
 body {
-	font-family: Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
-	font-size: 22px;
-	color: #444;
-	font-weight: 100;
-	background-color: #fbfbfb;
-	word-wrap: break-word;
-	text-shadow: 0px 0px 1px 0px #ccc;
+	font-family: Noto Sans CJK SC, Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
+    font-size: 20px;
+    color: #444;
+    background-color: #eee;
+    word-wrap: break-word;
 }
 
 body, div, dl, dt, dd, ul, ol, li, code, h1, h2, h3, h4, h5, h6, form,
 fieldset, legend, input, textarea, th, td {margin: 0;padding: 0;}
 
 h1, h2, h3, h4, h5, h6 {
-	font-family: Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
+	font-family: Noto Sans CJK SC, Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
 	font-weight: 400;
 	margin: 14px 0 20px 0;
 }
-h1 {font-size: 36px;}
-h2 {font-size: 32px;}
+h1 {
+	font-size: 36px;
+	border-bottom: 1px #bbb solid;
+	padding-bottom: 4px;
+}
+h2 {
+	font-size: 32px;
+	border-bottom: 1px #bbb solid;
+	padding-bottom: 4px;
+}
 h3 {font-size: 30px;}
 h4 {font-size: 26px;}
 h5 {font-size: 22px;}
 h6 {font-size: 18px;}
 input, textarea, select, button {
-	font-family: Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
+	font-family: Noto Sans CJK SC, Microsoft JhengHei UI, Microsoft Yahei, WenQuanYi Micro Hei, helvetica, arial, sans-serif;
 	font-size: 24px;
 	border: #ddd solid 1px;
 	padding: 5px;
@@ -36,19 +42,28 @@ a:hover {color: #47c;}
 img {max-width: 100%}
 pre {
 	background: #f7f7f7 !important;
-	font-family: Consolas, Lucida Console, Noto Mono, DejaVu Sans Mono, Courier New;
+	overflow-x: scroll;
+    font-size: 18px;
+	font-family: Noto Mono, Consolas, Lucida Console, Noto Mono, DejaVu Sans Mono, Courier New;
 }
 code {
 	padding: 1px 3px;
 	word-break: break-all;
 	background: #eee;
 	color: #246;
-	font-family: Consolas, Lucida Console, Noto Mono, DejaVu Sans Mono, Courier New;
+	font-family: Noto Mono, Consolas, Lucida Console, Noto Mono, DejaVu Sans Mono, Courier New;
 }
 blockquote {
 	padding-left: 28px;
 	border-left: solid 2px #ddd;
-	margin: 0 28px;
+	margin: 18px 28px;
+}
+ul {
+	margin: 18px;
+    padding-left: 8px;
+}
+li {
+	margin: 2px 0;
 }
 table {
 	width: 100%;
@@ -84,4 +99,6 @@ main {
 	margin: 60px auto;
 	width: 61.8%;
 	min-width: 900px;
+    background-color: #fff;
+    padding: 32px;
 }
