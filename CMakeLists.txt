@@ -1,15 +1,5 @@
-﻿cmake_minimum_required(VERSION 2.8)
+﻿cmake_minimum_required(VERSION 3.0)
 project(mynotepad)
-
-if (COMMAND cmake_policy)
-    # Works around warnings libraries linked against that don't
-    # have absolute paths (e.g. -lpthreads)
-    cmake_policy(SET CMP0003 NEW)
-
-    # Qt5 qt5_use_modules usage was causing "Policy CMP0043 is not set: 
-    # Ignore COMPILE_DEFINITIONS_<Config> properties." warnings
-    cmake_policy(SET CMP0043 NEW)
-endif()
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
 #add_definitions("$<$<CONFIG:Debug>:-D_DEBUG>")
@@ -39,7 +29,7 @@ endif()
 
 set(MYNOTEPAD_VERSION_MAJOR 1)
 set(MYNOTEPAD_VERSION_MINOR 0)
-set(MYNOTEPAD_VERSION_PATCH 5)
+set(MYNOTEPAD_VERSION_PATCH 6)
 message(STATUS "MyNotePad version: ${MYNOTEPAD_VERSION_MAJOR}."
         "${MYNOTEPAD_VERSION_MINOR}.${MYNOTEPAD_VERSION_PATCH}")
 

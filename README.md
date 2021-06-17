@@ -1,6 +1,6 @@
-﻿# MyNotePad
+# MyNotePad
 
-![logo](static/MyNotePad.ico)
+![logo](static/mynotepad.ico)
 
 ## Synopsis
 
@@ -40,7 +40,7 @@ That's all. Run `mynotepad` to launch the program.
 
 2. Extract them to the same folder and merge the `lib/vc14x_x64_dll` folder. For example, the directory tree is like:
 
-```
+```text
 D:\
 |----wxWidgets-3.1.3
      |---------------include
@@ -55,6 +55,7 @@ D:\
                               |-------------wxrc.exe
                               ......
 ```
+
 See [CMakeLists.txt](CMakeLists.txt) for more detail.
 
 3. Then open CMake-GUI, click `Browse Source` and `Browse Build` to choose a correct place.

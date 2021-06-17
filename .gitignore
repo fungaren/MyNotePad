@@ -68,8 +68,9 @@ Makefile
 cmake_install.cmake
 /**/CMakeFiles
 
-# CMake generated
+.vscode
 inc/config.h
 install_manifest.txt
 static/mynotepad.desktop
 mynotepad
+preview.html

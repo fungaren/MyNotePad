@@ -200,9 +200,7 @@ void MyFrame::loadSettings()
     article->SetMarginWidth(wxSTC_MARGINOPTION_NONE, FromDIP(MNP_PADDING_LEFT * 2));
 
 #ifdef _WIN32
-    confFilePath = wxStandardPaths::Get().GetExecutablePath();
-    while (confFilePath.back() != '\\')
-        confFilePath.pop_back();
+    confFilePath = wxPathOnly(wxStandardPaths::Get().GetExecutablePath()) + '\\';
 #else
     confFilePath = wxStandardPaths::Get().GetUserDataDir();
     confFilePath += '/';
@@ -384,17 +382,15 @@ void MyFrame::saveHTML(const std::string pathname)
         return;
     }
 
-    f << "<!DOCTYPE><html><head><meta charset=\"utf-8\"/>";
+    f << "<!DOCTYPE><html><head><meta charset='utf-8'/>";
 #ifdef WIN32
-    f << R"raw(
-<link href="style.css" rel="stylesheet">
-<link href="highlight.css" rel="stylesheet">
-<script type="text/javascript" src="highlight.pack.js"></script>
-)raw";
+    f << "<link href='file:///" << confFilePath << "style.css' rel='stylesheet'>\n"
+      << "<link href='file:///" << confFilePath << "highlight.css' rel='stylesheet'>\n"
+      << "<script type='text/javascript' src='file:///" << confFilePath << "highlight.pack.js'></script>\n";
 #else
-    f << "<link href='" << MNP_INSTALL_PATH << "style.css' rel='stylesheet'>\n";
-    f << "<link href='" << MNP_INSTALL_PATH << "highlight.css' rel='stylesheet'>\n";
-    f << "<script type='text/javascript' src='" << MNP_INSTALL_PATH << "highlight.pack.js'></script>\n";
+    f << "<link href='file:///" << MNP_INSTALL_PATH << "style.css' rel='stylesheet'>\n"
+      << "<link href='file:///" << MNP_INSTALL_PATH << "highlight.css' rel='stylesheet'>\n"
+      << "<script type='text/javascript' src='file:///" << MNP_INSTALL_PATH << "highlight.pack.js'></script>\n";
 #endif
     f << R"raw(<script type="text/javascript">
     window.onload = function() {
@@ -410,8 +406,8 @@ void MyFrame::saveHTML(const std::string pathname)
     md2html(str);
 
     f << cvt.to_bytes(str);
-    f << "</main><center><small>Created by <a href=\"https:/"\
-            "/github.com/mooction/MyNotePad\">MyNotePad</a>.</small></center>";
+    f << "</main><center><small>Created by <a href='https:/"\
+            "/github.com/mooction/MyNotePad'>MyNotePad</a>.</small></center>";
     if (str.find(L'$') != std::string::npos ||
         str.find(L"\\[") != std::string::npos ||
         str.find(L"\\(") != std::string::npos)
@@ -456,7 +452,7 @@ void MyFrame::md2html(std::wstring& str)
     clock_t end = clock();
     double t = double(end - begin) / CLOCKS_PER_SEC;
     wos << L"<br><p>elapsed time: " << std::setprecision(2) << t << L" s</p>";
-#endif // SHOW_PARSING_TIME
+#endif
 
     str = wos.str();
 }
@@ -897,12 +893,20 @@ void MyFrame::OnFontSelect(wxCommandEvent& WXUNUSED(event))
 
 void MyFrame::OnBrowser(wxCommandEvent& WXUNUSED(event))
 {
+    std::string s;
+    if (openedFile == MNP_DOC_NOTITLE) {
 #ifdef _WIN32
-    std::string s = confFilePath + "preview.html";
+        s = confFilePath + "preview.html";
+    } else {
+        s = wxPathOnly(openedFile).ToStdString() + "\\preview.html";
 #else
-    wxString path = wxStandardPaths::Get().GetTempDir() + "/preview.html";
-    std::string s = path.ToStdString();
+        wxString path = wxStandardPaths::Get().GetTempDir() + "/preview.html";
+        s = path.ToStdString();
+    } else {
+        s = wxPathOnly(openedFile).ToStdString() + "/preview.html";
 #endif
+    }
+
     saveHTML(s);
     LOG_MESSAGE(s);
     wxLaunchDefaultApplication(s);

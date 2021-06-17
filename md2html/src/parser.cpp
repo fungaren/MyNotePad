@@ -1,4 +1,5 @@
-﻿#include "lex_parse.h"
+﻿#include <sstream>
+#include "lex_parse.h"
 bool isTableItem(const MD_TOKEN token)
 {
 	return token == MD_TOKEN::TABLE_COLUMN_LEFT ||
