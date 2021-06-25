@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.0)
+﻿cmake_minimum_required(VERSION 3.11)
 project(mynotepad)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
@@ -61,10 +61,6 @@ message(STATUS "wxWidgets version: ${wxWidgets_VERSION_MAJOR}."
 include(${wxWidgets_USE_FILE})
 set(EXTRA_LIBS ${EXTRA_LIBS} ${wxWidgets_LIBRARIES})
 
-# submodule md2html
-add_subdirectory(md2html)
-set(EXTRA_LIBS ${EXTRA_LIBS} md2html)
-
 # define header directory
 include_directories(
     "${PROJECT_BINARY_DIR}/inc"
@@ -82,11 +78,31 @@ if (WIN32)
 endif()
 
 # target executable file
-set(TARGT mynotepad)
-add_executable(${TARGT} WIN32 ${SOURCES})
+set(TARGET mynotepad)
+add_executable(${TARGET} WIN32 ${SOURCES})
+
+# Markdown to HTML converter
+option(USE_EXTERN_LIB "Use external library to convert markdown to HTML" OFF)
+if (USE_EXTERN_LIB)
+    include(FetchContent)
+    FetchContent_Declare(maddy
+        GIT_REPOSITORY https://github.com/progsource/maddy.git
+        GIT_TAG f3d934d6ec70bd4c077acfb810026d5f15e11001
+    )
+    FetchContent_GetProperties(maddy)
+    if (NOT maddy_POPULATED)
+        FetchContent_Populate(maddy)
+        # Do not add_subdirectory() because we only want the header files
+        include_directories("${maddy_SOURCE_DIR}/include")
+    endif()
+    add_definitions("-DUSE_EXTERN_LIB")
+else()
+    add_subdirectory(md2html)
+    set(EXTRA_LIBS ${EXTRA_LIBS} md2html)
+endif()
 
 # link libraries
-target_link_libraries(${TARGT} ${EXTRA_LIBS})
+target_link_libraries(${TARGET} ${EXTRA_LIBS})
 
 if (WIN32)
     set(WXVER "${wxWidgets_VERSION_MAJOR}${wxWidgets_VERSION_MINOR}${wxWidgets_VERSION_PATCH}")
@@ -117,7 +133,7 @@ if (WIN32)
     # destination directory
     set(COPY_DLLS_TO ${PROJECT_BINARY_DIR}/)
     #message(STATUS ${COPY_DLLS_TO})
-    add_custom_command(TARGET ${TARGT} POST_BUILD
+    add_custom_command(TARGET ${TARGET} POST_BUILD
         COMMAND_EXPAND_LISTS
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ALL_DLLS}" "${COPY_DLLS_TO}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${STATIC_RESOURCES}" "${COPY_DLLS_TO}"
@@ -129,7 +145,7 @@ elseif (UNIX)
     message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 
     # install the program after build, /usr/local/bin/
-    install(TARGETS ${TARGT} RUNTIME DESTINATION bin)
+    install(TARGETS ${TARGET} RUNTIME DESTINATION bin)
     
     # copy dependent files while installing, default path is /usr/local/share
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/static/"

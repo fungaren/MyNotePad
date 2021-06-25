@@ -22,7 +22,6 @@
 
 #include "config.h"
 #include "main.h"
-#include "lex_parse.h"
 #if _WIN32
 #include "resource.h"
 #else
@@ -243,25 +242,25 @@ void MyFrame::loadSettings()
                 else if (key == MNP_CONFIG_FONTNAME)
                 {
                     if (val == "Microsoft Yahei UI") {
-                        fontFace = L"Microsoft Yahei UI";
+                        fontFace = "Microsoft Yahei UI";
                     }
                     else if (val == "Lucida Console") {
-                        fontFace = L"Lucida Console";
+                        fontFace = "Lucida Console";
                         GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
                         GetMenuBar()->Check(VIEW_FONT_LUCIDA, true);
                     }
                     else if (val == "Courier New") {
-                        fontFace = L"Courier New";
+                        fontFace = "Courier New";
                         GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
                         GetMenuBar()->Check(VIEW_FONT_COURIER, true);
                     }
                     else if (val == "Consolas") {
-                        fontFace = L"Consolas";
+                        fontFace = "Consolas";
                         GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
                         GetMenuBar()->Check(VIEW_FONT_CONSOLAS, true);
                     }
                     //else if (val == "Noto Mono") {
-                    //    fontFace = L"Noto Mono";
+                    //    fontFace = "Noto Mono";
                     //    GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
                     //    GetMenuBar()->Check(VIEW_FONT_NOTOMONO, true);
                     //}
@@ -287,8 +286,7 @@ void MyFrame::saveSettings()
     out << MNP_CONFIG_THEME << '=' << theme << "\r\n";
     out << MNP_CONFIG_WORDWRAP << '=' << bWordWrap << "\r\n";
     out << MNP_CONFIG_LINENUMBER << '=' << bShowLineNumber << "\r\n";
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
-    out << MNP_CONFIG_FONTNAME << '=' << cvt.to_bytes(fontFace);
+    out << MNP_CONFIG_FONTNAME << '=' << fontFace;
     out.close();
     LOG_MESSAGE(pathname);
 }
@@ -374,7 +372,6 @@ bool MyFrame::sureToQuit(wxCommandEvent& event)
 
 void MyFrame::saveHTML(const std::string pathname)
 {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
     std::ofstream f(pathname);
     if (!f.good())
     {
@@ -402,15 +399,15 @@ void MyFrame::saveHTML(const std::string pathname)
     // hljs.initHighlightingOnLoad();
 </script>
 </head><body><main>)raw";
-    std::wstring str = all_to_string();
+    std::string str = all_to_string();
     md2html(str);
 
-    f << cvt.to_bytes(str);
+    f << str;
     f << "</main><center><small>Created by <a href='https:/"\
             "/github.com/mooction/MyNotePad'>MyNotePad</a>.</small></center>";
-    if (str.find(L'$') != std::string::npos ||
-        str.find(L"\\[") != std::string::npos ||
-        str.find(L"\\(") != std::string::npos)
+    if (str.find('$') != std::string::npos ||
+        str.find("\\[") != std::string::npos ||
+        str.find("\\(") != std::string::npos)
     {
         f << R"raw(
 <script type="text/x-mathjax-config">
@@ -425,36 +422,31 @@ MathJax.Hub.Config({
     f.close();
 }
 
-std::wstring MyFrame::all_to_string()
+std::string MyFrame::all_to_string()
 {
-    return article->GetValue().ToStdWstring();
+    return article->GetValue().ToStdString();
 }
 
-#ifdef _DEBUG
-#define SHOW_PARSING_TIME
+#ifdef USE_EXTERN_LIB
+    #include "maddy/parser.h"
+#else
+    #include "lex_parse.h"
 #endif
 
 // convert markdown to html, which is stored in @str.
-void MyFrame::md2html(std::wstring& str)
+void MyFrame::md2html(std::string& str)
 {
-    //std::wregex regex_table_align(L"^([:\\s]?-+[:\\s]?\\|?)+$");
-    //bool re = std::regex_match(str, regex_table_align);
-    //int j = 5;
-#ifdef SHOW_PARSING_TIME
-        clock_t begin = clock();
-#endif
+#ifdef USE_MADDY
+    std::stringstream input(str);
+    maddy::Parser parser;
+    str = parser.Parse(input);
+    str = wxString(str).ToUTF8().data();
+#else
+    auto scanned = scanner(wxString(str).ToStdWstring());
     std::wostringstream wos;
-
-    auto scanned = scanner(str);
     parse_fromlex(wos, std::begin(scanned), std::end(scanned));
-
-#ifdef SHOW_PARSING_TIME
-    clock_t end = clock();
-    double t = double(end - begin) / CLOCKS_PER_SEC;
-    wos << L"<br><p>elapsed time: " << std::setprecision(2) << t << L" s</p>";
+    str = wxString(wos.str()).ToUTF8().data();
 #endif
-
-    str = wos.str();
 }
 
 /* ==========================================
@@ -470,7 +462,7 @@ MyFrame::MyFrame(const wxString& title) :
     bWordWrap(true),
     fontSize(13),
     lineNumFontSize(10),
-    fontFace(FONT_MSYAHEI),
+    fontFace(FONT_1),
     openedFile(MNP_DOC_NOTITLE)
 {
 #ifdef _WIN32
@@ -514,10 +506,10 @@ MyFrame::MyFrame(const wxString& title) :
     viewMenu->AppendCheckItem(VIEW_LINENUMBER, L"&Line Number", L"Show line number");
     viewMenu->Check(VIEW_LINENUMBER, true);
     wxMenu *fontMenu = new wxMenu();
-    fontMenu->AppendCheckItem(VIEW_FONT_MSYAHEI, FONT_MSYAHEI, FONT_MSYAHEI);
-    fontMenu->AppendCheckItem(VIEW_FONT_LUCIDA, FONT_LUCIDA, FONT_LUCIDA);
-    fontMenu->AppendCheckItem(VIEW_FONT_COURIER, FONT_COURIER, FONT_COURIER);
-    fontMenu->AppendCheckItem(VIEW_FONT_CONSOLAS, FONT_CONSOLAS, FONT_CONSOLAS);
+    fontMenu->AppendCheckItem(VIEW_FONT_MSYAHEI, FONT_1, FONT_1);
+    fontMenu->AppendCheckItem(VIEW_FONT_LUCIDA, FONT_2, FONT_2);
+    fontMenu->AppendCheckItem(VIEW_FONT_COURIER, FONT_3, FONT_3);
+    fontMenu->AppendCheckItem(VIEW_FONT_CONSOLAS, FONT_4, FONT_4);
     fontMenu->AppendSeparator();
     fontMenu->Append(VIEW_FONT_SELECT, L"Select Font", L"Select Font");
     fontMenu->Enable(VIEW_FONT_SELECT, false);
@@ -598,9 +590,7 @@ void MyFrame::OnSave(wxCommandEvent& event)
             wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
             return;
         }
-        std::wstring str = all_to_string();
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
-        f << cvt.to_bytes(str);
+        f << all_to_string();
         updateSaveState(true);
     }
 }
@@ -624,9 +614,7 @@ void MyFrame::OnSaveAs(wxCommandEvent& WXUNUSED(event))
         wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
         return;
     }
-    std::wstring str = all_to_string();
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
-    f << cvt.to_bytes(str);
+    f << all_to_string();
 
     openedFile = filepath;
     updateSaveState(true);
@@ -635,7 +623,7 @@ void MyFrame::OnSaveAs(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnCopyHtml(wxCommandEvent& WXUNUSED(event))
 {
     LOG_MESSAGE("");
-    std::wstring str = all_to_string();
+    std::string str = all_to_string();
     if (str.empty())
         return;
     if (wxTheClipboard->Open())
@@ -862,19 +850,19 @@ void MyFrame::OnFont(wxCommandEvent& event)
     {
         case VIEW_FONT_MSYAHEI:
             menuBar->Check(VIEW_FONT_MSYAHEI, true);
-            fontFace = FONT_MSYAHEI;
+            fontFace = FONT_1;
             break;
         case VIEW_FONT_LUCIDA:
             menuBar->Check(VIEW_FONT_LUCIDA, true);
-            fontFace = FONT_LUCIDA;
+            fontFace = FONT_2;
             break;
         case VIEW_FONT_COURIER:
             menuBar->Check(VIEW_FONT_COURIER, true);
-            fontFace = FONT_COURIER;
+            fontFace = FONT_3;
             break;
         case VIEW_FONT_CONSOLAS:
             menuBar->Check(VIEW_FONT_CONSOLAS, true);
-            fontFace = FONT_CONSOLAS;
+            fontFace = FONT_4;
             break;
         default:
             break;

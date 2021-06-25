@@ -1,40 +1,39 @@
 ﻿#ifndef __MAIN_H__
 #define __MAIN_H__
 
-const char*     MNP_APPNAME_C             = "MyNotePad";
-const wchar_t*  MNP_APPNAME               = L"MyNotePad";
-const char*     MNP_DOC_TITLE             = " - MyNotePad";
-const char*     MNP_DOC_NOTITLE           = "Untitled";
-const wchar_t*  MNP_COPYRIGHT             = L"\nCopyright(c) moooc.cc";
+const char*  MNP_APPNAME               = "MyNotePad";
+const char*  MNP_DOC_TITLE             = " - MyNotePad";
+const char*  MNP_DOC_NOTITLE           = "Untitled";
+const char*  MNP_COPYRIGHT             = "\nCopyright(c) moooc.cc";
 
-int             MNP_PADDING_LEFT          = 16;    // space for line number
-const int       MNP_LINENUM_MARGIN_LEFT   = 4;
-const int       MNP_LINENUM_MARGIN_TOP    = 4;
-const wchar_t*  MNP_LINENUM_FONTFACE      = L"Arial";
-const int       MNP_SCROLLBAR_WIDTH       = 14;
+int          MNP_PADDING_LEFT          = 16;    // space for line number
+const int    MNP_LINENUM_MARGIN_LEFT   = 4;
+const int    MNP_LINENUM_MARGIN_TOP    = 4;
+const char*  MNP_LINENUM_FONTFACE      = "Arial";
+const int    MNP_SCROLLBAR_WIDTH       = 14;
 
-const char*     MNP_CONFIG_FILE           = "MyNotePad.conf";
-const char*     MNP_CONFIG_THEME          = "theme";
-const char*     MNP_CONFIG_WORDWRAP       = "word-wrap";
-const char*     MNP_CONFIG_LINENUMBER     = "line-number";
-const char*     MNP_CONFIG_FONTNAME       = "font-name";
+const char*  MNP_CONFIG_FILE           = "MyNotePad.conf";
+const char*  MNP_CONFIG_THEME          = "theme";
+const char*  MNP_CONFIG_WORDWRAP       = "word-wrap";
+const char*  MNP_CONFIG_LINENUMBER     = "line-number";
+const char*  MNP_CONFIG_FONTNAME       = "font-name";
 
-const wchar_t*  INFO_SAVE                 = L"Save changes?";
-const wchar_t*  ERR_OPEN_FAIL             = L"Failed to save HTML file, \n"\
-                                             "make sure you have permissions to write that file.";
-const wchar_t*  ERR_FAULT_ENCODING        = L"Can only open UTF-8 files!";
-const wchar_t*  ERR_UNKNOWN               = L"Unknown error";
+const char*  INFO_SAVE                 = "Save changes?";
+const char*  ERR_OPEN_FAIL             = "Failed to save HTML file, \n"\
+                                         "make sure you have permissions to write that file.";
+const char*  ERR_FAULT_ENCODING        = "Can only open UTF-8 files!";
+const char*  ERR_UNKNOWN               = "Unknown error";
 
 #ifdef _WIN32
-const wchar_t*  FONT_MSYAHEI              = L"Microsoft Yahei";
-const wchar_t*  FONT_LUCIDA               = L"Lucida Console";
-const wchar_t*  FONT_COURIER              = L"Courier New";
-const wchar_t*  FONT_CONSOLAS             = L"Consolas";
+const char*  FONT_1     = "Microsoft Yahei";
+const char*  FONT_2     = "Lucida Console";
+const char*  FONT_3     = "Courier New";
+const char*  FONT_4     = "Consolas";
 #else
-const wchar_t*  FONT_MSYAHEI              = L"Noto Sans Mono";
-const wchar_t*  FONT_LUCIDA               = L"Liberation Mono";
-const wchar_t*  FONT_COURIER              = L"Courier 10 Pitch";
-const wchar_t*  FONT_CONSOLAS             = L"DejaVu Sans Mono";
+const char*  FONT_1     = "Noto Sans Mono";
+const char*  FONT_2     = "Liberation Mono";
+const char*  FONT_3     = "Courier 10 Pitch";
+const char*  FONT_4     = "DejaVu Sans Mono";
 #endif
 
 struct CharStyle
@@ -59,9 +58,9 @@ public:
     void loadFile(const std::string path);
     bool sureToQuit(wxCommandEvent& event);
     void saveHTML(const std::string pathname);
-    std::wstring all_to_string();
+    std::string all_to_string();
     void ApplyTheme();
-    void md2html(std::wstring& str);
+    void md2html(std::string& str);
     int widthOfLineNumber() const;
 #ifndef _WIN32
     // this function is not exists on Linux
@@ -136,7 +135,7 @@ private:
     wxColour lineNumFontColor;
     wxColour scrollBarBgColor;
     wxColour scrollBarColor;
-    const wchar_t* fontFace;
+    const char* fontFace;
     int fontSize;
     int lineNumFontSize;
     // configure file Path
