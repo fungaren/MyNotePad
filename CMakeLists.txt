@@ -33,7 +33,7 @@ endif()
 
 set(MYNOTEPAD_VERSION_MAJOR 1)
 set(MYNOTEPAD_VERSION_MINOR 0)
-set(MYNOTEPAD_VERSION_PATCH 6)
+set(MYNOTEPAD_VERSION_PATCH 7)
 message(STATUS "MyNotePad version: ${MYNOTEPAD_VERSION_MAJOR}."
         "${MYNOTEPAD_VERSION_MINOR}.${MYNOTEPAD_VERSION_PATCH}")
 
@@ -55,6 +55,11 @@ if (UNIX)
     # message(STATUS "GTK headers: ${GTK_INCLUDE_DIRS}")
     # message(STATUS "GTK libraries: ${GTK_LIBRARIES}")
     # set(EXTRA_LIBS ${EXTRA_LIBS} ${GTK_LIBRARIES})
+else()
+    configure_file(
+        "${PROJECT_SOURCE_DIR}/static/wx.rc.in"
+        "${PROJECT_SOURCE_DIR}/static/wx.rc"
+    )
 endif()
 
 # Specify the path manually
@@ -93,8 +98,8 @@ set(TARGET mynotepad)
 add_executable(${TARGET} WIN32 ${SOURCES})
 
 # Markdown to HTML converter
-option(USE_EXTERN_LIB "Use external library to convert markdown to HTML" OFF)
-if (USE_EXTERN_LIB)
+option(USE_EXTERNAL_MD2HTML "Use external library to convert markdown to HTML" OFF)
+if (USE_EXTERNAL_MD2HTML)
     include(FetchContent)
     FetchContent_Declare(maddy
         GIT_REPOSITORY https://github.com/progsource/maddy.git
@@ -106,7 +111,7 @@ if (USE_EXTERN_LIB)
         # Do not add_subdirectory() because we only want the header files
         include_directories("${maddy_SOURCE_DIR}/include")
     endif()
-    add_definitions("-DUSE_EXTERN_LIB")
+    add_definitions("-DUSE_EXTERNAL_MD2HTML")
 else()
     add_subdirectory(md2html)
     set(EXTRA_LIBS ${EXTRA_LIBS} md2html)

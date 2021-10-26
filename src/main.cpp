@@ -12,8 +12,9 @@
 #include <wx/utils.h>
 #include <wx/filedlg.h>
 #include <wx/clipbrd.h>
-#include <iostream>
-#include <string>
+
+#include <sstream>
+#include <cstdlib>
 
 #include "config.h"
 #include "main.h"
@@ -403,7 +404,7 @@ MathJax.Hub.Config({
     out << wxS("</body><html>");
 }
 
-#ifdef USE_EXTERN_LIB
+#ifdef USE_EXTERNAL_MD2HTML
     #include "maddy/parser.h"
 #else
     #include "lex_parse.h"
