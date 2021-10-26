@@ -6,7 +6,7 @@
 
 A markdown editor that supports exporting HTML.
 
-This program is initially written in pure win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidgets, you can build it in Windows and Linux. 
+This program is initially written in pure win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidgets, you can build it in Windows and Linux.
 
 Download binaries: [Release](../../releases)
 
@@ -18,10 +18,15 @@ Try this markdown file: [test.md](test.md)
 
 ```bash
 sudo apt update
-sudo apt install build-essential cmake libwxgtk3.0-dev
+sudo apt install build-essential cmake git
+# Debian 9
+sudo apt install libwxgtk3.0-dev
+# Debian 10
+sudo apt install libwxgtk3.0-gtk3-dev
 git clone https://github.com/mooction/mynotepad
-cd mynotepad
-cmake .
+mkdir mynotepad/build
+cd mynotepad/build
+cmake .. -DCMAKE_BUILD_TYPE=Release
 make
 sudo make install
 ```
@@ -64,7 +69,7 @@ See [CMakeLists.txt](CMakeLists.txt) for more detail.
 
 5. Set `wxWidgets_ROOT_DIR` and `wxWidgets_LIB_DIR` to the wxWidgets library folder. For the instance above, set `wxWidgets_ROOT_DIR` to `D:\wxWidgets-3.1.3\` and set `wxWidgets_LIB_DIR` to `D:\wxWidgets-3.1.3\lib\vc14x_x64_dll`.
 
-6. Click `Configure` again, then click `Generate`, finally we get a Visual Studio solution. 
+6. Click `Configure` again, then click `Generate`, finally we get a Visual Studio solution.
 
 ### Options
 
@@ -74,15 +79,14 @@ Use `cmake -D<VAR>=<VALUE>` to change any option.
 | - | - | - |
 | `CMAKE_BUILD_TYPE` | Debug | Build Type for Unix (Release / Debug) |
 
-## Known bugs
+## Known issue
 
-1. (Linux)Texts copied to clipboard will disappear after the window closed
-2. (Linux)Fail to open/save file in non-ascii path 
+1. (Linux) Copied text will disappear after the window closed
 
 ## TODO
 
-- search & replace
-- encode conversion(only support utf-8 currently)
+- Search & replace
+- Encode conversion (only support utf-8 currently)
 
 ## Programming Guide
 

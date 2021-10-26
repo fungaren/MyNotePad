@@ -2,6 +2,9 @@
 #include <wx/wx.h>
 #include <wx/stc/stc.h>
 #include <wx/dir.h>
+#include <wx/wfstream.h>
+#include <wx/txtstrm.h>
+#include <wx/datstrm.h>
 #include <wx/dnd.h>
 #include <wx/colour.h>
 #include <wx/caret.h>
@@ -11,14 +14,6 @@
 #include <wx/clipbrd.h>
 #include <iostream>
 #include <string>
-#include <sstream>
-#include <fstream>
-#include <locale>
-#include <codecvt>
-#include <sstream>
-#include <regex>
-#include <cstdlib>
-#include <iomanip>
 
 #include "config.h"
 #include "main.h"
@@ -71,9 +66,6 @@ WXLRESULT MyFrame::notepadCtrl::MSWWindowProc(WXUINT message, WXWPARAM wParam, W
 }
 #endif
 
-#define LOG_MESSAGE(msg) do {wxLogDebug(L"%s: %s", __func__, msg);} while(0)
-#define LOG_ERROR(msg) do {wxLogDebug(L"%s: %s", __func__, msg);} while(0)
-
 /*
  * APPLICATION
  */
@@ -102,7 +94,7 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_MENU(FILE_SAVEAS, MyFrame::OnSaveAs)
     EVT_MENU(FILE_COPYHTML, MyFrame::OnCopyHtml)
     EVT_MENU(FILE_EXPORTHTML, MyFrame::OnExportHTML)
-    EVT_MENU(FILE_QUIT, MyFrame::OnQuit)
+    EVT_MENU(FILE_QUIT, MyFrame::OnMenuClose)
 
     EVT_MENU(EDIT_UNDO, MyFrame::OnUndo)
     EVT_MENU(EDIT_REDO, MyFrame::OnRedo)
@@ -138,12 +130,11 @@ bool MyApp::OnInit()
 {
     MyFrame *frame = new MyFrame(MNP_APPNAME);
     frame->SetSize(400, 300, frame->FromDIP(800), frame->FromDIP(600));
-
     frame->loadSettings();
 
     // load the file specified in cmdLine
-    if(argc == 2 && argv[1][0] != '\0')
-        frame->loadFile(argv[1].ToStdString());
+    if (argc == 2 && argv[1][0] != '\0')
+        frame->loadFile(argv[1]);
 
     frame->Show(true);
     return true;
@@ -207,23 +198,26 @@ void MyFrame::loadSettings()
         // Disallow group & others to write
         wxDir::Make(confFilePath, ~(wxPOSIX_GROUP_WRITE | wxPOSIX_OTHERS_WRITE));
 #endif
-    LOG_MESSAGE(confFilePath);
+    wxLogDebug("loading setting: %s", (confFilePath + MNP_CONFIG_FILE).ToStdString());
 
-    // load user data
-    std::ifstream in(confFilePath + MNP_CONFIG_FILE);
-    char buff[1024];
-    if (in.good())
+    wxLogNull nolog; // Disable logging temporarily to avoid a popup message box
+    // Load user data
+    wxFileInputStream infile(confFilePath + MNP_CONFIG_FILE);
+    if (infile.IsOk())
     {
-        while (in.getline(buff, 1024))
+        wxTextInputStream in(infile);
+        wxString line;
+        while (!(line = in.ReadLine()).IsEmpty())
         {
-            if (buff[0] == '#')
-                continue;            // # this is comment
-            const char* pos = strchr(buff, '=');      // eg. best = 999
-            if (pos != NULL)
+            if (line[0] == wxS('#'))
+                continue;   // # this is comment
+
+            const int pos = line.Find(wxS('='));    // eg. best = 999
+            if (pos != wxNOT_FOUND)
             {
-                std::string key(buff, pos - buff);    // acquire key
-                std::string val(pos + 1);             // acquire value
-                if (val.back() == '\r') val.pop_back();    // remove '\r' at the end
+                wxString key = line.substr(0, pos); // acquire key
+                wxString val = line.substr(pos);    // acquire value
+                if (val.Last() == '\r') val.RemoveLast(1);    // remove '\r' at the end
                 if (key == MNP_CONFIG_THEME && std::atoi(val.c_str()) == THEME::THEME_DARK)
                     themeDark();
                 else if (key == MNP_CONFIG_WORDWRAP && val == "0")
@@ -241,29 +235,24 @@ void MyFrame::loadSettings()
                 }
                 else if (key == MNP_CONFIG_FONTNAME)
                 {
-                    if (val == "Microsoft Yahei UI") {
-                        fontFace = "Microsoft Yahei UI";
+                    if (val == FONT_1) {
+                        fontFace = FONT_1;
                     }
-                    else if (val == "Lucida Console") {
-                        fontFace = "Lucida Console";
+                    else if (val == FONT_2) {
+                        fontFace = FONT_2;
                         GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
                         GetMenuBar()->Check(VIEW_FONT_LUCIDA, true);
                     }
-                    else if (val == "Courier New") {
-                        fontFace = "Courier New";
+                    else if (val == FONT_3) {
+                        fontFace = FONT_3;
                         GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
                         GetMenuBar()->Check(VIEW_FONT_COURIER, true);
                     }
-                    else if (val == "Consolas") {
-                        fontFace = "Consolas";
+                    else if (val == FONT_4) {
+                        fontFace = FONT_4;
                         GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
                         GetMenuBar()->Check(VIEW_FONT_CONSOLAS, true);
                     }
-                    //else if (val == "Noto Mono") {
-                    //    fontFace = "Noto Mono";
-                    //    GetMenuBar()->Check(VIEW_FONT_MSYAHEI, false);
-                    //    GetMenuBar()->Check(VIEW_FONT_NOTOMONO, true);
-                    //}
                     for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
                         article->StyleSetFaceName(i, fontFace);
                 }
@@ -275,20 +264,20 @@ void MyFrame::loadSettings()
 
 void MyFrame::saveSettings()
 {
-    std::string pathname = confFilePath + MNP_CONFIG_FILE;
-    std::ofstream out(pathname);
-    if (!out.good())
+    wxString pathname = confFilePath + MNP_CONFIG_FILE;
+    wxLogDebug("saving setting: %s", pathname.ToStdString());
+    wxFileOutputStream outfile(pathname);
+    if (!outfile.IsOk())
     {
         wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
         return;
     }
+    wxTextOutputStream out(outfile);
     out << "# Edit this file to config MyNotePad\r\n";
-    out << MNP_CONFIG_THEME << '=' << theme << "\r\n";
-    out << MNP_CONFIG_WORDWRAP << '=' << bWordWrap << "\r\n";
-    out << MNP_CONFIG_LINENUMBER << '=' << bShowLineNumber << "\r\n";
-    out << MNP_CONFIG_FONTNAME << '=' << fontFace;
-    out.close();
-    LOG_MESSAGE(pathname);
+    out << wxString(MNP_CONFIG_THEME) << '=' << theme << "\r\n";
+    out << wxString(MNP_CONFIG_WORDWRAP) << '=' << bWordWrap << "\r\n";
+    out << wxString(MNP_CONFIG_LINENUMBER) << '=' << bShowLineNumber << "\r\n";
+    out << wxString(MNP_CONFIG_FONTNAME) << '=' << wxString(fontFace);
 }
 
 int MyFrame::widthOfLineNumber() const
@@ -317,38 +306,27 @@ void MyFrame::updateSaveState(bool saved)
     }
 }
 
-void MyFrame::loadFile(const std::string pathname)
+void MyFrame::loadFile(wxString pathname)
 {
-    std::string path(pathname);
     // remove quote
-    if (path[0] == '\"') {
-        path = path.substr(1, path.size() - 1);
+    if (pathname[0] == '\"') {
+        pathname = pathname.substr(1, pathname.size() - 1);
     }
-    LOG_MESSAGE(path);
+    wxLogDebug("loading file: %s", pathname.ToStdString());
     // load file
-    std::ifstream f(path);
-    if (f.fail()) {
-        std::wstringstream ss;
-        ss << L"Failed to load \"" << path << L"\".";
-        wxMessageBox(ss.str(), MNP_APPNAME, wxOK | wxICON_WARNING, this);
+    wxFileInputStream infile(pathname);
+    if (!infile.IsOk()) {
+        wxMessageBox(wxS("Failed to load \"") + pathname + wxS("\"."),
+            MNP_APPNAME, wxOK | wxICON_WARNING, this);
         return;
     }
-    // UTF-8 decode
-    std::istreambuf_iterator<char> begin(f), end;
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
-    std::wstring str;
-    try {
-        std::string bytes(begin, end);
-        str = cvt.from_bytes(bytes);
-    }
-    catch (std::range_error re) {
-        wxMessageBox(ERR_FAULT_ENCODING, MNP_APPNAME, wxOK | wxICON_WARNING, this);
-        return;
-    }
+    std::string bytes;
+    bytes.resize(infile.GetSize());
+    infile.ReadAll(&bytes[0], bytes.size());
 
-    openedFile = path;
+    openedFile = pathname;
     updateSaveState(true);
-    article->SetValue(str);
+    article->SetValue(wxString::FromUTF8(bytes.c_str()));
 }
 
 /*
@@ -370,26 +348,32 @@ bool MyFrame::sureToQuit(wxCommandEvent& event)
     return true;
 }
 
-void MyFrame::saveHTML(const std::string pathname)
+void MyFrame::saveHTML(const wxString& pathname)
 {
-    std::ofstream f(pathname);
-    if (!f.good())
+    wxFileOutputStream outfile(pathname);
+    if (!outfile.IsOk())
     {
         wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
         return;
     }
-
-    f << "<!DOCTYPE><html><head><meta charset='utf-8'/>";
+    wxTextOutputStream out(outfile);
+    out << wxS("<!DOCTYPE><html><head><meta charset='utf-8'/>");
 #ifdef WIN32
-    f << "<link href='file:///" << confFilePath << "style.css' rel='stylesheet'>\n"
-      << "<link href='file:///" << confFilePath << "highlight.css' rel='stylesheet'>\n"
-      << "<script type='text/javascript' src='file:///" << confFilePath << "highlight.pack.js'></script>\n";
+        out << wxS("<link href='file:///")
+            << confFilePath << wxS("style.css' rel='stylesheet'>\n")
+            << wxS("<link href='file:///")
+            << confFilePath << wxS("highlight.css' rel='stylesheet'>\n")
+            << wxS("<script type='text/javascript' src='file:///")
+            << confFilePath << wxS("highlight.pack.js'></script>\n");
 #else
-    f << "<link href='file:///" << MNP_INSTALL_PATH << "style.css' rel='stylesheet'>\n"
-      << "<link href='file:///" << MNP_INSTALL_PATH << "highlight.css' rel='stylesheet'>\n"
-      << "<script type='text/javascript' src='file:///" << MNP_INSTALL_PATH << "highlight.pack.js'></script>\n";
+    out << wxS("<link href='file:///")
+    << wxString(MNP_INSTALL_PATH) << wxS("style.css' rel='stylesheet'>\n")
+    << wxS("<link href='file:///")
+    << wxString(MNP_INSTALL_PATH) << wxS("highlight.css' rel='stylesheet'>\n")
+    << wxS("<script type='text/javascript' src='file:///")
+    << wxString(MNP_INSTALL_PATH) << wxS("highlight.pack.js'></script>\n");
 #endif
-    f << R"raw(<script type="text/javascript">
+    out << wxS(R"raw(<script type="text/javascript">
     window.onload = function() {
         var aCodes = document.getElementsByTagName('pre');
         for (var i=0; i < aCodes.length; i++) {
@@ -398,33 +382,25 @@ void MyFrame::saveHTML(const std::string pathname)
     };
     // hljs.initHighlightingOnLoad();
 </script>
-</head><body><main>)raw";
-    std::string str = all_to_string();
+</head><body><main>)raw");
+    wxString str = article->GetValue();
     md2html(str);
-
-    f << str;
-    f << "</main><center><small>Created by <a href='https:/"\
-            "/github.com/mooction/MyNotePad'>MyNotePad</a>.</small></center>";
-    if (str.find('$') != std::string::npos ||
-        str.find("\\[") != std::string::npos ||
-        str.find("\\(") != std::string::npos)
+    out << str << wxS("</main><center><small>Created by <a href='https:/"\
+            "/github.com/mooction/MyNotePad'>MyNotePad</a>.</small></center>");
+    if (str.Find('$') != wxNOT_FOUND ||
+        str.Find("\\[") != wxNOT_FOUND ||
+        str.Find("\\(") != wxNOT_FOUND)
     {
-        f << R"raw(
+        out << wxS(R"raw(
 <script type="text/x-mathjax-config">
 MathJax.Hub.Config({
     TeX: { equationNumbers: { autoNumber: "AMS" } },
     tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
 });
 </script>
-<script type="text/javascript" src="https://cdn.bootcss.com/mathjax/2.7.5/MathJax.js?config=default"></script>)raw";
+<script type="text/javascript" src="https://cdn.bootcss.com/mathjax/2.7.5/MathJax.js?config=default"></script>)raw");
     }
-    f << "</body><html>";
-    f.close();
-}
-
-std::string MyFrame::all_to_string()
-{
-    return article->GetValue().ToStdString();
+    out << wxS("</body><html>");
 }
 
 #ifdef USE_EXTERN_LIB
@@ -434,18 +410,17 @@ std::string MyFrame::all_to_string()
 #endif
 
 // convert markdown to html, which is stored in @str.
-void MyFrame::md2html(std::string& str)
+void MyFrame::md2html(wxString& str)
 {
 #ifdef USE_MADDY
-    std::stringstream input(str);
+    std::stringstream input(str.ToUTF8());
     maddy::Parser parser;
-    str = parser.Parse(input);
-    str = wxString(str).ToUTF8().data();
+    str = wxString::FromUTF8(parser.Parse(input));
 #else
-    auto scanned = scanner(wxString(str).ToStdWstring());
+    auto scanned = scanner(str.ToStdWstring());
     std::wostringstream wos;
     parse_fromlex(wos, std::begin(scanned), std::end(scanned));
-    str = wxString(wos.str()).ToUTF8().data();
+    str = wos.str();
 #endif
 }
 
@@ -457,7 +432,6 @@ MyFrame::MyFrame(const wxString& title) :
     wxFrame(NULL, wxID_ANY, title),
     article(nullptr),
     bShowLineNumber(true),
-    bResized(false),
     bSaved(true),
     bWordWrap(true),
     fontSize(13),
@@ -475,35 +449,35 @@ MyFrame::MyFrame(const wxString& title) :
      * Create menu items
      */
     wxMenu *fileMenu = new wxMenu();
-    fileMenu->Append(FILE_NEW, L"&New\tCtrl+N", L"Create new file");
-    fileMenu->Append(FILE_OPEN, L"&Open...\tCtrl+O", L"Quit this program");
-    fileMenu->Append(FILE_SAVE, L"&Save\tCtrl+S", L"Write changes to the file");
-    fileMenu->Append(FILE_SAVEAS, L"Save &As...\tCtrl+Shift+S", L"Save current document to a file");
+    fileMenu->Append(FILE_NEW, wxS("&New\tCtrl+N"), wxS("Create new file"));
+    fileMenu->Append(FILE_OPEN, wxS("&Open...\tCtrl+O"), wxS("Open new file"));
+    fileMenu->Append(FILE_SAVE, wxS("&Save\tCtrl+S"), wxS("Write changes to the file"));
+    fileMenu->Append(FILE_SAVEAS, wxS("Save &As...\tCtrl+Shift+S"), wxS("Save current document to a file"));
     fileMenu->AppendSeparator();
-    fileMenu->Append(FILE_COPYHTML, L"Copy &HTML", L"Copy HTML to clipboard");
-    fileMenu->Append(FILE_EXPORTHTML, L"&Export HTML...", L"Export HTML to file");
+    fileMenu->Append(FILE_COPYHTML, wxS("Copy &HTML"), wxS("Copy HTML to clipboard"));
+    fileMenu->Append(FILE_EXPORTHTML, wxS("&Export HTML..."), wxS("Export HTML to file"));
     fileMenu->AppendSeparator();
-    fileMenu->Append(FILE_QUIT, L"E&xit\tAlt+F4", L"Quit this program");
+    fileMenu->Append(FILE_QUIT, wxS("E&xit\tAlt+F4"), wxS("Quit this program"));
 
     wxMenu *editMenu = new wxMenu();
-    editMenu->Append(EDIT_UNDO, L"&Undo\tCtrl+Z", L"Undo");
-    editMenu->Append(EDIT_REDO, L"&Redo\tCtrl+Y", L"Redo");
+    editMenu->Append(EDIT_UNDO, wxS("&Undo\tCtrl+Z"), wxS("Undo"));
+    editMenu->Append(EDIT_REDO, wxS("&Redo\tCtrl+Y"), wxS("Redo"));
     editMenu->AppendSeparator();
-    editMenu->Append(EDIT_CUT, L"C&ut\tCtrl+X", L"Cut to clipboard");
-    editMenu->Append(EDIT_COPY, L"&Copy\tCtrl+C", L"Copy to clipboard");
-    editMenu->Append(EDIT_PASTE, L"&Paste\tCtrl+V", L"Paste from clipboard");
-    editMenu->Append(EDIT_DELETE, L"&Delete\tDel", L"Delete selected items");
+    editMenu->Append(EDIT_CUT, wxS("C&ut\tCtrl+X"), wxS("Cut to clipboard"));
+    editMenu->Append(EDIT_COPY, wxS("&Copy\tCtrl+C"), wxS("Copy to clipboard"));
+    editMenu->Append(EDIT_PASTE, wxS("&Paste\tCtrl+V"), wxS("Paste from clipboard"));
+    editMenu->Append(EDIT_DELETE, wxS("&Delete\tDel"), wxS("Delete selected items"));
     editMenu->AppendSeparator();
-    editMenu->Append(EDIT_SELALL, L"&Select All\tCtrl+A", L"Select all");
+    editMenu->Append(EDIT_SELALL, wxS("&Select All\tCtrl+A"), wxS("Select all"));
     editMenu->AppendSeparator();
-    editMenu->Append(EDIT_OPTIONS, L"&Options...", L"Optional settings");
+    editMenu->Append(EDIT_OPTIONS, wxS("&Options..."), wxS("Optional settings"));
     editMenu->Enable(EDIT_OPTIONS, false);
 
     wxMenu *viewMenu = new wxMenu();
-    viewMenu->AppendCheckItem(VIEW_THEMELIGHT, L"&Light", L"Use white theme");
-    viewMenu->AppendCheckItem(VIEW_THEMEDARK, L"&Black", L"Use black theme");
+    viewMenu->AppendCheckItem(VIEW_THEMELIGHT, wxS("&Light"), wxS("Use white theme"));
+    viewMenu->AppendCheckItem(VIEW_THEMEDARK, wxS("&Black"), wxS("Use black theme"));
     viewMenu->AppendSeparator();
-    viewMenu->AppendCheckItem(VIEW_LINENUMBER, L"&Line Number", L"Show line number");
+    viewMenu->AppendCheckItem(VIEW_LINENUMBER, wxS("&Line Number"), wxS("Show line number"));
     viewMenu->Check(VIEW_LINENUMBER, true);
     wxMenu *fontMenu = new wxMenu();
     fontMenu->AppendCheckItem(VIEW_FONT_MSYAHEI, FONT_1, FONT_1);
@@ -511,24 +485,24 @@ MyFrame::MyFrame(const wxString& title) :
     fontMenu->AppendCheckItem(VIEW_FONT_COURIER, FONT_3, FONT_3);
     fontMenu->AppendCheckItem(VIEW_FONT_CONSOLAS, FONT_4, FONT_4);
     fontMenu->AppendSeparator();
-    fontMenu->Append(VIEW_FONT_SELECT, L"Select Font", L"Select Font");
+    fontMenu->Append(VIEW_FONT_SELECT, wxS("Select Font"), wxS("Select Font"));
     fontMenu->Enable(VIEW_FONT_SELECT, false);
-    viewMenu->AppendSubMenu(fontMenu, L"Font");
+    viewMenu->AppendSubMenu(fontMenu, wxS("Font"));
 
     wxMenu *formatMenu = new wxMenu();
-    formatMenu->Append(FORMAT_BROWSER, L"&Show in browser...\tF5", L"Show in browser");
-    formatMenu->AppendCheckItem(FORMAT_WORDWRAP, L"Line &Wrap", L"Line wrap");
+    formatMenu->Append(FORMAT_BROWSER, wxS("&Show in browser...\tF5"), wxS("Show in browser"));
+    formatMenu->AppendCheckItem(FORMAT_WORDWRAP, wxS("Line &Wrap"), wxS("Line wrap"));
     formatMenu->Check(FORMAT_WORDWRAP, true);
 
     wxMenu *helpMenu = new wxMenu();
-    helpMenu->Append(HELP_ABOUT, L"&About...\tAlt+A", L"Show about dialog");
+    helpMenu->Append(HELP_ABOUT, wxS("&About...\tAlt+A"), wxS("Show about dialog"));
 
     wxMenuBar *menuBar = new wxMenuBar();
-    menuBar->Append(fileMenu,L"&File");
-    menuBar->Append(editMenu, L"&Edit");
-    menuBar->Append(viewMenu, L"&View");
-    menuBar->Append(formatMenu, L"&Format");
-    menuBar->Append(helpMenu, L"&Help");
+    menuBar->Append(fileMenu, wxS("&File"));
+    menuBar->Append(editMenu, wxS("&Edit"));
+    menuBar->Append(viewMenu, wxS("&View"));
+    menuBar->Append(formatMenu, wxS("&Format"));
+    menuBar->Append(helpMenu, wxS("&Help"));
     SetMenuBar(menuBar);
 
     /*
@@ -558,39 +532,40 @@ MyFrame::MyFrame(const wxString& title) :
 
 void MyFrame::OnNew(wxCommandEvent& WXUNUSED(event))
 {
-    wxString s = wxStandardPaths::Get().GetExecutablePath();
-    LOG_MESSAGE(s);
-    wxExecute(s);
+    wxString exe = wxStandardPaths::Get().GetExecutablePath();
+    wxLogDebug("executing: %s", exe.ToStdString());
+    wxExecute(exe);
 }
 
 void MyFrame::OnOpen(wxCommandEvent& event)
 {
     sureToQuit(event);   // notify the user to save data
     wxFileDialog openFileDialog(this,
-                                L"Open file", "", "",
-                                L"MarkDown (*.md)|*.md|All Files (*.*)|*.*",
+                                wxS("Open file"), "", "",
+                                wxS("MarkDown (*.md)|*.md|All Files (*.*)|*.*"),
                                 wxFD_OPEN|wxFD_FILE_MUST_EXIST);
     if (openFileDialog.ShowModal() == wxID_CANCEL)
         return;
 
-    std::string filepath = openFileDialog.GetPath().ToStdString();
-    LOG_MESSAGE(filepath);
+    wxString filepath = openFileDialog.GetPath();
+    wxLogDebug("opening: %s", filepath.ToStdString());
     loadFile(filepath);
 }
 
 void MyFrame::OnSave(wxCommandEvent& event)
 {
-    if (openedFile == MNP_DOC_NOTITLE)
+    if (openedFile == wxString(MNP_DOC_NOTITLE))
         OnSaveAs(event);
     else
     {
-        std::ofstream f(openedFile);
-        if (!f.good())
+        wxFileOutputStream outfile(openedFile);
+        if (!outfile.IsOk())
         {
             wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
             return;
         }
-        f << all_to_string();
+        wxTextOutputStream out(outfile);
+        out << article->GetValue();
         updateSaveState(true);
     }
 }
@@ -598,8 +573,8 @@ void MyFrame::OnSave(wxCommandEvent& event)
 void MyFrame::OnSaveAs(wxCommandEvent& WXUNUSED(event))
 {
     wxFileDialog saveFileDialog(this,
-                                L"Save As", "", "",
-                                L"MarkDown (*.md)|*.md|All Files (*.*)|*.*",
+                                wxS("Save As"), "", "",
+                                wxS("MarkDown (*.md)|*.md|All Files (*.*)|*.*"),
                                 wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
     if (saveFileDialog.ShowModal() == wxID_CANCEL)
         return;
@@ -607,14 +582,17 @@ void MyFrame::OnSaveAs(wxCommandEvent& WXUNUSED(event))
     wxString filepath = saveFileDialog.GetPath();
     if (filepath.Right(3) != ".md")
         filepath += ".md";
-    LOG_MESSAGE(filepath);
-    std::ofstream f(filepath.ToStdString());
-    if (!f.good())
+
+    wxLogDebug("saving: %s", filepath.ToStdString());
+
+    wxFileOutputStream outfile(filepath);
+    if (!outfile.IsOk())
     {
         wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
         return;
     }
-    f << all_to_string();
+    wxTextOutputStream out(outfile);
+    out << article->GetValue();
 
     openedFile = filepath;
     updateSaveState(true);
@@ -622,8 +600,8 @@ void MyFrame::OnSaveAs(wxCommandEvent& WXUNUSED(event))
 
 void MyFrame::OnCopyHtml(wxCommandEvent& WXUNUSED(event))
 {
-    LOG_MESSAGE("");
-    std::string str = all_to_string();
+    wxLogDebug("%s", __func__);
+    wxString str = article->GetValue();
     if (str.empty())
         return;
     if (wxTheClipboard->Open())
@@ -631,36 +609,38 @@ void MyFrame::OnCopyHtml(wxCommandEvent& WXUNUSED(event))
         md2html(str);
         wxTheClipboard->SetData( new wxTextDataObject(str) );
         wxTheClipboard->Close();
-        wxTheClipboard->Flush();
     }
 }
 
 void MyFrame::OnExportHTML(wxCommandEvent& WXUNUSED(event))
 {
-    LOG_MESSAGE("");
     wxFileDialog saveFileDialog(this,
-                                L"Export HTML", "", "",
-                                L"HTML (*.html;*.htm)|*.html;*.htm|All Files (*.*)|*.*",
+                                wxS("Export HTML"), "", "",
+                                wxS("HTML (*.html;*.htm)|*.html;*.htm|All Files (*.*)|*.*"),
                                 wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
     if (saveFileDialog.ShowModal() == wxID_CANCEL)
         return;
-
-    std::string filepath = saveFileDialog.GetPath().ToStdString();
+    wxString filepath = saveFileDialog.GetPath();
+    if (filepath.Right(3) != ".md")
+        filepath += ".md";
+    wxLogDebug("exporting html: ", filepath);
     saveHTML(filepath);
 }
 
-void MyFrame::OnQuit(wxCommandEvent& event)
+void MyFrame::OnMenuClose(wxCommandEvent& event)
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     Close(true);
 }
 
 void MyFrame::OnClose(wxCloseEvent& event)
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     wxCommandEvent evt;
     if (sureToQuit(evt))
         event.Skip(true);
+
+    wxTheClipboard->Flush();
 }
 
 void MyFrame::OnUndo(wxCommandEvent& WXUNUSED(event))
@@ -675,7 +655,7 @@ void MyFrame::OnRedo(wxCommandEvent& WXUNUSED(event))
 
 void MyFrame::OnCut(wxCommandEvent& event)
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     if (article->CanCut())
     {
         OnCopy(event);
@@ -686,7 +666,7 @@ void MyFrame::OnCut(wxCommandEvent& event)
 
 void MyFrame::OnCopy(wxCommandEvent& WXUNUSED(event))
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     wxString str;
     if (article->CanCopy())
         str = article->GetSelectedText();
@@ -696,20 +676,19 @@ void MyFrame::OnCopy(wxCommandEvent& WXUNUSED(event))
     {
         wxTheClipboard->SetData( new wxTextDataObject(str) );
         wxTheClipboard->Close();
-        wxTheClipboard->Flush();
     }
 }
 
 void MyFrame::OnPaste(wxCommandEvent& WXUNUSED(event))
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     updateSaveState(false);
     article->Paste();
 }
 
 void MyFrame::OnDelete(wxCommandEvent& WXUNUSED(event))
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     if (article->CanCut())
     {
         updateSaveState(false);
@@ -723,7 +702,7 @@ void MyFrame::OnDelete(wxCommandEvent& WXUNUSED(event))
 
 void MyFrame::OnSelAll(wxCommandEvent& WXUNUSED(event))
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     article->SelectAll();
 }
 
@@ -812,7 +791,7 @@ void MyFrame::ApplyTheme()
 
 void MyFrame::OnThemeLight(wxCommandEvent& WXUNUSED(event))
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     themeLight();
     ApplyTheme();
     saveSettings();
@@ -820,7 +799,7 @@ void MyFrame::OnThemeLight(wxCommandEvent& WXUNUSED(event))
 
 void MyFrame::OnThemeDark(wxCommandEvent& WXUNUSED(event))
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     themeDark();
     ApplyTheme();
     saveSettings();
@@ -867,7 +846,7 @@ void MyFrame::OnFont(wxCommandEvent& event)
         default:
             break;
     }
-    LOG_MESSAGE(fontFace);
+    wxLogDebug("using fontface: %s", fontFace);
 
     for (int i = wxSTC_MARKDOWN_DEFAULT; i <= wxSTC_MARKDOWN_CODEBK; i++)
         article->StyleSetFaceName(i, fontFace);
@@ -881,23 +860,21 @@ void MyFrame::OnFontSelect(wxCommandEvent& WXUNUSED(event))
 
 void MyFrame::OnBrowser(wxCommandEvent& WXUNUSED(event))
 {
-    std::string s;
+    wxString filepath;
     if (openedFile == MNP_DOC_NOTITLE) {
 #ifdef _WIN32
-        s = confFilePath + "preview.html";
+        filepath = confFilePath + "preview.html";
     } else {
-        s = wxPathOnly(openedFile).ToStdString() + "\\preview.html";
+        filepath = wxPathOnly(openedFile) + "\\preview.html";
 #else
-        wxString path = wxStandardPaths::Get().GetTempDir() + "/preview.html";
-        s = path.ToStdString();
+        filepath = wxStandardPaths::Get().GetTempDir() + "/preview.html";
     } else {
-        s = wxPathOnly(openedFile).ToStdString() + "/preview.html";
+        filepath = wxPathOnly(openedFile) + "/preview.html";
 #endif
     }
-
-    saveHTML(s);
-    LOG_MESSAGE(s);
-    wxLaunchDefaultApplication(s);
+    wxLogDebug("generating html file: %s", filepath.ToStdString());
+    saveHTML(filepath);
+    wxLaunchDefaultApplication(filepath);
 }
 
 void MyFrame::OnWordWrap(wxCommandEvent& WXUNUSED(event))
@@ -914,17 +891,17 @@ void MyFrame::OnWordWrap(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 {
     std::wstringstream detail;
-    detail << MNP_APPNAME << '\t' << MNP_VERSION_MAJOR << '.' 
+    detail << wxString(MNP_APPNAME) << ' ' << MNP_VERSION_MAJOR << '.'
            << MNP_VERSION_MINOR << '.' << MNP_VERSION_PATCH << '\n'
            << wxVERSION_STRING << '\n'
-           << MNP_COPYRIGHT;
+           << wxString(MNP_COPYRIGHT);
 
-    wxMessageBox(detail.str(), "About", wxOK | wxICON_INFORMATION, this);
+    wxMessageBox(detail.str(), wxS("About"), wxOK | wxICON_INFORMATION, this);
 }
 
 void MyFrame::OnLeftButtonDown(wxMouseEvent& event)
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     event.Skip(); // Default behaviour
 }
 
@@ -936,32 +913,32 @@ void MyFrame::OnLeftButtonDown(wxMouseEvent& event)
  */
 void MyFrame::OnLeftButtonDBClick(wxMouseEvent& event)
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     event.Skip(); // Default behaviour
 }
 
 void MyFrame::OnLeftButtonUp(wxMouseEvent& event)
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     event.Skip(); // Default behaviour
 }
 
 void MyFrame::OnRightButtonDown(wxMouseEvent& event)
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     event.Skip(); // Default behaviour
 }
 
 void MyFrame::OnRightButtonUp(wxMouseEvent& event)
 {
-    LOG_MESSAGE("");
+    wxLogDebug("%s", __func__);
     //wxMenu* editMenu = new wxMenu();
-    //editMenu->Append(EDIT_CUT, L"C&ut\tCtrl+X", L"Cut to clipboard");
-    //editMenu->Append(EDIT_COPY, L"&Copy\tCtrl+C", L"Copy to clipboard");
-    //editMenu->Append(EDIT_PASTE, L"&Paste\tCtrl+V", L"Paste from clipboard");
-    //editMenu->Append(EDIT_DELETE, L"&Delete\tDel", L"Delete selected items");
+    //editMenu->Append(EDIT_CUT, wxS("C&ut\tCtrl+X"), wxS("Cut to clipboard"));
+    //editMenu->Append(EDIT_COPY, wxS("&Copy\tCtrl+C"), wxS("Copy to clipboard"));
+    //editMenu->Append(EDIT_PASTE, wxS("&Paste\tCtrl+V"), wxS("Paste from clipboard"));
+    //editMenu->Append(EDIT_DELETE, wxS("&Delete\tDel"), wxS("Delete selected items"));
     //editMenu->AppendSeparator();
-    //editMenu->Append(EDIT_SELALL, L"&Select All\tCtrl+A", L"Select all");
+    //editMenu->Append(EDIT_SELALL, wxS("&Select All\tCtrl+A"), wxS("Select all"));
     //if (article->CanCut())
     //{
     //    editMenu->Enable(EDIT_CUT, true);
@@ -982,7 +959,7 @@ void MyFrame::OnKeyDown(wxKeyEvent& event)
         case WXK_BACK:
         case WXK_RETURN:
         case WXK_TAB:
-            LOG_MESSAGE(wxString() + uc);
+            wxLogDebug("OnKeyDown: %s", wxString(uc));
             updateSaveState(false);
             break;
         default:
@@ -1001,7 +978,7 @@ void MyFrame::OnChar(wxKeyEvent& event)
     wxChar uc = event.GetUnicodeKey();
     if (uc != WXK_NONE)
     {
-        LOG_MESSAGE(wxString() + uc);
+        wxLogDebug("OnChar: %s", wxString(uc));
         updateSaveState(false);
         event.Skip(true);
     }
@@ -1015,7 +992,6 @@ bool MyDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString &filena
 {
     wxCommandEvent evt;
     frame->sureToQuit(evt);
-    frame->loadFile(filenames[0].ToStdString());
+    frame->loadFile(filenames[0]);
     return true;
 }
-

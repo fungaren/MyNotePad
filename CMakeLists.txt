@@ -8,15 +8,19 @@ if (UNIX)
     set(CMAKE_CXX_STANDARD 11)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-    # set build type and flags
+    # set(CMAKE_CXX_COMPILER clang++)
+    # string(CONCAT CMAKE_CXX_FLAGS
+    #     "-stdlib=libstdc++ " # Do not use libc++ as wxWidgets libraries are precompiled
+    # )
+
+    # Set build type and flags
     string(CONCAT CMAKE_CXX_FLAGS_DEBUG
-        "-Wall "            # display all warnings
-        "-g "               # with debug information
-        "-O0 "               # no optimize
-        "-Wno-parentheses"   # disable parentheses warning
+        "-Wall "            # Display all warnings
+        "-g "               # With debug information
+        "-O0 "              # No optimize
     )
     string(CONCAT CMAKE_CXX_FLAGS_RELEASE
-        "-O3"               # enable optimize
+        "-O3 "               # Enable optimize
     )
     if (CMAKE_BUILD_TYPE STREQUAL "")
         set(CMAKE_BUILD_TYPE "Release")
@@ -44,16 +48,23 @@ if (UNIX)
         "${PROJECT_SOURCE_DIR}/static/mynotepad.desktop.in"
         "${PROJECT_SOURCE_DIR}/static/mynotepad.desktop"
     )
+
+    # find_package(PkgConfig REQUIRED)
+    # pkg_check_modules(GTK gtk+-3.0 REQUIRED)
+    # include_directories(${GTK_INCLUDE_DIRS})
+    # message(STATUS "GTK headers: ${GTK_INCLUDE_DIRS}")
+    # message(STATUS "GTK libraries: ${GTK_LIBRARIES}")
+    # set(EXTRA_LIBS ${EXTRA_LIBS} ${GTK_LIBRARIES})
 endif()
 
-# specify the path manually
+# Specify the path manually
 if (WIN32)
     #set(wxWidgets_ROOT_DIR "D:/wxWidgets-3.1.3/")
     #set(wxWidgets_LIB_DIR "D:/wxWidgets-3.1.3/lib/vc14x_dll")
 endif()
 set(wxWidgets_CONFIGURATION mswu) # or mswud
 
-# find wxWidgets
+# Find wxWidgets
 find_package(wxWidgets COMPONENTS core base stc REQUIRED)
 message(STATUS "wxWidgets version: ${wxWidgets_VERSION_MAJOR}."
         "${wxWidgets_VERSION_MINOR}.${wxWidgets_VERSION_PATCH}")
@@ -61,14 +72,14 @@ message(STATUS "wxWidgets version: ${wxWidgets_VERSION_MAJOR}."
 include(${wxWidgets_USE_FILE})
 set(EXTRA_LIBS ${EXTRA_LIBS} ${wxWidgets_LIBRARIES})
 
-# define header directory
+# Define header directory
 include_directories(
     "${PROJECT_BINARY_DIR}/inc"
     "${PROJECT_SOURCE_DIR}/inc"
     "${PROJECT_SOURCE_DIR}/static"
     "${PROJECT_SOURCE_DIR}/md2html/inc"
 )
-# define source directory
+# Define source directory
 aux_source_directory(src SOURCES)
 
 if (WIN32)
@@ -77,7 +88,7 @@ if (WIN32)
     list(APPEND SOURCES "static/mynotepad.manifest")
 endif()
 
-# target executable file
+# Target executable file
 set(TARGET mynotepad)
 add_executable(${TARGET} WIN32 ${SOURCES})
 
@@ -101,12 +112,12 @@ else()
     set(EXTRA_LIBS ${EXTRA_LIBS} md2html)
 endif()
 
-# link libraries
+# Link libraries
 target_link_libraries(${TARGET} ${EXTRA_LIBS})
 
 if (WIN32)
     set(WXVER "${wxWidgets_VERSION_MAJOR}${wxWidgets_VERSION_MINOR}${wxWidgets_VERSION_PATCH}")
-    # required DLLs on Windows
+    # Required DLLs on Windows
     set(ALL_DLLS_DEBUG
         "${wxWidgets_LIB_DIR}/wxbase${WXVER}ud_vc14x_x64.dll"
         "${wxWidgets_LIB_DIR}/wxbase${WXVER}ud_net_vc14x_x64.dll"
@@ -130,7 +141,7 @@ if (WIN32)
         "${PROJECT_SOURCE_DIR}/static/logo.png"
         "${PROJECT_SOURCE_DIR}/static/mynotepad.visualelementsmanifest.xml"
         )
-    # destination directory
+    # Destination directory
     set(COPY_DLLS_TO ${PROJECT_BINARY_DIR}/)
     #message(STATUS ${COPY_DLLS_TO})
     add_custom_command(TARGET ${TARGET} POST_BUILD
@@ -141,21 +152,21 @@ if (WIN32)
         )
 
 elseif (UNIX)
-    # default path is /usr/local/
+    # Default path is /usr/local/
     message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 
-    # install the program after build, /usr/local/bin/
+    # Install the program after build, /usr/local/bin/
     install(TARGETS ${TARGET} RUNTIME DESTINATION bin)
-    
-    # copy dependent files while installing, default path is /usr/local/share
+
+    # Copy dependent files while installing, default path is /usr/local/share
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/static/"
             DESTINATION "share/${PROJECT_NAME}"
             # make the files writable
             FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ WORLD_WRITE
             FILES_MATCHING PATTERN "*.css" PATTERN "*.js" PATTERN "*.png"
             )
-    
-    # create desktop icon
+
+    # Create desktop icon
     install(FILES "${PROJECT_SOURCE_DIR}/static/mynotepad.desktop"
             DESTINATION /usr/share/applications
             PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ

@@ -1,39 +1,39 @@
 ﻿#ifndef __MAIN_H__
 #define __MAIN_H__
 
-const char*  MNP_APPNAME               = "MyNotePad";
-const char*  MNP_DOC_TITLE             = " - MyNotePad";
-const char*  MNP_DOC_NOTITLE           = "Untitled";
-const char*  MNP_COPYRIGHT             = "\nCopyright(c) moooc.cc";
+const wxChar* MNP_APPNAME        = wxS("MyNotePad");
+const wxChar* MNP_DOC_TITLE      = wxS(" - MyNotePad");
+const wxChar* MNP_DOC_NOTITLE    = wxS("Untitled");
+const wxChar* MNP_COPYRIGHT      = wxS("\nCopyright(c) moooc.cc");
 
-int          MNP_PADDING_LEFT          = 16;    // space for line number
-const int    MNP_LINENUM_MARGIN_LEFT   = 4;
-const int    MNP_LINENUM_MARGIN_TOP    = 4;
-const char*  MNP_LINENUM_FONTFACE      = "Arial";
-const int    MNP_SCROLLBAR_WIDTH       = 14;
+int          MNP_PADDING_LEFT           = 16;   // space for line number
+const int    MNP_LINENUM_MARGIN_LEFT    = 4;
+const int    MNP_LINENUM_MARGIN_TOP     = 4;
+const int    MNP_SCROLLBAR_WIDTH        = 14;
+const wxChar* MNP_LINENUM_FONTFACE      = wxS("Arial");
 
-const char*  MNP_CONFIG_FILE           = "MyNotePad.conf";
-const char*  MNP_CONFIG_THEME          = "theme";
-const char*  MNP_CONFIG_WORDWRAP       = "word-wrap";
-const char*  MNP_CONFIG_LINENUMBER     = "line-number";
-const char*  MNP_CONFIG_FONTNAME       = "font-name";
+const wxChar* MNP_CONFIG_FILE           = wxS("MyNotePad.conf");
+const wxChar* MNP_CONFIG_THEME          = wxS("theme");
+const wxChar* MNP_CONFIG_WORDWRAP       = wxS("word-wrap");
+const wxChar* MNP_CONFIG_LINENUMBER     = wxS("line-number");
+const wxChar* MNP_CONFIG_FONTNAME       = wxS("font-name");
 
-const char*  INFO_SAVE                 = "Save changes?";
-const char*  ERR_OPEN_FAIL             = "Failed to save HTML file, \n"\
-                                         "make sure you have permissions to write that file.";
-const char*  ERR_FAULT_ENCODING        = "Can only open UTF-8 files!";
-const char*  ERR_UNKNOWN               = "Unknown error";
+const wxChar* INFO_SAVE          = wxS("Save changes?");
+const wxChar* ERR_OPEN_FAIL      = wxS("Failed to save HTML file, \n"\
+                                         "make sure you have permissions to write that file.");
+const wxChar* ERR_FAULT_ENCODING = wxS("Can only open UTF-8 files!");
+const wxChar* ERR_UNKNOWN        = wxS("Unknown error");
 
 #ifdef _WIN32
-const char*  FONT_1     = "Microsoft Yahei";
-const char*  FONT_2     = "Lucida Console";
-const char*  FONT_3     = "Courier New";
-const char*  FONT_4     = "Consolas";
+const wxChar* FONT_1     = wxS("Microsoft Yahei");
+const wxChar* FONT_2     = wxS("Lucida Console");
+const wxChar* FONT_3     = wxS("Courier New");
+const wxChar* FONT_4     = wxS("Consolas");
 #else
-const char*  FONT_1     = "Noto Sans Mono";
-const char*  FONT_2     = "Liberation Mono";
-const char*  FONT_3     = "Courier 10 Pitch";
-const char*  FONT_4     = "DejaVu Sans Mono";
+const wxChar* FONT_1     = wxS("Noto Sans Mono");
+const wxChar* FONT_2     = wxS("Liberation Mono");
+const wxChar* FONT_3     = wxS("Courier 10 Pitch");
+const wxChar* FONT_4     = wxS("DejaVu Sans Mono");
 #endif
 
 struct CharStyle
@@ -49,18 +49,17 @@ const CharStyle default_style = { 0 };
 class MyFrame : public wxFrame {
 public:
     MyFrame(const wxString& title);
-    
+
     void themeLight();
     void themeDark();
     void loadSettings();
     void saveSettings();
     void updateSaveState(bool saved);
-    void loadFile(const std::string path);
+    void loadFile(wxString path);
     bool sureToQuit(wxCommandEvent& event);
-    void saveHTML(const std::string pathname);
-    std::string all_to_string();
+    void saveHTML(const wxString& pathname);
     void ApplyTheme();
-    void md2html(std::string& str);
+    void md2html(wxString& str);
     int widthOfLineNumber() const;
 #ifndef _WIN32
     // this function is not exists on Linux
@@ -76,14 +75,14 @@ protected:
     void OnRightButtonUp(wxMouseEvent& event);
     void OnKeyDown(wxKeyEvent& event);
     void OnChar(wxKeyEvent& event);
-    
+
     void OnNew(wxCommandEvent& event);
     void OnOpen(wxCommandEvent& event);
     void OnSave(wxCommandEvent& event);
     void OnSaveAs(wxCommandEvent& event);
     void OnCopyHtml(wxCommandEvent& event);
     void OnExportHTML(wxCommandEvent& event);
-    void OnQuit(wxCommandEvent& event);
+    void OnMenuClose(wxCommandEvent& event);
     void OnUndo(wxCommandEvent& event);
     void OnRedo(wxCommandEvent& event);
     void OnCut(wxCommandEvent& event);
@@ -116,10 +115,9 @@ private:
     };
     notepadCtrl *article;
     bool bShowLineNumber;       // display line number (initial true)
-    bool bResized;              // flag indicates the app window is resized
     bool bSaved;                // set false after file is modified
     bool bWordWrap;             // break word (initial false)
-    
+
     enum THEME {
         THEME_LIGHT,
         THEME_DARK
@@ -135,12 +133,12 @@ private:
     wxColour lineNumFontColor;
     wxColour scrollBarBgColor;
     wxColour scrollBarColor;
-    const char* fontFace;
     int fontSize;
     int lineNumFontSize;
+    const wxChar* fontFace;
     // configure file Path
-    std::string confFilePath;
-    std::string openedFile;
+    wxString confFilePath;
+    wxString openedFile;
     DECLARE_EVENT_TABLE()
 };
 
