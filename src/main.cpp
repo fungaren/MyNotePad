@@ -16,7 +16,6 @@
 #include <sstream>
 #include <cstdlib>
 
-#include "config.h"
 #include "main.h"
 #if _WIN32
 #include "resource.h"
@@ -129,7 +128,7 @@ IMPLEMENT_APP(MyApp)
 
 bool MyApp::OnInit()
 {
-    MyFrame *frame = new MyFrame(MNP_APPNAME);
+    MyFrame *frame = new MyFrame(MNP_PROJECT_NAME);
     frame->SetSize(400, 300, frame->FromDIP(800), frame->FromDIP(600));
     frame->loadSettings();
 
@@ -208,16 +207,17 @@ void MyFrame::loadSettings()
     {
         wxTextInputStream in(infile);
         wxString line;
-        while (!(line = in.ReadLine()).IsEmpty())
+        while (infile.CanRead())
         {
-            if (line[0] == wxS('#'))
+            line = in.ReadLine();
+            if (line.IsEmpty() || line[0] == wxS('#'))
                 continue;   // # this is comment
 
             const int pos = line.Find(wxS('='));    // eg. best = 999
             if (pos != wxNOT_FOUND)
             {
                 wxString key = line.substr(0, pos); // acquire key
-                wxString val = line.substr(pos);    // acquire value
+                wxString val = line.substr(pos + 1);    // acquire value
                 if (val.Last() == '\r') val.RemoveLast(1);    // remove '\r' at the end
                 if (key == MNP_CONFIG_THEME && std::atoi(val.c_str()) == THEME::THEME_DARK)
                     themeDark();
@@ -270,15 +270,15 @@ void MyFrame::saveSettings()
     wxFileOutputStream outfile(pathname);
     if (!outfile.IsOk())
     {
-        wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
+        wxMessageBox(ERR_OPEN_FAIL, MNP_PROJECT_NAME, wxOK | wxICON_ERROR, this);
         return;
     }
     wxTextOutputStream out(outfile);
-    out << "# Edit this file to config MyNotePad\r\n";
-    out << wxString(MNP_CONFIG_THEME) << '=' << theme << "\r\n";
-    out << wxString(MNP_CONFIG_WORDWRAP) << '=' << bWordWrap << "\r\n";
-    out << wxString(MNP_CONFIG_LINENUMBER) << '=' << bShowLineNumber << "\r\n";
-    out << wxString(MNP_CONFIG_FONTNAME) << '=' << wxString(fontFace);
+    out << wxS("# Edit this file to config ") MNP_PROJECT_NAME wxS("\r\n");
+    out << wxString(MNP_CONFIG_THEME) << wxS('=') << theme << wxS("\r\n");
+    out << wxString(MNP_CONFIG_WORDWRAP) << wxS('=') << bWordWrap << wxS("\r\n");
+    out << wxString(MNP_CONFIG_LINENUMBER) << wxS('=') << bShowLineNumber << wxS("\r\n");
+    out << wxString(MNP_CONFIG_FONTNAME) << wxS('=') << wxString(fontFace);
 }
 
 int MyFrame::widthOfLineNumber() const
@@ -318,7 +318,7 @@ void MyFrame::loadFile(wxString pathname)
     wxFileInputStream infile(pathname);
     if (!infile.IsOk()) {
         wxMessageBox(wxS("Failed to load \"") + pathname + wxS("\"."),
-            MNP_APPNAME, wxOK | wxICON_WARNING, this);
+            MNP_PROJECT_NAME, wxOK | wxICON_WARNING, this);
         return;
     }
     std::string bytes;
@@ -337,7 +337,7 @@ bool MyFrame::sureToQuit(wxCommandEvent& event)
 {
     if (!bSaved)
     {
-        int r = wxMessageBox(INFO_SAVE, MNP_APPNAME, wxYES_NO | wxCANCEL | wxICON_WARNING, this);
+        int r = wxMessageBox(INFO_SAVE, MNP_PROJECT_NAME, wxYES_NO | wxCANCEL | wxICON_WARNING, this);
         if (r == wxCANCEL)
             return false;
         else if (r == wxYES)
@@ -354,7 +354,7 @@ void MyFrame::saveHTML(const wxString& pathname)
     wxFileOutputStream outfile(pathname);
     if (!outfile.IsOk())
     {
-        wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
+        wxMessageBox(ERR_OPEN_FAIL, MNP_PROJECT_NAME, wxOK | wxICON_ERROR, this);
         return;
     }
     wxTextOutputStream out(outfile);
@@ -386,8 +386,8 @@ void MyFrame::saveHTML(const wxString& pathname)
 </head><body><main>)raw");
     wxString str = article->GetValue();
     md2html(str);
-    out << str << wxS("</main><center><small>Created by <a href='https:/"\
-            "/github.com/mooction/MyNotePad'>MyNotePad</a>.</small></center>");
+    out << str << wxS("</main><center><small>Created by <a href='") \
+        MNP_HOMEPAGE_URL wxS("'>") MNP_PROJECT_NAME wxS("</a>.</small></center>");
     if (str.Find('$') != wxNOT_FOUND ||
         str.Find("\\[") != wxNOT_FOUND ||
         str.Find("\\(") != wxNOT_FOUND)
@@ -562,7 +562,7 @@ void MyFrame::OnSave(wxCommandEvent& event)
         wxFileOutputStream outfile(openedFile);
         if (!outfile.IsOk())
         {
-            wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
+            wxMessageBox(ERR_OPEN_FAIL, MNP_PROJECT_NAME, wxOK | wxICON_ERROR, this);
             return;
         }
         wxTextOutputStream out(outfile);
@@ -589,7 +589,7 @@ void MyFrame::OnSaveAs(wxCommandEvent& WXUNUSED(event))
     wxFileOutputStream outfile(filepath);
     if (!outfile.IsOk())
     {
-        wxMessageBox(ERR_OPEN_FAIL, MNP_APPNAME, wxOK | wxICON_ERROR, this);
+        wxMessageBox(ERR_OPEN_FAIL, MNP_PROJECT_NAME, wxOK | wxICON_ERROR, this);
         return;
     }
     wxTextOutputStream out(outfile);
@@ -864,13 +864,13 @@ void MyFrame::OnBrowser(wxCommandEvent& WXUNUSED(event))
     wxString filepath;
     if (openedFile == MNP_DOC_NOTITLE) {
 #ifdef _WIN32
-        filepath = confFilePath + "preview.html";
+        filepath = confFilePath + MNP_PREVIEW_FILE;
     } else {
-        filepath = wxPathOnly(openedFile) + "\\preview.html";
+        filepath = wxPathOnly(openedFile) + wxS("\\") + MNP_PREVIEW_FILE;
 #else
-        filepath = wxStandardPaths::Get().GetTempDir() + "/preview.html";
+        filepath = wxStandardPaths::Get().GetTempDir() + wxS("/") + MNP_PREVIEW_FILE;
     } else {
-        filepath = wxPathOnly(openedFile) + "/preview.html";
+        filepath = wxPathOnly(openedFile) + wxS("/") + MNP_PREVIEW_FILE;
 #endif
     }
     wxLogDebug("generating html file: %s", filepath.ToStdString());
@@ -892,10 +892,10 @@ void MyFrame::OnWordWrap(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 {
     std::wstringstream detail;
-    detail << wxString(MNP_APPNAME) << ' ' << MNP_VERSION_MAJOR << '.'
+    detail << MNP_PROJECT_NAME << ' ' << MNP_VERSION_MAJOR << '.'
            << MNP_VERSION_MINOR << '.' << MNP_VERSION_PATCH << '\n'
            << wxVERSION_STRING << '\n'
-           << wxString(MNP_COPYRIGHT);
+           << MNP_COPYRIGHT;
 
     wxMessageBox(detail.str(), wxS("About"), wxOK | wxICON_INFORMATION, this);
 }

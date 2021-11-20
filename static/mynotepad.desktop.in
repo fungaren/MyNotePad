@@ -1,13 +1,13 @@
 [Desktop Entry]
-Version=@MYNOTEPAD_VERSION_MAJOR@.@MYNOTEPAD_VERSION_MINOR@.@MYNOTEPAD_VERSION_PATCH@
+Version=@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@
 Type=Application
-Name=MyNotePad
-GenericName=MyNotePad Text Editor
-Comment=A markdown editor support dump HTML file
-Exec=/usr/local/bin/mynotepad %F
+Name=@PROJECT_NAME@
+GenericName=@PROJECT_NAME@
+Comment=@PROJECT_DESCRIPTION@
+Exec=@CMAKE_INSTALL_PREFIX@/bin/mynotepad %F
 Terminal=false
 MimeType=text/plain;
-Icon=@MYNOTEPAD_INSTALL_PATH@/mynotepad/icon.png
+Icon=@CMAKE_INSTALL_PREFIX@/share/mynotepad/icon.png
 Categories=TextEditor;Development;
 StartupNotify=true
 Actions=Window;Document;
@@ -16,5 +16,5 @@ X-Deepin-AppID=mynotepad
 
 [Desktop Action Document]
 Name=New File
-Exec=/usr/local/bin/mynotepad 
+Exec=@CMAKE_INSTALL_PREFIX@/bin/mynotepad 
 OnlyShowIn=Unity;

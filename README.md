@@ -4,7 +4,7 @@
 
 ## Synopsis
 
-A markdown editor that supports exporting HTML.
+A markdown editor supports exporting HTML.
 
 This program is initially written in pure win32 APIs just like [this](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646268(v=vs.85).aspx). Later it's rewritten using wxWidgets, you can build it in Windows and Linux.
 

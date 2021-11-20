@@ -1,10 +1,11 @@
 ﻿#ifndef __MAIN_H__
 #define __MAIN_H__
 
-const wxChar* MNP_APPNAME        = wxS("MyNotePad");
-const wxChar* MNP_DOC_TITLE      = wxS(" - MyNotePad");
+#include "config.h"
+
+const wxChar* MNP_PREVIEW_FILE   = wxS("preview.html");
+const wxChar* MNP_DOC_TITLE      = wxS(" - ") MNP_PROJECT_NAME;
 const wxChar* MNP_DOC_NOTITLE    = wxS("Untitled");
-const wxChar* MNP_COPYRIGHT      = wxS("\nCopyright(c) moooc.cc");
 
 int          MNP_PADDING_LEFT           = 16;   // space for line number
 const int    MNP_LINENUM_MARGIN_LEFT    = 4;
@@ -12,7 +13,7 @@ const int    MNP_LINENUM_MARGIN_TOP     = 4;
 const int    MNP_SCROLLBAR_WIDTH        = 14;
 const wxChar* MNP_LINENUM_FONTFACE      = wxS("Arial");
 
-const wxChar* MNP_CONFIG_FILE           = wxS("MyNotePad.conf");
+const wxChar* MNP_CONFIG_FILE           = MNP_PROJECT_NAME wxS(".conf");
 const wxChar* MNP_CONFIG_THEME          = wxS("theme");
 const wxChar* MNP_CONFIG_WORDWRAP       = wxS("word-wrap");
 const wxChar* MNP_CONFIG_LINENUMBER     = wxS("line-number");
@@ -20,7 +21,7 @@ const wxChar* MNP_CONFIG_FONTNAME       = wxS("font-name");
 
 const wxChar* INFO_SAVE          = wxS("Save changes?");
 const wxChar* ERR_OPEN_FAIL      = wxS("Failed to save HTML file, \n"\
-                                         "make sure you have permissions to write that file.");
+                                       "make sure you have permissions to write that file.");
 const wxChar* ERR_FAULT_ENCODING = wxS("Can only open UTF-8 files!");
 const wxChar* ERR_UNKNOWN        = wxS("Unknown error");
 

@@ -34,8 +34,8 @@ ICON_MYNOTEPAD          ICON                    "mynotepad.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION @MYNOTEPAD_VERSION_MAJOR@,@MYNOTEPAD_VERSION_MINOR@,@MYNOTEPAD_VERSION_PATCH@,0
- PRODUCTVERSION @MYNOTEPAD_VERSION_MAJOR@,@MYNOTEPAD_VERSION_MINOR@,@MYNOTEPAD_VERSION_PATCH@,0
+ FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+ PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -50,14 +50,14 @@ BEGIN
     BEGIN
         BLOCK "080404b0"
         BEGIN
-            VALUE "CompanyName", "moooc.cc"
-            VALUE "FileDescription", "MyNotePad"
-            VALUE "FileVersion", "@MYNOTEPAD_VERSION_MAJOR@.@MYNOTEPAD_VERSION_MINOR@.@MYNOTEPAD_VERSION_PATCH@.0"
-            VALUE "InternalName", "mynotepad.exe"
-            VALUE "LegalCopyright", "Copyright (C) 2021"
-            VALUE "OriginalFilename", "mynotepad.exe"
-            VALUE "ProductName", "MyNotePad"
-            VALUE "ProductVersion", "@MYNOTEPAD_VERSION_MAJOR@.@MYNOTEPAD_VERSION_MINOR@.@MYNOTEPAD_VERSION_PATCH@.0"
+            VALUE "CompanyName", "@PROJECT_HOMEPAGE_URL@"
+            VALUE "FileDescription", "@PROJECT_DESCRIPTION@"
+            VALUE "FileVersion", "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@.0"
+            VALUE "InternalName", "@PROJECT_NAME@.exe"
+            VALUE "LegalCopyright", "@PROJECT_COPYRIGHT@"
+            VALUE "OriginalFilename", "@PROJECT_NAME@.exe"
+            VALUE "ProductName", "@PROJECT_NAME@"
+            VALUE "ProductVersion", "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@.0"
         END
     END
     BLOCK "VarFileInfo"

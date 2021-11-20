@@ -31,13 +31,15 @@ if (UNIX)
     message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 endif()
 
-set(MYNOTEPAD_VERSION_MAJOR 1)
-set(MYNOTEPAD_VERSION_MINOR 0)
-set(MYNOTEPAD_VERSION_PATCH 7)
-message(STATUS "MyNotePad version: ${MYNOTEPAD_VERSION_MAJOR}."
-        "${MYNOTEPAD_VERSION_MINOR}.${MYNOTEPAD_VERSION_PATCH}")
+set(PROJECT_HOMEPAGE_URL "https://github.com/mooction/MyNotePad")
+set(PROJECT_DESCRIPTION "A markdown editor supports exporting HTML.")
+set(PROJECT_COPYRIGHT "Copyright (C) 2021")
+set(PROJECT_VERSION_MAJOR 1)
+set(PROJECT_VERSION_MINOR 0)
+set(PROJECT_VERSION_PATCH 7)
+message(STATUS "MyNotePad version: ${PROJECT_VERSION_MAJOR}."
+        "${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 
-set(MYNOTEPAD_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/share")
 configure_file(
     "${PROJECT_SOURCE_DIR}/inc/config.h.in"
     "${PROJECT_BINARY_DIR}/inc/config.h"
