@@ -1,8 +1,19 @@
 ﻿cmake_minimum_required(VERSION 3.11)
+if (${CMAKE_VERSION} VERSION_GREATER "3.20")
+    cmake_policy(SET CMP0115 NEW)
+endif()
 project(mynotepad)
 
+set(PROJECT_HOMEPAGE_URL "https://github.com/mooction/MyNotePad")
+set(PROJECT_DESCRIPTION "A markdown editor supports exporting HTML.")
+set(PROJECT_COPYRIGHT "Copyright (C) 2021")
+set(PROJECT_VERSION_MAJOR 1)
+set(PROJECT_VERSION_MINOR 0)
+set(PROJECT_VERSION_PATCH 7)
+message(STATUS "MyNotePad version: ${PROJECT_VERSION_MAJOR}.\
+${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
-#add_definitions("$<$<CONFIG:Debug>:-D_DEBUG>")
 
 if (UNIX)
     set(CMAKE_CXX_STANDARD 11)
@@ -22,23 +33,11 @@ if (UNIX)
     string(CONCAT CMAKE_CXX_FLAGS_RELEASE
         "-O3 "               # Enable optimize
     )
-    if (CMAKE_BUILD_TYPE STREQUAL "")
+    if (NOT CMAKE_BUILD_TYPE)
         set(CMAKE_BUILD_TYPE "Release")
     endif()
-    # Set the possible values of build type for cmake-gui
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-        "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
     message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 endif()
-
-set(PROJECT_HOMEPAGE_URL "https://github.com/mooction/MyNotePad")
-set(PROJECT_DESCRIPTION "A markdown editor supports exporting HTML.")
-set(PROJECT_COPYRIGHT "Copyright (C) 2021")
-set(PROJECT_VERSION_MAJOR 1)
-set(PROJECT_VERSION_MINOR 0)
-set(PROJECT_VERSION_PATCH 7)
-message(STATUS "MyNotePad version: ${PROJECT_VERSION_MAJOR}."
-        "${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 
 configure_file(
     "${PROJECT_SOURCE_DIR}/inc/config.h.in"
@@ -64,11 +63,6 @@ else()
     )
 endif()
 
-# Specify the path manually
-if (WIN32)
-    #set(wxWidgets_ROOT_DIR "D:/wxWidgets-3.1.3/")
-    #set(wxWidgets_LIB_DIR "D:/wxWidgets-3.1.3/lib/vc14x_dll")
-endif()
 set(wxWidgets_CONFIGURATION mswu) # or mswud
 
 # Find wxWidgets
@@ -140,7 +134,6 @@ if (WIN32)
         "${wxWidgets_LIB_DIR}/wxmsw${WXVER}u_stc_vc14x_x64.dll"
         )
     set(ALL_DLLS $<$<CONFIG:Debug>:${ALL_DLLS_DEBUG}>$<$<CONFIG:Release>:${ALL_DLLS_RELEASE}>)
-    #message(STATUS ${ALL_DLLS})
     set(STATIC_RESOURCES
         "${PROJECT_SOURCE_DIR}/static/highlight.css"
         "${PROJECT_SOURCE_DIR}/static/highlight.pack.js"
@@ -148,13 +141,10 @@ if (WIN32)
         "${PROJECT_SOURCE_DIR}/static/logo.png"
         "${PROJECT_SOURCE_DIR}/static/mynotepad.visualelementsmanifest.xml"
         )
-    # Destination directory
-    set(COPY_DLLS_TO ${PROJECT_BINARY_DIR}/)
-    #message(STATUS ${COPY_DLLS_TO})
     add_custom_command(TARGET ${TARGET} POST_BUILD
         COMMAND_EXPAND_LISTS
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ALL_DLLS}" "${COPY_DLLS_TO}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${STATIC_RESOURCES}" "${COPY_DLLS_TO}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ALL_DLLS}" "${PROJECT_BINARY_DIR}/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${STATIC_RESOURCES}" "${PROJECT_BINARY_DIR}/"
         COMMENT "Copying DLLs" VERBATIM
         )
 
@@ -168,7 +158,7 @@ elseif (UNIX)
     # Copy dependent files while installing, default path is /usr/local/share
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/static/"
             DESTINATION "share/${PROJECT_NAME}"
-            # make the files writable
+            # Make the files writable
             FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ WORLD_WRITE
             FILES_MATCHING PATTERN "*.css" PATTERN "*.js" PATTERN "*.png"
             )
